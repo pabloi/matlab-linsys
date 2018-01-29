@@ -1,4 +1,4 @@
-function out=fwdSim(in,A,B,C,D,x0)
+function [out,state]=fwdSim(in,A,B,C,D,x0)
 [M,N]=size(in);
 out=nan(size(C,1),N);
 state=nan(size(A,1),N);
