@@ -42,7 +42,7 @@ Ch=Ch.*ss';
 
 %% COmpare
 figure;
-subplot(2,2,1) %Output along first PC of true data
+subplot(3,2,1) %Output along first PC of true data
 [pp,cc,aa]=pca(Y,'Centered','off');
 hold on
 plot(cc(:,1)'*(Y),'LineWidth',1)
@@ -52,7 +52,7 @@ set(gca,'ColorOrderIndex',1)
 plot(cc(:,1)'*(fCh*fXh+fDh*U),'-.','LineWidth',2)
 title('Output projection over main PCs')
 
-subplot(2,2,2) %States
+subplot(3,2,2) %States
 hold on
 plot(X','LineWidth',1)
 set(gca,'ColorOrderIndex',1)
@@ -61,7 +61,7 @@ set(gca,'ColorOrderIndex',1)
 plot(fXh','-.','LineWidth',2)
 title('States')
 
-subplot(2,2,3) %Output RMSE
+subplot(3,2,3) %Output RMSE
 hold on
 set(gca,'ColorOrderIndex',1)
 aux=sqrt(sum((Y-C*X(:,1:end-1)-D*U).^2));
@@ -76,5 +76,37 @@ title('Output error (RMSE)')
 bar([1900:100:2100],mean([aux; aux1; aux2]'),'EdgeColor','none')
 text(100,3, 'Need to add likelihood measure')
 
-subplot(2,2,4) %States RMSE
+subplot(3,2,4) %States RMSE
 title({'RMSE of states:'; 'need to define robust Canonical form'})
+
+subplot(3,2,5) %Smooth output RMSE
+hold on
+set(gca,'ColorOrderIndex',1)
+[Y1,~]=fwdSim(U,A,B,C,D,x0,[],[]);
+aux=sqrt(sum((Y-Y1).^2));
+plot(aux)
+set(gca,'ColorOrderIndex',1)
+[Y1,~]=fwdSim(U,J,K,Ch,Dh,x0,[],[]);
+aux1=sqrt(sum((Y-Y1).^2));
+plot(aux1,'LineWidth',2)
+set(gca,'ColorOrderIndex',1)
+[Y1,~]=fwdSim(U,fJ,fK,fCh,fDh,x0,[],[]);
+aux2=sqrt(sum((Y-Y1).^2));
+plot(aux2,'-.','LineWidth',2)
+title('Smooth output error (RMSE)')
+bar([1900:100:2100],mean([aux; aux1; aux2]'),'EdgeColor','none')
+text(100,30, 'Why is this so bad?') %I think there is a normalization issue in canonize, such that the fwdSim of the model does not match with the states that canonize() returns
+
+subplot(3,2,6) %Smooth output RMSE
+hold on
+set(gca,'ColorOrderIndex',1)
+[Y1,X1]=fwdSim(U,A,B,C,D,x0,[],[]);
+aux=sqrt(sum((Y-Y1).^2));
+plot(X1')
+set(gca,'ColorOrderIndex',1)
+[Y1,X1]=fwdSim(U,J,K,Ch,Dh,x0,[],[]);
+plot(X1','LineWidth',2)
+set(gca,'ColorOrderIndex',1)
+[Y1,X1]=fwdSim(U,fJ,fK,fCh,fDh,x0,[],[]);
+plot(X1','-.','LineWidth',2)
+text(100,30, 'Why is this so bad?')

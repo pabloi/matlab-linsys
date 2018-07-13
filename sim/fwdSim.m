@@ -1,7 +1,7 @@
 function [out,state]=fwdSim(in,A,B,C,D,x0,Q,R)
 [M,N]=size(in);
 out=nan(size(C,1),N);
-state=nan(size(A,1),N);
+state=nan(size(A,1),N+1);
 if nargin<6 || isempty(x0)
 state(:,1)=zeros(size(A,1),1);
 else
