@@ -1,5 +1,4 @@
-function [Xs,Ps,X,P,Xp,Pp,rejSamples]=statKalmanSmoother
-(Y,A,C,Q,R,x0,P0,B,D,U,outRejFlag,constFun)
+function [Xs,Ps,X,P,Xp,Pp,rejSamples]=statKalmanSmoother(Y,A,C,Q,R,x0,P0,B,D,U,outRejFlag,constFun)
 
   %Init missing params:
   if nargin<6 || isempty(x0)
