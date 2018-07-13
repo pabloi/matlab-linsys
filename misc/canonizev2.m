@@ -18,6 +18,7 @@ C=C*V;
 scale=sqrt(sum(C.^2,1));
 C=C./scale;
 X=scale'.*(V\Xa);
+K=scale'.*K;
 
 end
 
