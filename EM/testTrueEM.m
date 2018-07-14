@@ -6,17 +6,17 @@ D2=100;
 N=1000;
 A=randn(D1);
 A=.98*A./max(abs(eig(A))); %Setting the max eigenvalue to .98
-A=[.95,0;0,.99];
+A=[.99,0;0,.95];
 A=jordan(A); %Using A in its jordan canonical form so we can compare identified systems, WLOG
-B=3*randn(D1,1);
-B=B./sign(B); %Forcing all elements of B to be >0, WLOG
+%B=3*randn(D1,1);
+%B=B./sign(B); %Forcing all elements of B to be >0, WLOG
+B=(eye(size(A))-A)*ones(size(A,1),1); %WLOG, arbitrary scaling
 U=[zeros(300,1);ones(N,1);zeros(N/2,1)]'; %Step input and then removed
 C=randn(D2,D1);
-C=C./sqrt(sum(C.^2,1));
 D=randn(D2,1);
 X0=randn(2,1);
-Q=eye(D1)*.9;
-R=eye(D2)*.4;
+Q=eye(D1)*.0001;
+R=eye(D2)*.01;
 
 %% Simulate
 NN=size(U,2);
@@ -24,21 +24,13 @@ x0=zeros(D1,1);
 [Y,X]=fwdSim(U,A,B,C,D,x0,Q,R);
 %% Identify 1: fast EM
 [fAh,fBh,fCh,fDh,fQh,fRh,fXh]=fastEM(Y,U,2);
-[fJ,fK,fCh,fXh,fV] = canonizev2(fAh,fBh,fCh,fXh);
-ss=sign(fK);
-fK=fK.*ss;
-fXh=fXh.*ss;
-fK=ss'*fK*ss;
-fCh=fCh.*ss';
-
 %% Identify 2: true EM
 [Ah,Bh,Ch,Dh,Qh,Rh,Xh]=trueEM(Y,U,2);
+%% Identify 3: sPCAv8"
+
+%% Canonize results:
+[fJ,fK,fCh,fXh,fV] = canonizev2(fAh,fBh,fCh,fXh);
 [J,K,Ch,Xh,V] = canonizev2(Ah,Bh,Ch,Xh);
-ss=sign(K);
-K=K.*ss;
-Xh=Xh.*ss;
-K=ss'*K*ss;
-Ch=Ch.*ss';
 
 %% COmpare
 figure;
@@ -60,6 +52,7 @@ plot(Xh','LineWidth',2)
 set(gca,'ColorOrderIndex',1)
 plot(fXh','-.','LineWidth',2)
 title('States')
+axis([0 2000 -.5 2])
 
 subplot(3,2,3) %Output RMSE
 hold on
@@ -75,6 +68,7 @@ plot(aux2,'-.','LineWidth',2)
 title('Output error (RMSE)')
 bar([1900:100:2100],mean([aux; aux1; aux2]'),'EdgeColor','none')
 text(100,3, 'Need to add likelihood measure')
+axis([0 2200 -10 40])
 
 subplot(3,2,4) %States RMSE
 title({'RMSE of states:'; 'need to define robust Canonical form'})
