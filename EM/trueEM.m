@@ -17,7 +17,7 @@ P0=[];
 %Now, do E-M
 for k=1:10
 	%E-step: compute the expectation of latent variables given current parameter estimates
-	[X,Ps,Xf,Pf,Xp,Pp,rejSamples]=statKalmanSmoother(Y,A,C,Q/1.5,R,x0,P0,B,D,U);
+	[X,Ps,Xf,Pf,Xp,Pp,rejSamples]=statKalmanSmoother(Y,A,C,Q,R,x0,P0,B,D,U);
     %Note this is an approximation of true E-step in E-M algorithm. The
     %E-step requires to compute the expectation of the likelihood of the data under the
     %latent variables = E(L(Y,X|params)), to then maximize it
