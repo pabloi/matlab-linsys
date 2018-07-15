@@ -12,4 +12,4 @@ D=CD(:,D1+1:end);
 
 %Find MLE noise realization:
 Z=Y-C*X-D*U;
-R=cov(Z'); %TODO: Should be uncentered 2nd moments
+R=(Z*Z')/size(Z,2);

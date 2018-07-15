@@ -39,9 +39,9 @@ for i=1:size(Y,2)
   Pp(:,:,i)=prevP;
   d=D*U(:,i);
   if ~outlierRejection
-    [prevX,prevP]=updateKF(C,R,prevX,prevP,Y(:,i),d);
+    [prevX,prevP]=KFupdate(C,R,prevX,prevP,Y(:,i),d);
   else
-    [prevX,prevP,rejSamples(:,i)]=update_wOutlierRejection(C,R,prevX,prevP,Y(:,i),d);
+    [prevX,prevP,rejSamples(:,i)]=KFupdate(C,R,prevX,prevP,Y(:,i),d,[]);
   end
   X(:,i)=prevX;
   P(:,:,i)=prevP;

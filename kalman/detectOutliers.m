@@ -1,6 +1,10 @@
-function [outlierIndx]=detectOutliers(y,x,P,C,R)
+function [outlierIndx]=detectOutliers(y,x,P,C,R,rejectThreshold)
 m=size(y,1);
+if nargin<6 || isempty(rejectThreshold)
 th=9; %Threshold, limit value for (x-mu)'*sigma^{-1}*(x-mu)/m
+else
+th=rejectThreshold;
+end
 expY=C*x;
 Py=C*P*C' + R;
 innov=y-expY;

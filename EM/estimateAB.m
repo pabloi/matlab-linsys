@@ -12,6 +12,6 @@ B=AB(:,D+1);
 
 %Find MLE noise realization:
 W=X(:,2:N)-A*X(:,1:N-1)-B*U(:,1:N-1);
-Q=cov(W'); %TODO: It really should be the squared sums of W (uncentered)
+Q=(W*W')/size(W,2);
 
 

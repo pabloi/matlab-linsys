@@ -1,4 +1,4 @@
-function [J,K,C,X,V] = canonizev2(A,B,C,Xa)
+function [J,K,C,X,V,Q] = canonizev2(A,B,C,Xa,Q)
 %Canonize returns the canonical form of the linear system given by
 %A,B,C,D,X; scaling C to have unity norm along each column
 
@@ -20,6 +20,10 @@ function [J,K,C,X,V] = canonizev2(A,B,C,Xa)
 % X=scale'.*(V\Xa);
 % K=scale'.*K;
 
+if nargin<5
+    Q=zeros(size(J));
+end
+
 %Lazy way:
 sys=ss(A,B,C,zeros(size(C,1),size(B,2)),1);
 [csys,V]=canon(sys);
@@ -27,6 +31,7 @@ J=csys.A;
 K=csys.B;
 C=csys.C;
 X=V*Xa;
+Q=V*Q*V';
 
 %Scale B at will
 %TODO: formally, we can only scale the states whose evolution depends
@@ -36,12 +41,23 @@ X=V*Xa;
 m=max(abs(K),[],2);
 s=sign(K(abs(K)==m));
 scale=(eye(size(J))-J)*ones(size(J,1),1).*s./m;
-V=diag(scale);
-csys = ss2ss(csys,V); 
+V2=diag(scale);
+csys = ss2ss(csys,V2); 
 J=csys.A;
 K=csys.B;
 C=csys.C;
-X=V*X;
+X=V2*X;
+Q=V2*Q*V2';
+V=V2*V;
+
+%Sort states according to increasing time-constants
+[~,idx]=sort(diag(J)); %This works if the matrix is diagonalizable
+J=J(idx,idx);
+K=K(idx);
+C=C(:,idx);
+X=X(idx,:);
+V=V(idx,:);
+Q=Q(idx,idx);
 
 end
 
