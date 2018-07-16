@@ -36,7 +36,8 @@ else
     [X,P,Xp,Pp,rejSamples]=filterStationary_wConstraint(Y,A,C,Q,R,x0,P0,B,D,U,constFun);  
 end
 
-%Step 2: backward pass:
+%Step 2: backward pass: (following the Rauch-Tung-Striebel implementation:
+%https://en.wikipedia.org/wiki/Kalman_filter#Fixed-interval_smoothers)
 Xs=X;
 Ps=P;
 prevXs=X(:,end);
@@ -44,14 +45,19 @@ prevPs=P(:,:,end);
 S=pinv(Q)*A;
 
 for i=(size(Y,2)-1):-1:1
-  H= pinv(P(:,:,i)) + A'*S;
-  invH=pinv(H);
-  newK=invH*S';
-  %Equivalent tp:
-  %newK=P(:,:,i)*A'/Pp(:,:,i+1);
-  prevXs=X(:,i) + newK*(prevXs-A*X(:,i));
+  %H= pinv(P(:,:,i)) + A'*S;
+  %invH=pinv(H);
+  %newK=invH*S';
+  %Equivalent to:
+  PP=P(:,:,i);
+  prevPriorP=Pp(:,:,i+1);
+  newK=PP*A'/prevPriorP; %Pp=A*P*A'+Q, so A*newK = I -Q/Pp
+  x=X(:,i);
+  prevXs=x + newK*(prevXs-A*x);
   Xs(:,i)=prevXs;
-  prevPs=invH + newK*pinv(prevPs)*newK';
+  %prevPs=invH + newK*pinv(prevPs)*newK';
+  %prevPs=newK/S' + (newK/prevPs)*newK';
+  prevPs=PP + newK*(prevPs - prevPriorP)*newK';
   Ps(:,:,i)=prevPs;
 end
 
