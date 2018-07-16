@@ -20,3 +20,6 @@ end
 P=cov((X-X2(:,1:end-1))');
 Q=P-A*P*A'; %Should roughly match with the estimate above
 R=cov((Y-C*X2(:,1:end-1)-D*U)')-C*Q*C';
+% Do actual optimal estim. of states, instead of using the the fast estimate
+%[X,Ps,Xf,Pf,Xp,Pp,rejSamples]=statKalmanSmoother(Y,A,C,Q,R,[],[],B,D,U);
+
