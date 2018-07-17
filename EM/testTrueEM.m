@@ -24,13 +24,14 @@ x0=zeros(D1,1);
 [Y1,X1]=fwdSim(U,A,B,C,D,x0,[],[]); %Noiseless simulation, for comparison
 Xs=statKalmanSmoother(Y,A,C,Q,R,[],[],B,D,U,false); %Kalman smoother estimation of states, given the true parameters (this is the best possible estimation of states)
 %% Identify 1: fast EM
+tic
 [fAh,fBh,fCh,fDh,fQh,fRh,fXh]=fastEM(Y,U,2);
-%% Identify 2: true EM
-[Ah,Bh,Ch,Dh,Qh,Rh,Xh]=trueEM(Y,U,2);
-%% Identify 3: sPCAv8"
-
-%% Canonize results:
+toc
 [fJ,fK,fCh,fXh,fV,fQh] = canonizev2(fAh,fBh,fCh,fXh,fQh);
+%% Identify 2: true EM
+tic
+[Ah,Bh,Ch,Dh,Qh,Rh,Xh]=trueEM(Y,U,2);
+toc
 [J,K,Ch,Xh,V,Qh] = canonizev2(Ah,Bh,Ch,Xh,Qh);
 
 %% COmpare

@@ -23,32 +23,29 @@ function [J,K,C,X,V,Q] = canonizev2(A,B,C,Xa,Q)
 if nargin<5
     Q=zeros(size(J));
 end
-
 %Lazy way:
 sys=ss(A,B,C,zeros(size(C,1),size(B,2)),1);
 [csys,V]=canon(sys);
 J=csys.A;
 K=csys.B;
-C=csys.C;
-X=V*Xa;
-Q=V*Q*V';
 
 %Scale B at will
 %TODO: formally, we can only scale the states whose evolution depends
 %solely on themselves, and any other states (ie. non-diagonalizable states
 %that form part of a Jordan block along with some other states) need to be
 %normalized with a different criteria.
-m=max(abs(K),[],2);
-s=sign(K(abs(K)==m));
-scale=(eye(size(J))-J)*ones(size(J,1),1).*s./m;
-V2=diag(scale);
+%m=max(abs(K),[],2);
+%s=sign(K(abs(K)==m));
+%scale=(eye(size(J))-J)*ones(size(J,1),1).*s./m;
+scale=(eye(size(J))-J)\K(:,1);
+V2=diag(1./scale);
 csys = ss2ss(csys,V2); 
 J=csys.A;
 K=csys.B;
 C=csys.C;
-X=V2*X;
-Q=V2*Q*V2';
 V=V2*V;
+X=V*Xa;
+Q=V*Q*V';
 
 %Sort states according to increasing time-constants
 [~,idx]=sort(diag(J)); %This works if the matrix is diagonalizable

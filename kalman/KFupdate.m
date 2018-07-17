@@ -22,14 +22,31 @@ end
 function [x,P]=doUpdate(C,R,x,P,y,d)
   	%update implements Kalman's update step
     %Fast and stable-ish implementation:
-    K=P*C'/(C*P*C'+R);
+    if (sum(C.^2)*trace(P))<100*trace(R) %Avoid ill-conditioned situations
+        K=P*C'/(C*P*C'+R);
+        AA=(eye(size(P))-K*C);
+        P=AA*P;
+        x=x+K*(y-C*x-d);
+    else
+        K=pinv(C);
+        x=K*(y-d);
+        P=K*R*K'; %I think this should be the case
+        %P=.01*P;
+        %Need to work out exact update when CPC' >> R and R>> CPC'
+    end
     %Very slow, but (in theory) stable implementation:
     %S=C*P*C'+R;
     %K=P*C'*pinv(S);
     %Supposedly faster, but very unstable:
     %K=P*(C'/S); 
- 	x=x+K*(y-C*x-d);
- 	P=P-K*C*P;
+
+    
+    %CRC=C'*(R\C);
+    %Pinv=pinv(P);
+    %KC=(Pinv+CRC)\CRC;
+    %K=(Pinv+CRC)\(C'/R);
+    %x=x+K*(y-d) +KC*x;
+    %P=P-KC*P;
 end
 
 function [x,P]=doUpdateEff(C,Rinv,x,P,y,d)
@@ -46,6 +63,6 @@ D=pinv(P)+B;
 CtSinv=(eye(size(A,2))-B*pinv(D))*A';
 K=P*CtSinv;
 KC=K*C;
-x=x+K*y-KC*x-K*d;
-P=P-KC*P;
+x=K*(y-d)+(I-KC)*x;
+P=(I-KC)*P;
 end

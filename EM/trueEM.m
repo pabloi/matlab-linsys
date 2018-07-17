@@ -24,17 +24,26 @@ if nargin<4 || isempty(x0)
     P0=[];
 end
 
+logl=nan(21,2);
+logl(1,1)=dataLogLikelihood(Y,U,A,B,C,D,Q,R,X);
 %Now, do E-M
-for k=1:150
+for k=1:size(logl,1)-1
 	%E-step: compute the expectation of latent variables given current parameter estimates
 	[X,Ps,Xf,Pf,Xp,Pp,rejSamples]=statKalmanSmoother(Y,A,C,Q,R,x0,P0,B,D,U);
     %Note this is an approximation of true E-step in E-M algorithm. The
     %E-step requires to compute the expectation of the likelihood of the data under the
     %latent variables = E(L(Y,X|params)), to then maximize it
     %whereas here we are computing E(X|params) to then maximize L(Y,E(X)|params)
-
+    logl(k,2)=dataLogLikelihood(Y,U,A,B,C,D,Q,R,X);
 	%M-step: find parameters A,B,C,D,Q,R that maximize likelihood of data
 	[A,B,Q] = estimateAB(X, U);
 	[C,D,R] = estimateCD(Y, X, U);
+    logl(k+1,1)=dataLogLikelihood(Y,U,A,B,C,D,Q,R,X);
 end
 [X,Ps,Xf,Pf,Xp,Pp,rejSamples]=statKalmanSmoother(Y,A,C,Q,R,x0,P0,B,D,U);
+logl(k+1,2)=dataLogLikelihood(Y,U,A,B,C,D,Q,R,X);
+figure
+subplot(2,1,1)
+plot(logl)
+subplot(2,1,2)
+plot(logl(:,2)-logl(:,1))
