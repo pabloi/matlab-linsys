@@ -1,4 +1,4 @@
-function [A,B,C,D,Q,R,X]=fastEM(Y,U,D1)
+function [A,B,C,D,Q,R,X,P]=fastEM(Y,U,D1)
 %Y is D1 x N
 %U is D2 x N
 [D2,N]=size(Y);
@@ -15,8 +15,9 @@ for k=1:size(logl,1)-1
 	[~,X2]=fwdSim(U,A,B,zeros(D2,D1),zeros(D2,size(U,1)),zeros(D1,1));
 	[C,D,~] = estimateCD(Y, X2(:,1:end-1), U);
 	X=(C\(Y-D*U));
-    %aux=(Y-C*X2(:,1:end-1)-D*U);
-    %R=aux*aux'/size(aux,2)-C*Q*C';
+    %aux=(Y-C*X-D*U);
+    %R2=aux*aux'/size(aux,2);
+    %R=.95*R2+.05*trace(R2)*eye(size(R2))/size(R2,1); 
     %logl(k)=dataLogLikelihood(Y,U,A,B,C,D,Q,R);
 end
 
@@ -29,7 +30,19 @@ R1=aux*aux'/size(aux,2);
 R=R1-C*Q*C';
 aux=(Y-C*X-D*U);
 R2=aux*aux'/size(aux,2);
-R=.95*R2+.05*trace(R2)*eye(size(R2))/size(R2,1); %Regularizing solution slightly, so RCOND is never more than 20
+R=.99*R2+.01*trace(R2)*eye(size(R2))/size(R2,1); %Regularizing solution slightly, so RCOND is never more than 20
+
 % Do actual optimal estim. of states, instead of using the the fast estimate
-[X,Ps,Xf,Pf,Xp,Pp,rejSamples]=statKalmanSmoother(Y,A,C,Q,R,[],[],B,D,U);
-logl(end)=dataLogLikelihood(Y,U,A,B,C,D,Q,R,X);
+[X,P,Xf,Pf,Xp,Pp,rejSamples]=statKalmanSmoother(Y,A,C,Q,R,[],[],B,D,U);
+maxRcond=1e4;
+aux=(Y-C*X-D*U);
+R=aux*aux'/size(aux,2);
+R=(1-1/maxRcond)*R+(1/maxRcond)*trace(R)*eye(size(R))/size(R,1); 
+aux=(X(:,2:end)-A*X(:,1:end-1)-B*U(:,1:size(X,2)-1));
+Q=aux*aux'/size(aux,2);
+Q=(1-1/maxRcond)*Q+(1/maxRcond)*trace(Q)*eye(size(Q))/size(Q,1); 
+
+%logl(end)=dataLogLikelihood(Y,U,A,B,C,D,Q,R,X);
+%figure
+%subplot(2,1,1)
+%plot(logl)

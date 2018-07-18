@@ -22,15 +22,19 @@ NN=size(U,2);
 x0=zeros(D1,1);
 [Y,X]=fwdSim(U,A,B,C,D,x0,Q,R);
 [Y1,X1]=fwdSim(U,A,B,C,D,x0,[],[]); %Noiseless simulation, for comparison
-Xs=statKalmanSmoother(Y,A,C,Q,R,[],[],B,D,U,false); %Kalman smoother estimation of states, given the true parameters (this is the best possible estimation of states)
+[Xs,Ps]=statKalmanSmoother(Y,A,C,Q,R,[],[],B,D,U,false); %Kalman smoother estimation of states, given the true parameters (this is the best possible estimation of states)
+logL=dataLogLikelihood(Y,U,A,B,C,D,Q,R,Xs,Ps);
 %% Identify 1: fast EM
 tic
-[fAh,fBh,fCh,fDh,fQh,fRh,fXh]=fastEM(Y,U,2);
+[fAh,fBh,fCh,fDh,fQh,fRh,fXh,fPh]=fastEM(Y,U,2);
+flogLh=dataLogLikelihood(Y,U,fAh,fBh,fCh,fDh,fQh,fRh,fXh,fPh);
 toc
 [fJ,fK,fCh,fXh,fV,fQh] = canonizev2(fAh,fBh,fCh,fXh,fQh);
+
 %% Identify 2: true EM
 tic
-[Ah,Bh,Ch,Dh,Qh,Rh,Xh]=trueEM(Y,U,2);
+[Ah,Bh,Ch,Dh,Qh,Rh,Xh,Ph]=trueEM(Y,U,2);
+logLh=dataLogLikelihood(Y,U,Ah,Bh,Ch,Dh,Qh,Rh,Xh,Ph);
 toc
 [J,K,Ch,Xh,V,Qh] = canonizev2(Ah,Bh,Ch,Xh,Qh);
 
@@ -90,9 +94,12 @@ aux2=sqrt(sum((Y-Y3).^2));
 plot(aux2,'LineWidth',1)
 title('Smooth output error (RMSE)')
 set(gca,'ColorOrderIndex',1)
-bar([1900],mean([aux]),'EdgeColor','none','BarWidth',100)
-bar([2000],mean([aux1]),'EdgeColor','none','BarWidth',100)
-bar([2100],mean([aux2]),'EdgeColor','none','BarWidth',100)
+bar1=bar([1900],mean([aux]),'EdgeColor','none','BarWidth',100);
+text(1600,4,['LogL=' num2str(logL)],'Color',bar1.FaceColor)
+bar2=bar([2000],mean([aux1]),'EdgeColor','none','BarWidth',100);
+text(1700,3.5,['LogL=' num2str(logLh)],'Color',bar2.FaceColor)
+bar3=bar([2100],mean([aux2]),'EdgeColor','none','BarWidth',100);
+text(1800,3,['LogL=' num2str(flogLh)],'Color',bar3.FaceColor)
 axis([0 2200 .8 5])
 grid on
 
