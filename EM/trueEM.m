@@ -1,19 +1,30 @@
-function [A,B,C,D,Q,R,X,P]=trueEM(Y,U,D1,x0,P0)
+function [A,B,C,D,Q,R,X,P]=trueEM(Y,U,Xguess,x0,P0)
+%A true EM implementation to do LTI-SSM identification
+%INPUT:
+%Y is D2 x N
+%U is D3 x N
+%Xguess - Either the number of states for the system (if scalar) or a guess
+%at the initial states of the system (if D1 x N matrix)
+
 %TODO: this works, but is too slow (requires many iterations)
-%1) study convergence. is it slow or oscillating?
-%2) I do not trust the current kalman smoother. Sometimes it does not seem
-%to work, although I am not sure.
-%3) Check Cheng and Sabes 2006 equations. Is this function consistent with
+%1) Check Cheng and Sabes 2006 equations. Is this function consistent with
 %those?
-%4) Can the speed be improved?
+%2) Can the speed be improved?
 
 
 [D2,N]=size(Y);
 %Initialize guesses of A,B,C,D,Q,R
 D=Y/U;
-[pp,cc,aa]=pca(Y-D*U,'Centered','off');
-C=cc(:,1:D1);
-X=pp(:,1:D1)';
+if numel(Xguess)==1
+    D1=Xguess;
+    [pp,~,~]=pca(Y-D*U,'Centered','off');
+    Xguess=pp(:,1:D1)';
+else
+    D1=size(Xguess,1);
+end
+C=(Y-D*U)/Xguess;
+X=Xguess;
+
 [A,B,Q] = estimateAB(X, U);
 [~,X]=fwdSim(U,A,B,zeros(D2,D1),zeros(D2,size(U,1)),zeros(D1,1));
 [C,D,R] = estimateCD(Y, X(:,1:end-1), U);

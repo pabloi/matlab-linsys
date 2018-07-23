@@ -1,12 +1,23 @@
-function [A,B,C,D,Q,R,X,P]=fastEM(Y,U,D1)
-%Y is D1 x N
-%U is D2 x N
+function [A,B,C,D,Q,R,X,P]=fastEM(Y,U,Xguess)
+%A fast pseudo-EM implementation to do LTI-SSM identification
+%INPUT:
+%Y is D2 x N
+%U is D3 x N
+%Xguess - Either the number of states for the system (if scalar) or a guess
+%at the initial states of the system (if D1 x N matrix)
 [D2,N]=size(Y);
+
 %Initialize guesses of C,D
 D=Y/U;
-[pp,cc,aa]=pca(Y-D*U,'Centered','off');
-C=cc(:,1:D1);
-X=pp(:,1:D1)';
+if numel(Xguess)==1
+    D1=Xguess;
+    [pp,~,~]=pca(Y-D*U,'Centered','off');
+    Xguess=pp(:,1:D1)';
+else
+    D1=size(Xguess,1);
+end
+C=(Y-D*U)/Xguess;
+X=Xguess;
 
 logl=nan(21,1);
 %Now, iterate estimations of A,B and C,D
@@ -21,19 +32,14 @@ for k=1:size(logl,1)-1
     %logl(k)=dataLogLikelihood(Y,U,A,B,C,D,Q,R);
 end
 
-%Estimate Q,R by reconciling the two approaches:
-%aux=(X-X2(:,1:end-1));
-%P=aux*aux'/size(aux,2);
-%Q=P-A*P*A'; %Should roughly match with the estimate above
-aux=(Y-C*X2(:,1:end-1)-D*U);
-R1=aux*aux'/size(aux,2);
-R=R1-C*Q*C';
+%Estimate R:
 aux=(Y-C*X-D*U);
 R2=aux*aux'/size(aux,2);
-R=.99*R2+.01*trace(R2)*eye(size(R2))/size(R2,1); %Regularizing solution slightly, so RCOND is never more than 20
-
+R=.99*R2+.01*trace(R2)*eye(size(R2))/size(R2,1); %Regularizing solution slightly
 % Do actual optimal estim. of states, instead of using the the fast estimate
 [X,P,Xf,Pf,Xp,Pp,rejSamples]=statKalmanSmoother(Y,A,C,Q,R,[],[],B,D,U);
+
+%Re-estimate Q,R:
 maxRcond=1e4;
 aux=(Y-C*X-D*U);
 R=aux*aux'/size(aux,2);
