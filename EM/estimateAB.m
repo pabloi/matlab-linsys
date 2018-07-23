@@ -2,11 +2,13 @@ function [A,B,Q] = estimateAB(X, U)
 %Find A,B:
 N=size(X,2);
 D=size(X,1);
-if isempty(U) || size(U,2)~=N
+if isempty(U) || size(U,2)~=N || all(U(:)==0)
     U=zeros(0,N);
 end
 XU=[X; U];
-AB=X(:,2:N)/XU(:,1:N-1);
+%AB=X(:,2:N)/XU(:,1:N-1); %What we'd like to do. But this may be ill-cond
+P=XU*XU'; P=P + 1e-9*eye(size(P));
+AB=X(:,2:N)*XU(:,1:N-1)'/P;
 A=AB(1:D,1:D);
 B=AB(:,D+1);
 
