@@ -10,12 +10,14 @@ if nargin<9 || isempty(X) %|| isempty(P)
     [X,~,~,~,~,~,rejSamples]=statKalmanSmoother(Y,A,C,Q,R,[],[],B,D,U,outRejFlag,constFun);
 end
 
-%Approximate logL:kelihood:
+%Approximate logLikelihood:
 w=X(:,2:end)-A*X(:,1:end-1)-B*U(:,1:size(X,2)-1);
-lX=-.5*sum(w.*(Q\w)) -.5*log(det(Q));
+logdetQ=sum(log(eig(Q))); %More efficient than .5*log(det(R)), no over/underflow issues. 
+lX=-.5*sum(w.*(Q\w)) -logdetQ;
 %Output likelihoods
 z=Y-C*X(:,1:size(Y,2))-D*U(:,1:size(Y,2));
-lY=-.5*sum(z.*(R\z)) -.5*log(det(R));
+logdetR= sum(log(eig(R))); %More efficient than .5*log(det(R)), no over/underflow issues.
+lY=-.5*sum(z.*(R\z)) -logdetR;
 %Total:
 logL=sum(lX)+sum(lY);
 
