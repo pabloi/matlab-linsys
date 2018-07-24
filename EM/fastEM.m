@@ -19,28 +19,30 @@ end
 C=(Y-D*U)/Xguess;
 X=Xguess;
 
-logl=nan(21,1);
+logl=nan(5,1);
+maxRcond=1e4;
 %Now, iterate estimations of A,B and C,D
 for k=1:size(logl,1)-1
 	[A,B,Q] = estimateAB(X, U);
+    eig(A)
 	[~,X2]=fwdSim(U,A,B,zeros(D2,D1),zeros(D2,size(U,1)),zeros(D1,1));
 	[C,D,~] = estimateCD(Y, X2(:,1:end-1), U);
 	X=(C\(Y-D*U));
     %aux=(Y-C*X-D*U);
-    %R2=aux*aux'/size(aux,2);
-    %R=.95*R2+.05*trace(R2)*eye(size(R2))/size(R2,1); 
-    %logl(k)=dataLogLikelihood(Y,U,A,B,C,D,Q,R);
+    %R=aux*aux'/size(aux,2);
+    %R=(1-1/maxRcond)*R+(1/maxRcond)*trace(R)*eye(size(R))/size(R,1); 
+    %logl(k)=dataLogLikelihood(Y,U,A,B,C,D,Q,R)
 end
 
 %Estimate R:
 aux=(Y-C*X-D*U);
-R2=aux*aux'/size(aux,2);
-R=.99*R2+.01*trace(R2)*eye(size(R2))/size(R2,1); %Regularizing solution slightly
+R=aux*aux'/size(aux,2);
+R=(1-1/maxRcond)*R+(1/maxRcond)*trace(R)*eye(size(R))/size(R,1); 
 % Do actual optimal estim. of states, instead of using the the fast estimate
 [X,P,Xf,Pf,Xp,Pp,rejSamples]=statKalmanSmoother(Y,A,C,Q,R,[],[],B,D,U);
 
 %Re-estimate Q,R:
-maxRcond=1e4;
+
 aux=(Y-C*X-D*U);
 R=aux*aux'/size(aux,2);
 R=(1-1/maxRcond)*R+(1/maxRcond)*trace(R)*eye(size(R))/size(R,1); 
