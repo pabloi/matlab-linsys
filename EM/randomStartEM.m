@@ -5,7 +5,8 @@ end
 if nargin<5 || isempty(method)
    method='fast'; 
 end %TODO: if method is given, check that it is 'true' or 'fast'
-bestLL=-Inf;
+[A,B,C,D,Q,R,X,P]=fastEM(Y,U,D1);
+bestLL=dataLogLikelihood(Y,U,A,B,C,D,Q,R,X);
 N=size(Y,2);
 
 for i=1:Nreps
