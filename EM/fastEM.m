@@ -24,7 +24,6 @@ maxRcond=1e4;
 %Now, iterate estimations of A,B and C,D
 for k=1:size(logl,1)-1
 	[A,B,Q] = estimateAB(X, U);
-    eig(A)
 	[~,X2]=fwdSim(U,A,B,zeros(D2,D1),zeros(D2,size(U,1)),zeros(D1,1));
 	[C,D,~] = estimateCD(Y, X2(:,1:end-1), U);
 	X=(C\(Y-D*U));
