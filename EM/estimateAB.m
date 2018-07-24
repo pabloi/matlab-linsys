@@ -18,6 +18,7 @@ Q=(W*W')/size(W,2);
 
 %Regularizing solution slightly:
 maxRcond=1e4;
-Q=(1-1/maxRcond)*Q+(1/maxRcond)*trace(Q)*eye(size(Q))/size(Q,1); 
+%Q=(1-1/maxRcond)*Q+(1/maxRcond)*trace(Q)*eye(size(Q))/size(Q,1); 
+Q=Q+1e-5*eye(size(Q));
 
 
