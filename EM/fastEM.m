@@ -6,6 +6,7 @@ function [A,B,C,D,Q,R,X,P]=fastEM(Y,U,Xguess)
 %Xguess - Either the number of states for the system (if scalar) or a guess
 %at the initial states of the system (if D1 x N matrix)
 [D2,N]=size(Y);
+P=[];
 
 %Initialize guesses of C,D
 D=Y/U;
@@ -19,37 +20,28 @@ end
 C=(Y-D*U)/Xguess;
 X=Xguess;
 
-logl=nan(5,1);
-maxRcond=1e4;
+logl=nan(11,1);
+
 %Now, iterate estimations of A,B and C,D
+
+%Alternating:
+% for k=1:size(logl,1)-1
+% 	[A,B,Q] = estimateAB(X, U);
+% 	[~,X2]=fwdSim(U,A,B,zeros(D2,D1),zeros(D2,size(U,1)),zeros(D1,1));
+% 	[C,D,~] = estimateCD(Y, X2(:,1:end-1), U);
+% 	X=(C\(Y-D*U));
+% end
+
+%Meged:
 for k=1:size(logl,1)-1
 	[A,B,Q] = estimateAB(X, U);
+    [C,D,~] = estimateCD(Y, X, U);
 	[~,X2]=fwdSim(U,A,B,zeros(D2,D1),zeros(D2,size(U,1)),zeros(D1,1));
-	[C,D,~] = estimateCD(Y, X2(:,1:end-1), U);
-	X=(C\(Y-D*U));
-    %aux=(Y-C*X-D*U);
-    %R=aux*aux'/size(aux,2);
-    %R=(1-1/maxRcond)*R+(1/maxRcond)*trace(R)*eye(size(R))/size(R,1); 
-    %logl(k)=dataLogLikelihood(Y,U,A,B,C,D,Q,R)
+    X1=(C\(Y-D*U));
+    X=.5*(X1+X2(:,1:end-1));
 end
 
-%Estimate R:
-aux=(Y-C*X-D*U);
-R=aux*aux'/size(aux,2);
-R=(1-1/maxRcond)*R+(1/maxRcond)*trace(R)*eye(size(R))/size(R,1); 
-% Do actual optimal estim. of states, instead of using the the fast estimate
-[X,P,Xf,Pf,Xp,Pp,rejSamples]=statKalmanSmoother(Y,A,C,Q,R,[],[],B,D,U);
-
 %Re-estimate Q,R:
-
 aux=(Y-C*X-D*U);
 R=aux*aux'/size(aux,2);
-R=(1-1/maxRcond)*R+(1/maxRcond)*trace(R)*eye(size(R))/size(R,1); 
-aux=(X(:,2:end)-A*X(:,1:end-1)-B*U(:,1:size(X,2)-1));
-Q=aux*aux'/size(aux,2);
-Q=(1-1/maxRcond)*Q+(1/maxRcond)*trace(Q)*eye(size(Q))/size(Q,1); 
-
-%logl(end)=dataLogLikelihood(Y,U,A,B,C,D,Q,R,X);
-%figure
-%subplot(2,1,1)
-%plot(logl)
+R=R+1e-5*eye(size(R));
