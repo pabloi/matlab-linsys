@@ -16,9 +16,7 @@ B=AB(:,D+1);
 W=X(:,2:N)-A*X(:,1:N-1)-B*U(:,1:N-1);
 Q=(W*W')/size(W,2);
 
-%Regularizing solution slightly:
-maxRcond=1e4;
-%Q=(1-1/maxRcond)*Q+(1/maxRcond)*trace(Q)*eye(size(Q))/size(Q,1); 
+%Regularizing solution slightly: 
 Q=Q+1e-5*eye(size(Q));
 
 
