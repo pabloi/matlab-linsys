@@ -24,19 +24,22 @@ end
 %Size checks:
 %TODO
 
-%Do the filtering
+%Init arrays:
 Xp=nan(size(A,1),size(Y,2));
 X=nan(size(A,1),size(Y,2));
 Pp=nan(size(A,1),size(A,1),size(Y,2));
 P=nan(size(A,1),size(A,1),size(Y,2));
+rejSamples=zeros(size(Y));
+
+%Priors:
 prevX=x0;
 prevP=P0;
-rejSamples=zeros(size(Y));
+Xp(:,1)=x0;
+Pp(:,:,1)=P0;
+
+%Do the filtering
 for i=1:size(Y,2)
-  b=B*U(:,i);
-  [prevX,prevP]=predict(A,Q,prevX,prevP,b);
-  Xp(:,i)=prevX;
-  Pp(:,:,i)=prevP;
+    %First, do the update given the output at this step:
   d=D*U(:,i);
   if ~outlierRejection
     [prevX,prevP]=KFupdate(C,R,prevX,prevP,Y(:,i),d);
@@ -45,6 +48,11 @@ for i=1:size(Y,2)
   end
   X(:,i)=prevX;
   P(:,:,i)=prevP;
+  %Then, predict next step:
+  b=B*U(:,i);
+  [prevX,prevP]=predict(A,Q,prevX,prevP,b);
+  Xp(:,i+1)=prevX;
+  Pp(:,:,i+1)=prevP;
 end
 
 end

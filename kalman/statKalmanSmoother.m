@@ -58,7 +58,7 @@ Xs=Xf;
 Ps=Pf;
 prevXs=Xf(:,end);
 prevPs=Pf(:,:,end);
-S=pinv(Q)*A;
+%S=pinv(Q)*A;
 D1=size(A,1);
 Pt=nan(D1,D1,size(Y,2)-1); %Transition covariance matrix
 
@@ -67,16 +67,32 @@ for i=(size(Y,2)-1):-1:1
   %invH=pinv(H);
   %newK=invH*S';
   %Equivalent to:
-  PP=Pf(:,:,i);
-  prevPriorP=Pp(:,:,i+1);
-  newK=PP*A'/prevPriorP; %Pp=A*P*A'+Q, so A*newK = I -Q/Pp
-  x=Xf(:,i);
-  prevXs=x + newK*(prevXs-A*x);
+  
+  %First, get estimates from forward pass:
+  x=Xf(:,i); %Previous posterior estimate of covariance at this step
+  PP=Pf(:,:,i); %Previous posterior estimate of covariance at this time step
+  %prevPriorP=Pp(:,:,i+1); %Previous PRIOR estimate of covariance for following step, given this step, should equal A*PP*A'+Q
+  
+  %Backward pass gain:
+  %O=pinv(prevPriorP+1e-5*eye(size(prevPriorP)));
+  %newK=PP*A'*O; % prevPriorP=A*PP*A'+Q, so A*newK = I -Q/prevPriorP
+  if trace(A*PP*A')>1e3*trace(Q) %Avoiding ill-conditioned solution
+      newK=pinv(A);
+      newPs=newK*(prevPs-Q)*newK';
+  else
+      newK=PP*A'/(A*PP*A'+Q);
+      newPs=PP + newK*(prevPs - A*PP*A'-Q)*newK';
+  end
+  
+  
+  %Improved (smoothed) state estimate
+  %prevXs=x + newK*(prevXs-Xp(:,i+1)); 
+  prevXs=x + newK*(prevXs-A*x-B*U(:,i)); 
   Xs(:,i)=prevXs;
-  %prevPs=invH + newK*pinv(prevPs)*newK';
-  %prevPs=newK/S' + (newK/prevPs)*newK';
   Pt(:,:,i)=prevPs'*newK';
-  prevPs=PP + newK*(prevPs - prevPriorP)*newK';
+  
+  %Improved (smoothed) covariance estimate
+  prevPs=newPs;
   Ps(:,:,i)=prevPs;
 end
 

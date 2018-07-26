@@ -22,17 +22,17 @@ end
 function [x,P]=doUpdate(C,R,x,P,y,d)
   	%update implements Kalman's update step
     %Fast and stable-ish implementation:
-    if (sum(C.^2)*trace(P))<100*trace(R) %Avoid ill-conditioned situations
-        K=P*C'/(C*P*C'+R);
-        AA=(eye(size(P))-K*C);
-        P=AA*P;
-        x=x+K*(y-C*x-d);
-    else
+    if (sum(C.^2)*trace(P))>100*trace(R) %Avoid ill-conditioned situations where computing K would be too noisy
         K=pinv(C);
         x=K*(y-d);
         P=K*R*K'; %I think this should be the case
         %P=.01*P;
         %Need to work out exact update when CPC' >> R and R>> CPC'
+    else
+        K=P*C'/(C*P*C'+R);
+        AA=(eye(size(P))-K*C);
+        P=AA*P;
+        x=x+K*(y-C*x-d);    
     end
     %Very slow, but (in theory) stable implementation:
     %S=C*P*C'+R;
@@ -40,7 +40,6 @@ function [x,P]=doUpdate(C,R,x,P,y,d)
     %Supposedly faster, but very unstable:
     %K=P*(C'/S); 
 
-    
     %CRC=C'*(R\C);
     %Pinv=pinv(P);
     %KC=(Pinv+CRC)\CRC;
