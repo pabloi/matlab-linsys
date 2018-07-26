@@ -24,22 +24,35 @@ end
 Y=[median(dataSym{1},3); median(dataSym{2},3);median(dataSym{3},3)]';
 U=[zeros(size(dataSym{1},1),1);ones(size(dataSym{2},1),1);zeros(size(dataSym{3},1),1);]';
 %%
-Y=medfilt1([median(dataSym{1},3); median(dataSym{2},3)],5)';
+Y=medfilt1([median(dataSym{1},3); median(dataSym{2},3)],9)';
 U=[zeros(size(dataSym{1},1),1);ones(size(dataSym{2},1),1)]';
 %% Identify 0: handcrafted
-D1=3;
+D1=2;
 [model] = sPCAv8(Y(:,51:950)',D1,[],[],[]);
 J=model.J;
 C=model.C;
 X=[zeros(size(model.X,1),size(dataSym{1},1)) model.X];
 B=model.B;
 D=model.D;
-Q=1e-8*eye(size(X,1));
 aux=Y-C*X-D*U;
 R=aux*aux'/size(aux,2);
 R=R+1e-5*eye(size(R));
-[J,B,C,X,V,Q] = canonizev2(J,B,C,X,Q);
+Q=1e-8*eye(D1);
+[J,B,C,X,~,~] = canonizev2(J,B,C,X,Q);
 slogLh=dataLogLikelihood(Y,U,J,B,C,D,Q,R,X,[]);
+%% Assuming these are the 'real' params, find the MLE states
+[Xs,Ps,Pt,Xf,Pf,rejSamples]=statKalmanSmoother(Y,J,C,Q,R,[],[],B,D,U);
+%%
+figure; hold on;
+plot(X','k','LineWidth',2)
+set(gca,'ColorOrderIndex',1)
+plot(Xf')
+plot(Xs')
+set(gca,'ColorOrderIndex',1)
+cc=get(gca,'ColorOrder');
+for i=1:size(X,1)
+    patch([1:size(Xf,2),size(Xf,2):-1:1],[Xf(i,:)'+sqrt(squeeze(Pf(i,i,:)));flipud(Xf(i,:)'-sqrt(squeeze(Pf(i,i,:))))]',cc(i,:),'EdgeColor','none','FaceAlpha',.3)
+end
 %% Identify 1: fast EM
 tic
 %[fAh,fBh,fCh,fDh,fQh,fRh,fXh,fPh]=fastEM(Y,U,D1);
@@ -59,7 +72,7 @@ x0=zeros(M,1);
 figure;
 [pp,cc,aa]=pca(Y,'Centered','off');
 
-for kk=1:3
+for kk=1:M
 subplot(M+1,2,(kk-1)*2+1) %Output along first PC of true data
 hold on
 plot(cc(:,kk)'*(Ch*Xh+Dh*U),'LineWidth',1)

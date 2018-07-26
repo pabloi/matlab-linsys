@@ -10,11 +10,11 @@ function [A,B,C,D,Q,R,x0,P0]=estimateParams(Y,U,X,P,Pt)
 %See Cheng and Sabes 2006, Ghahramani and Hinton 1996
 
 %Doxy:
-% [A,B,Q] = estimateAB(X, U);
-% [C,D,R] = estimateCD(Y,X, U);
-% x0=X(:,1);
-% P0=[];
-% return
+[A,B,Q] = estimateAB(X, U);
+[C,D,R] = estimateCD(Y,X, U);
+x0=X(:,1);
+P0=[];
+return
 
 %As it should be: (doesnt work)
 N=size(X,1);
