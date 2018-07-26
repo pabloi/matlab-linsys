@@ -24,7 +24,7 @@ end
 Y=[median(dataSym{1},3); median(dataSym{2},3);median(dataSym{3},3)]';
 U=[zeros(size(dataSym{1},1),1);ones(size(dataSym{2},1),1);zeros(size(dataSym{3},1),1);]';
 %%
-Y=medfilt1([median(dataSym{1},3); median(dataSym{2},3)])';
+Y=medfilt1([median(dataSym{1},3); median(dataSym{2},3)],5)';
 U=[zeros(size(dataSym{1},1),1);ones(size(dataSym{2},1),1)]';
 %% Identify 0: handcrafted
 D1=3;
@@ -57,19 +57,23 @@ logLh=dataLogLikelihood(Y,U,Jh,Kh,Ch,Dh,Qh,Rh,Xh,Ph);
 M=size(fXh,1);
 x0=zeros(M,1);
 figure;
-subplot(3,2,1) %Output along first PC of true data
 [pp,cc,aa]=pca(Y,'Centered','off');
+
+for kk=1:3
+subplot(M+1,2,(kk-1)*2+1) %Output along first PC of true data
 hold on
-plot(cc(:,1)'*(Y),'LineWidth',1)
-plot(cc(:,1)'*(Ch*Xh+Dh*U),'LineWidth',1)
-plot(cc(:,1)'*(fCh*fXh+fDh*U),'LineWidth',1)
+plot(cc(:,kk)'*(Ch*Xh+Dh*U),'LineWidth',1)
+plot(cc(:,kk)'*(fCh*fXh+fDh*U),'LineWidth',1)
+plot(cc(:,kk)'*(C*X+D*U),'LineWidth',1)
+plot(cc(:,kk)'*(Y),'k','LineWidth',1)
+end
 title('Output projection over main PCs')
 
 [Y2,X2]=fwdSim(U,Jh,Kh,Ch,Dh,x0,[],[]);
 [Y3,X3]=fwdSim(U,fJh,fKh,fCh,fDh,x0,[],[]);
 
 for i=1:M
-subplot(3,2,2*i) %States
+subplot(M+1,2,2*i) %States
 hold on
 %Smooth versions
 set(gca,'ColorOrderIndex',1)
@@ -81,27 +85,12 @@ axis([0 2000 -.5 1.5])
 set(gca,'ColorOrderIndex',1)
 plot(Xh(i,:),'LineWidth',1)
 plot(fXh(i,:),'LineWidth',1)
+patch([1:size(Xh,2),size(Xh,2):-1:1]',[Xh(i,:)+squeeze(Ph(i,i,:))', fliplr(Xh(i,:)-squeeze(Ph(i,i,:))')]',p2.Color,'EdgeColor','none','FaceAlpha',.3)
 title('States')
 legend([p2 p3 p1])
 end
 
-subplot(3,2,3) %Output RMSE
-hold on
-aux1=sqrt(sum((Y-Ch*Xh-Dh*U).^2));
-plot(aux1,'LineWidth',2)
-aux2=sqrt(sum((Y-fCh*fXh-fDh*U).^2));
-plot(aux2,'LineWidth',2)
-aux0=sqrt(sum((Y-C*X-D*U).^2));
-plot(aux0,'LineWidth',2)
-title('Output error (RMSE)')
-set(gca,'ColorOrderIndex',1)
-bar([2000],mean([aux1]),'EdgeColor','none','BarWidth',100)
-bar([2100],mean([aux2]),'EdgeColor','none','BarWidth',100)
-bar([2200],mean([aux0]),'EdgeColor','none','BarWidth',100)
-text(100,.2, 'Need to add likelihood measure')
-axis([0 2200 .8 2])
-grid on
-subplot(3,2,5) %Smooth output RMSE
+subplot(M+1,2,2*M+1) %Smooth output RMSE
 hold on
 %aux=sqrt(sum((Y-Y1).^2));
 %plot(aux)
@@ -121,5 +110,5 @@ bar3=bar([2100],mean([aux2]),'EdgeColor','none','BarWidth',100);
 text(1800,3,['LogL=' num2str(flogLh)],'Color',bar3.FaceColor)
 bar0=bar([2200],mean([aux0]),'EdgeColor','none','BarWidth',100);
 text(1900,2.5,['LogL=' num2str(slogLh)],'Color',bar0.FaceColor)
-axis([0 2200 .8 5])
+axis([0 2200 .0 4])
 grid on
