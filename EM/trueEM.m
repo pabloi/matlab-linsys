@@ -49,6 +49,7 @@ for k=1:size(logl,1)-1
 	%M-step: find parameters A,B,C,D,Q,R that maximize likelihood of data
     [A,B,C,D,Q,R,x0,P0]=estimateParams(Y,U,X,P,Pt);
     %logl(k+1,1)=dataLogLikelihood(Y,U,A,B,C,D,Q,R,X);
+    %[A,B,C,~,~,Q] = canonizev2(A,B,C,X,Q);
 end
 [X,P,~,~,~,~]=statKalmanSmoother(Y,A,C,Q,R,x0,P0,B,D,U);
 %logl(k+1,2)=dataLogLikelihood(Y,U,A,B,C,D,Q,R,X);
