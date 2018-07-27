@@ -25,9 +25,9 @@ end
 %TODO
 
 %Init arrays:
-Xp=nan(size(A,1),size(Y,2));
+Xp=nan(size(A,1),size(Y,2)+1);
 X=nan(size(A,1),size(Y,2));
-Pp=nan(size(A,1),size(A,1),size(Y,2));
+Pp=nan(size(A,1),size(A,1),size(Y,2)+1);
 P=nan(size(A,1),size(A,1),size(Y,2));
 rejSamples=zeros(size(Y));
 
@@ -50,7 +50,7 @@ for i=1:size(Y,2)
   P(:,:,i)=prevP;
   %Then, predict next step:
   b=B*U(:,i);
-  [prevX,prevP]=predict(A,Q,prevX,prevP,b);
+  [prevX,prevP]=KFpredict(A,Q,prevX,prevP,b);
   Xp(:,i+1)=prevX;
   Pp(:,:,i+1)=prevP;
 end
