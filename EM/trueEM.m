@@ -22,7 +22,6 @@ if numel(Xguess)==1
 else
     D1=size(Xguess,1);
 end
-C=(Y-D*U)/Xguess;
 X=Xguess;
 
 [A,B,Q] = estimateAB(X, U);
@@ -35,14 +34,14 @@ if nargin<4 || isempty(x0)
     P0=[];
 end
 
-logl=nan(10001,2);
-logl(1,1)=dataLogLikelihood(Y,U,A,B,C,D,Q,R,X);
+logl=nan(5,2);
+%logl(1,1)=dataLogLikelihood(Y,U,A,B,C,D,Q,R,X);
 %Now, do E-M
 for k=1:size(logl,1)-1
 	%E-step: compute the expectation of latent variables given current parameter estimates
 	[X,P,Pt,~,~,~]=statKalmanSmoother(Y,A,C,Q,R,x0,P0,B,D,U);
-    l=dataLogLikelihood(Y,U,A,B,C,D,Q,R,X)
-    logl(k,2)=l;
+    %l=dataLogLikelihood(Y,U,A,B,C,D,Q,R,X)
+    %logl(k,2)=l;
     %Note this is an approximation of true E-step in E-M algorithm. The
     %E-step requires to compute the expectation of the likelihood of the data under the
     %latent variables = E(L(Y,X|params)), to then maximize it
@@ -50,14 +49,12 @@ for k=1:size(logl,1)-1
     %logl(k,2)=dataLogLikelihood(Y,U,A,B,C,D,Q,R,X);
 	%M-step: find parameters A,B,C,D,Q,R that maximize likelihood of data
     [A,B,C,D,Q,R,x0,P0]=estimateParams(Y,U,X,P,Pt);
-    l=dataLogLikelihood(Y,U,A,B,C,D,Q,R,X)
-    logl(k+1,1)=l;
+    %l=dataLogLikelihood(Y,U,A,B,C,D,Q,R,X)
+    %logl(k+1,1)=l;
     %[A,B,C,~,~,Q] = canonizev2(A,B,C,X,Q);
 end
-[X,P,~,~,~,~]=statKalmanSmoother(Y,A,C,Q,R,x0,P0,B,D,U);
-%logl(k+1,2)=dataLogLikelihood(Y,U,A,B,C,D,Q,R,X);
-figure
+%figure
 %subplot(2,1,1)
-plot(reshape(logl',numel(logl),1))
+%plot(reshape(logl',numel(logl),1))
 %subplot(2,1,2)
 %plot(logl(:,2)-logl(:,1))
