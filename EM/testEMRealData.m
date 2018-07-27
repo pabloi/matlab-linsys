@@ -62,7 +62,7 @@ toc
 flogLh=dataLogLikelihood(Y,U,fJh,fKh,fCh,fDh,fQh,fRh,fXh,fPh);
 %% Identify 2: true EM
 tic
-[Ah,Bh,Ch,Dh,Qh,Rh,Xh,Ph]=trueEM(Y,U,D1);
+[Ah,Bh,Ch,Dh,Qh,Rh,Xh,Ph]=trueEM(Y,U,Xs);
 toc
 [Jh,Kh,Ch,Xh,V,Qh] = canonizev2(Ah,Bh,Ch,Xh,Qh);
 logLh=dataLogLikelihood(Y,U,Jh,Kh,Ch,Dh,Qh,Rh,Xh,Ph);
