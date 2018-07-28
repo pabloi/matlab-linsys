@@ -14,7 +14,7 @@ B=(eye(size(A))-A)*ones(size(A,1),1); %WLOG, arbitrary scaling
 U=[zeros(300,1);ones(N,1);zeros(N/2,1)]'; %Step input and then removed
 C=randn(D2,D1);
 D=randn(D2,1);
-Q=eye(D1)*.00005;
+Q=eye(D1)*.0005;
 R=eye(D2)*.01;
 
 %% Simulate
