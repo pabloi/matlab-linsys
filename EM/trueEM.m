@@ -25,8 +25,9 @@ end
 X=Xguess;
 
 [A,B,Q] = estimateAB(X, U);
-[~,X]=fwdSim(U,A,B,zeros(D2,D1),zeros(D2,size(U,1)),zeros(D1,1));
-[C,D,R] = estimateCD(Y, X(:,1:end-1), U);
+Q=diag(max(abs(diff(X,[],2)),[],2));
+[C,D,R] = estimateCD(Y, X, U);
+%norm(Y-C*X-D*U,'fro')
 
 if nargin<4 || isempty(x0)
     %Initialize x0,P0
@@ -34,12 +35,13 @@ if nargin<4 || isempty(x0)
     P0=[];
 end
 
-logl=nan(5,2);
+logl=nan(21,2);
 %logl(1,1)=dataLogLikelihood(Y,U,A,B,C,D,Q,R,X);
 %Now, do E-M
 for k=1:size(logl,1)-1
 	%E-step: compute the expectation of latent variables given current parameter estimates
 	[X,P,Pt,~,~,~]=statKalmanSmoother(Y,A,C,Q,R,x0,P0,B,D,U);
+    %norm(Y-C*X-D*U,'fro')
     %l=dataLogLikelihood(Y,U,A,B,C,D,Q,R,X)
     %logl(k,2)=l;
     %Note this is an approximation of true E-step in E-M algorithm. The
@@ -49,6 +51,7 @@ for k=1:size(logl,1)-1
     %logl(k,2)=dataLogLikelihood(Y,U,A,B,C,D,Q,R,X);
 	%M-step: find parameters A,B,C,D,Q,R that maximize likelihood of data
     [A,B,C,D,Q,R,x0,P0]=estimateParams(Y,U,X,P,Pt);
+    norm(Y-C*X-D*U,'fro')
     %l=dataLogLikelihood(Y,U,A,B,C,D,Q,R,X)
     %logl(k+1,1)=l;
     %[A,B,C,~,~,Q] = canonizev2(A,B,C,X,Q);
