@@ -1,10 +1,10 @@
-function logL=dataLogLikelihood(Y,U,A,B,C,D,Q,R,~,~)
+function logL=dataLogLikelihood(Y,U,A,B,C,D,Q,R,X,~)
 %Evaluates the likelihood of the data under a given model
 
-[~,~,Xp,Pp,~]=statKalmanFilter(Y,A,C,Q,R,[],[],B,D,U,0);
+[~,~,Xp,Pp,~]=statKalmanFilter(Y,A,C,.01*Q,R,[],[],B,D,U,0);
 
 %'Incomplete' logLikelihood: p({y}|params) [Albert and Shadmehr 2017, eq. A1.25]
-predY=C*Xp(:,1:end-1)-D*U;
+predY=C*Xp(:,1:end-1)+D*U;
 z=Y-predY;
 [D2,N2]=size(z);
 
@@ -13,8 +13,12 @@ P=R+C*Q*C'; %This is a lower bound on the uncertainty of the output
 % P=R+C*(A*Q*A'+Q)*C'; %This is an upper bound 
 logdetP= sum(log(eig(P))); 
 %minus2ly=sum(z.*(P\z)) +logdetP + D2*log(2*pi);
-minus2ly=sum(z.*lsqminnorm(P,z,1e-8)) +logdetP + D2*log(2*pi);
-
+%logL=-.5*sum(sum(z.*lsqminnorm(P,z,1e-8)) +logdetP + D2*log(2*pi));
+%sum(minus2ly) should be MINIMIZED when P=z*z'/size(z,2)
+%logL=-.5*(trace(z'*inv(P)*z)+N2*logdetP+N2*D2*log(2*pi));
+%logL=-.5*(trace(inv(P)*z*z')+N2*logdetP+N2*D2*log(2*pi));
+S=z*z'/N2;
+logL=-.5*N2*(trace(lsqminnorm(P,S,1e-8))+logdetP+D2*log(2*pi));%Naturally, this is maximized when S=P
 %Exact way: (very slow)
 % CA=C*A;
 % CAt=CA';
@@ -25,8 +29,7 @@ minus2ly=sum(z.*lsqminnorm(P,z,1e-8)) +logdetP + D2*log(2*pi);
 %     zz=z(:,i);
 %     minus2ly(i)=zz'*(P\zz) +logdetP + D2*log(2*pi);
 % end
-
-logL=-.5*(sum(minus2ly)); %This expression is scale invariant
+%logL=-.5*(sum(minus2ly)); 
 %I expect the logL to be a function of two things: 
 %1) the output error given the most likely states (smoothed? filtered?) 
 %and 2) the innovation of states on. should try to prove it.
