@@ -17,4 +17,4 @@ Z=Y-C*X-D*U;
 R=(Z*Z')/size(Z,2);
 
 %Regularizing solution slightly:
-R=R+1e-5*eye(size(R));
+R=R+1e-7*eye(size(R));

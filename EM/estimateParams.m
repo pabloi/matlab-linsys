@@ -54,12 +54,16 @@ z=Y-C*X+D*U;
 %R=.5*(R+R'); %Needed because Q is not symmetric as-is, still, there is no
 %guarantee of it being PSD
 
-%I think Q,R should be: (this is consistent with Cheng & Sabes own code:
+%I think Q,R should be, in absence of state uncertainty: (this is consistent with Cheng & Sabes own code:
 %https://sabeslab.cin.ucsf.edu/wiki/Public:Notes)
-R=z*z'/size(z,2)+tol*eye(size(z,1));
+R=z*z'/size(z,2)+1e-7*eye(size(z,1));
 w=X(:,2:end)-A*X(:,1:end-1)-B*U(:,1:end-1);
-Q=(w*w')/size(w,2)+tol*eye(size(w,1));
+Q=(w*w')/size(w,2)+1e-7*eye(size(w,1));
 %Although this has issues of convergence: if Q starts too small, the
 %EM algorithm is stuck (because of small Q, the smoothed estimate of X is
 %almost deterministic, which in turn makes all the residuals very small,
 %which leads to a small estimate of Q).
+
+%If there is state uncertainty:
+%Q=(w*w')/size(w,2) - mean(P(:,:,2:end),3) - A*mean(Pt,3)'-mean(Pt,3)*A' - A*mean(P(:,:,1:end-1),3)*A' +1e-3*eye(size(w,1));
+%R=z*z'/size(z,2) -C*mean(P,3)*C' +1e-4*eye(size(z,1));

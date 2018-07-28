@@ -17,6 +17,6 @@ W=X(:,2:N)-A*X(:,1:N-1)-B*U(:,1:N-1);
 Q=(W*W')/size(W,2);
 
 %Regularizing solution slightly: 
-Q=Q+1e-5*eye(size(Q));
+Q=Q+1e-7*eye(size(Q));
 
 
