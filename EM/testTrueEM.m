@@ -33,7 +33,7 @@ toc
 
 %% Identify 2: true EM
 tic
-[Ah,Bh,Ch,Dh,Qh,Rh,Xh,Ph]=trueEM(Y,U,2);
+[Ah,Bh,Ch,Dh,Qh,Rh,Xh,Ph]=trueEM(Y,U,fXh);
 logLh=dataLogLikelihood(Y,U,Ah,Bh,Ch,Dh,Qh,Rh,Xh,Ph);
 toc
 [J,K,Ch,Xh,V,Qh] = canonizev2(Ah,Bh,Ch,Xh,Qh);
