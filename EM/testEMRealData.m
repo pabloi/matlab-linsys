@@ -39,7 +39,7 @@ R=aux*aux'/size(aux,2);
 R=R+1e-8*eye(size(R));
 Q=1e-3*eye(D1);
 [A,B,C,X,~,~] = canonizev2(A,B,C,X,Q);
-slogLh=dataLogLikelihood(Y,U,A,B,C,D,Q,R,X,[]);
+slogLh=dataLogLikelihood(Y,U,A,B,C,D,Q,R,X(:,1),Q);
 norm(Y-C*X-D*U,'fro')
 %% Assuming these are the 'real' params, find the MLE states
 [Xs,Ps,Pt,Xf,Pf,rejSamples]=statKalmanSmoother(Y,A,C,Q,R,[],[],B,D,U);
@@ -60,16 +60,16 @@ tic
 %[fAh,fBh,fCh,fDh,fQh,fRh,fXh,fPh]=randomStartEM(Y,U,D1,10,'fast');
 toc
 [fJh,fKh,fCh,fXh,fV,fQh] = canonizev2(fAh,fBh,fCh,fXh,fQh);
-flogLh=dataLogLikelihood(Y,U,fJh,fKh,fCh,fDh,fQh,fRh,fXh,fPh);
+flogLh=dataLogLikelihood(Y,U,fJh,fKh,fCh,fDh,fQh,fRh,fXh(:,1),fPh(:,:,1));
 %% Identify 2: true EM
 tic
 norm(Y-C*X-D*U,'fro')
 [Ah,Bh,Ch,Dh,Qh,Rh,Xh,Ph]=trueEM(Y,U,Xs);
-[Ah,Bh,Ch,Dh,Qh,Rh,Xh,Ph]=randomStartEM(Y,U,Xs,10,'true');
+%[Ah,Bh,Ch,Dh,Qh,Rh,Xh,Ph]=randomStartEM(Y,U,Xs,10,'true');
 norm(Y-Ch*Xh-Dh*U,'fro')
 toc
 [Jh,Kh,Ch,Xh,V,Qh] = canonizev2(Ah,Bh,Ch,Xh,Qh);
-logLh=dataLogLikelihood(Y,U,Jh,Kh,Ch,Dh,Qh,Rh,Xh,Ph);
+logLh=dataLogLikelihood(Y,U,Jh,Kh,Ch,Dh,Qh,Rh,Xh(:,1),Ph(:,:,1));
 %% COmpare
 M=size(fXh,1);
 x0=zeros(M,1);

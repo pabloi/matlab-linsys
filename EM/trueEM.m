@@ -34,8 +34,8 @@ if nargin<4 || isempty(x0)
     P0=[];
 end
 
-logl=nan(11,2);
-%logl(1,1)=dataLogLikelihood(Y,U,A,B,C,D,Q,R,X);
+logl=nan(21,2);
+%logl(1,1)=dataLogLikelihood(Y,U,A,B,C,D,Q,R,X(:,1),Q);
 %Now, do E-M
 for k=1:size(logl,1)-1
 	%E-step: compute the expectation of latent variables given current parameter estimates
@@ -47,11 +47,11 @@ for k=1:size(logl,1)-1
 	%M-step: find parameters A,B,C,D,Q,R that maximize likelihood of data
 	[X,P,Pt,~,~,~]=statKalmanSmoother(Y,A,C,Q,R,x0,P0,B,D,U);
     %norm(Y-C*X-D*U,'fro')
-    %l=dataLogLikelihood(Y,U,A,B,C,D,Q,R,X)
+    %l=dataLogLikelihood(Y,U,A,B,C,D,Q,R,X(:,1),P(:,:,1))
     %logl(k,2)=l;
     [A,B,C,D,Q,R,x0,P0]=estimateParams(Y,U,X,P,Pt);
     %norm(Y-C*X-D*U,'fro')
-    %l=dataLogLikelihood(Y,U,A,B,C,D,Q,R,X)
+    l=dataLogLikelihood(Y,U,A,B,C,D,Q,R,x0,P0)
     %logl(k+1,1)=l;
     %[A,B,C,~,~,Q] = canonizev2(A,B,C,X,Q);
 end

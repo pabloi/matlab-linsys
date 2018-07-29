@@ -1,7 +1,7 @@
-function logL=dataLogLikelihood(Y,U,A,B,C,D,Q,R,X,~)
+function logL=dataLogLikelihood(Y,U,A,B,C,D,Q,R,X0,P0)
 %Evaluates the likelihood of the data under a given model
 
-[~,~,Xp,Pp,~]=statKalmanFilter(Y,A,C,.01*Q,R,[],[],B,D,U,0);
+[~,~,Xp,Pp,~]=statKalmanFilter(Y,A,C,Q,R,X0,P0,B,D,U,0);
 
 %'Incomplete' logLikelihood: p({y}|params) [Albert and Shadmehr 2017, eq. A1.25]
 predY=C*Xp(:,1:end-1)+D*U;
@@ -22,14 +22,15 @@ logL=-.5*N2*(trace(lsqminnorm(P,S,1e-8))+logdetP+D2*log(2*pi));%Naturally, this 
 %Exact way: (very slow)
 % CA=C*A;
 % CAt=CA';
+% RCQC=R+C*Q*C';
 % minus2ly=nan(size(z,2),1);
 % for i=1:size(z,2)
-%     P=R+CA*Pp(:,:,i)*CAt; 
+%     P=RCQC+CA*Pp(:,:,i)*CAt; 
 %     logdetP= sum(log(eig(P))); 
 %     zz=z(:,i);
 %     minus2ly(i)=zz'*(P\zz) +logdetP + D2*log(2*pi);
 % end
-%logL=-.5*(sum(minus2ly)); 
+% logL=-.5*(sum(minus2ly)); 
 %I expect the logL to be a function of two things: 
 %1) the output error given the most likely states (smoothed? filtered?) 
 %and 2) the innovation of states on. should try to prove it.

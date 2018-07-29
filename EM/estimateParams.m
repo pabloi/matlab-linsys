@@ -45,19 +45,22 @@ CD=lsqminnorm(O,[X;U]*Y',tol)'; %More efficient than line above
 C=CD(:,1:size(X,1));
 D=CD(:,size(X,1)+1:end);
 
-%Q,R: (as featured on Cheng and Sabes 2006)
+%Q,R: 
+z=Y-C*X-D*U;
+w=X(:,2:end)-A*X(:,1:end-1)-B*U(:,1:end-1);
+
+%(as featured on Cheng and Sabes 2006)
 %Q=(sum(P(:,:,2:end),3)+xx-x0*x0' - A*(sum(Pt,3)'+xx1) -B*xu1')/size(Pt,3); 
 %Q=.5*(Q+Q'); %Needed because Q is not symmetric as-is, still, there is no
 %guarantee of it being PSD
-z=Y-C*X+D*U;
+
 %R=(z*Y')/size(Y,2); %This estimate is weird: does not result in a symmetric matrix
 %R=.5*(R+R'); %Needed because Q is not symmetric as-is, still, there is no
 %guarantee of it being PSD
 
 %I think Q,R should be, in absence of state uncertainty: (this is consistent with Cheng & Sabes own code:
-%https://sabeslab.cin.ucsf.edu/wiki/Public:Notes)
+%https://sabeslab.cin.ucsf.edu/wiki/Public:Notes , and Ghahramani's too)
 R=z*z'/size(z,2)+1e-7*eye(size(z,1));
-w=X(:,2:end)-A*X(:,1:end-1)-B*U(:,1:end-1);
 Q=(w*w')/size(w,2)+1e-7*eye(size(w,1));
 %Although this has issues of convergence: if Q starts too small, the
 %EM algorithm is stuck (because of small Q, the smoothed estimate of X is
@@ -65,5 +68,11 @@ Q=(w*w')/size(w,2)+1e-7*eye(size(w,1));
 %which leads to a small estimate of Q).
 
 %If there is state uncertainty:
-%Q=(w*w')/size(w,2) - mean(P(:,:,2:end),3) - A*mean(Pt,3)'-mean(Pt,3)*A' - A*mean(P(:,:,1:end-1),3)*A' +1e-3*eye(size(w,1));
-%R=z*z'/size(z,2) -C*mean(P,3)*C' +1e-4*eye(size(z,1));
+%Q=(w*w')/size(w,2) + mean(P(:,:,2:end),3) - A*mean(Pt,3)'-mean(Pt,3)*A' +A*mean(P(:,:,1:end-1),3)*A' +1e-3*eye(size(w,1)); %This should be done with the old A value, I think
+%R=z*z'/size(z,2) +C*mean(P,3)*C' +1e-4*eye(size(z,1));
+
+%Adaptation of Shumway and Stoffer 1982: (there B=D=0 and C is fixed)
+Q=(w*w')/size(w,2)+mean(P,3)-A*mean(Pt,3)'; %Ghahramani and Hinton only have the 2nd and 3rd terms
+Q=positivize(Q); %Expression above should be symmetric and PSD, but may not be because of numerical issues
+R=z*z'/size(z,2) +C*mean(P,3)*C'; %The second term is not present in Ghahramani and Hinton OR in Cheng and Sabes. Shumway and Stoffer have fixed C, so unclear if it is needed when C is variable and adjusted.
+R=positivize(R); %Expression above should be symmetric and PSD, but may not be because of numerical issues
