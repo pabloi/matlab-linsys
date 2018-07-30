@@ -24,10 +24,10 @@ end
 Y=[median(dataSym{1},3); median(dataSym{2},3);median(dataSym{3},3)]';
 U=[zeros(size(dataSym{1},1),1);ones(size(dataSym{2},1),1);zeros(size(dataSym{3},1),1);]';
 %%
-Y=medfilt1([median(dataSym{1},3); median(dataSym{2},3)],9)';
+Y=medfilt1([median(dataSym{1},3); median(dataSym{2},3)],3)';
 U=[zeros(size(dataSym{1},1),1);ones(size(dataSym{2},1),1)]';
 %% Identify 0: handcrafted
-D1=2;
+D1=3;
 [model] = sPCAv8(Y(:,51:950)',D1,[],[],[]);
 A=model.J;
 C=model.C;

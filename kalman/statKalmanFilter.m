@@ -3,6 +3,9 @@ function [X,P,Xp,Pp,rejSamples]=statKalmanFilter(Y,A,C,Q,R,x0,P0,B,D,U,outlierRe
 %stationary (fixed) noise matrices and system dynamics
 %The model is: x[k+1]=A*x[k]+b+v[k], v~N(0,Q)
 %y[k]=C*x[k]+d+w[k], w~N(0,R)
+%And X[0] ~ N(x0,P0) -> Notice that this is different from other
+%implementations, where P0 is taken to be cov(x[0|-1]) so x[0]~N(x0,A*P0*A'+Q)
+%See for example Ghahramani and Hinton 1996
 
 %Init missing params:
 if nargin<6 || isempty(x0)

@@ -34,8 +34,8 @@ if nargin<4 || isempty(x0)
     P0=[];
 end
 
-logl=nan(21,2);
-%logl(1,1)=dataLogLikelihood(Y,U,A,B,C,D,Q,R,X(:,1),Q);
+logl=nan(51,1);
+logl(1,1)=dataLogLikelihood(Y,U,A,B,C,D,Q,R,x0,P0);
 %Now, do E-M
 for k=1:size(logl,1)-1
 	%E-step: compute the expectation of latent variables given current parameter estimates
@@ -45,14 +45,34 @@ for k=1:size(logl,1)-1
     %whereas here we are computing E(X|params) to then maximize L(Y,E(X)|params)
     %logl(k,2)=dataLogLikelihood(Y,U,A,B,C,D,Q,R,X);
 	%M-step: find parameters A,B,C,D,Q,R that maximize likelihood of data
-	[X,P,Pt,~,~,~]=statKalmanSmoother(Y,A,C,Q,R,x0,P0,B,D,U);
+	[X,P,Pt,~,~,Xp,Pp,~]=statKalmanSmoother(Y,A,C,Q,R,x0,P0,B,D,U);
     %norm(Y-C*X-D*U,'fro')
-    %l=dataLogLikelihood(Y,U,A,B,C,D,Q,R,X(:,1),P(:,:,1))
-    %logl(k,2)=l;
-    [A,B,C,D,Q,R,x0,P0]=estimateParams(Y,U,X,P,Pt);
-    %norm(Y-C*X-D*U,'fro')
-    l=dataLogLikelihood(Y,U,A,B,C,D,Q,R,x0,P0)
-    %logl(k+1,1)=l;
+    l=dataLogLikelihood(Y,U,A,B,C,D,Q,R,Xp,Pp);
+    logl(k+1)=l;
+    if l<logl(k,1)
+       warning('logL did not increase. Stopping')
+       break 
+    end
+    [A1,B1,C1,D1,Q1,R1,x01,P01]=estimateParams(Y,U,X,P,Pt);
+    l=dataLogLikelihood(Y,U,A1,B1,C1,D1,Q1,R1,x01,P01);
+    if l<logl(k+1,1) %Make only partial updates that do increase likelihood, avoids some numerical issues
+       if dataLogLikelihood(Y,U,A,B,C1,D1,Q,R1,x0,P0)>logl(k+1,1)
+           C=C1; D=D1; R=R1;
+       end
+       if dataLogLikelihood(Y,U,A1,B1,C,D,Q1,R,x0,P0)>logl(k+1,1)
+           A=A1; B=B1; Q=Q1;
+       end
+       if dataLogLikelihood(Y,U,A,B,C,D,Q,R,x01,P01)>logl(k+1,1)
+           x0=x01; P0=P01;
+       end
+       if dataLogLikelihood(Y,U,A,B,C,D,Q,R,x0,P0)<logl(k+1,1)
+           warning('logL did not increase. Stopping')
+           break
+       end
+    else %Update all
+       A=A1; B=B1; C=C1; D=D1; Q=Q1; R=R1; x0=x01; P0=P01; 
+    end
+    %norm(Y-C*X-D*U,'fro') 
     %[A,B,C,~,~,Q] = canonizev2(A,B,C,X,Q);
 end
 %figure

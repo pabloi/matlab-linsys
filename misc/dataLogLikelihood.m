@@ -1,7 +1,16 @@
 function logL=dataLogLikelihood(Y,U,A,B,C,D,Q,R,X0,P0)
 %Evaluates the likelihood of the data under a given model
 
+if nargin<10 || isempty(X0) || isempty(P0)
+    X0=[];
+    P0=[];
+end
+if size(X0,2)<=1 %True init state guess
 [~,~,Xp,Pp,~]=statKalmanFilter(Y,A,C,Q,R,X0,P0,B,D,U,0);
+else %whole filtered priors are provided, not just t=0
+    Xp=X0;
+    Pp=P0;
+end
 
 %'Incomplete' logLikelihood: p({y}|params) [Albert and Shadmehr 2017, eq. A1.25]
 predY=C*Xp(:,1:end-1)+D*U;

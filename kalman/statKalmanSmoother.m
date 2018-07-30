@@ -1,4 +1,4 @@
-function [Xs,Ps,Pt,Xf,Pf,rejSamples]=statKalmanSmoother(Y,A,C,Q,R,x0,P0,B,D,U,outRejFlag,constFun)
+function [Xs,Ps,Pt,Xf,Pf,Xp,Pp,rejSamples]=statKalmanSmoother(Y,A,C,Q,R,x0,P0,B,D,U,outRejFlag,constFun)
 %Implements a Kalman smoother for a stationary system
 %INPUT:
 %Y: D1xN observed data

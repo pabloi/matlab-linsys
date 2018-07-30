@@ -19,6 +19,14 @@ function [A,B,C,D,Q,R,x0,P0]=estimateParams(Y,U,X,P,Pt)
 %True M-step
 tol=1e-8;
 
+%Define vars:
+SP1=sum(P(:,:,1:end-1),3);
+SP2=sum(P(:,:,2:end),3);
+SP=sum(P,3);
+SPt=sum(Pt,3);
+[D1,N]=size(X);
+
+
 %x0,P0:
 x0=X(:,1);
 P0=P(:,:,1);%-x0*x0'; %Ghahramani 1996 subtract the x0 term, Cheng 2006 doesnt
@@ -29,31 +37,34 @@ uu=U(:,1:end-1)*U(:,1:end-1)';
 xu1=X(:,2:end)*U(:,1:end-1)';
 xx=X(:,1:end-1)*X(:,1:end-1)';
 xx1=X(:,2:end)*X(:,1:end-1)';
-O=[sum(P(:,:,1:end-1),3)+xx xu; xu' uu];
+O=[SP1+xx xu; xu' uu];
 %AB=[sum(Pt,3)+xx1 xu1]*pinv(O,1e-8);
-AB=lsqminnorm(O,[sum(Pt,3)+xx1 xu1]',tol)'; %More efficient than commented line above
+AB=[SPt+xx1 xu1]/O; %More efficient than above
+%AB=lsqminnorm(O,[SPt+xx1 xu1]',tol)'; %More stable than above
 %Notice that in absence of uncertainty in states, this reduces to
 %[A,B]=X+/[X;U], where X+ is X one step in the future
-A=AB(:,1:size(X,1));
-B=AB(:,size(X,1)+1:end);
+A=AB(:,1:D1);
+B=AB(:,D1+1:end);
 
 %C,D:
 xu=X*U';
 uu=U*U';
 xx=X*X';
-O=[sum(P,3)+xx xu; xu' uu];
+O=[SP+xx xu; xu' uu];
 %CD=[Y*X' Y*U']*pinv(O,tol);
 CD=lsqminnorm(O,[X;U]*Y',tol)'; %More efficient than line above
 %Notice that in absence of uncertainty in states, this reduces to [C,D]=Y/[X;U]
-C=CD(:,1:size(X,1));
-D=CD(:,size(X,1)+1:end);
+C=CD(:,1:D1);
+D=CD(:,D1+1:end);
 
 %Q,R: 
 %Adaptation of Shumway and Stoffer 1982: (there B=D=0 and C is fixed), but
 %consistent with Ghahramani and Hinton 1996, and Cheng and Sabes 2006
 z=Y-C*X-D*U;
-w=X(:,2:end)-A*X(:,1:end-1)-B*U(:,1:end-1);
-Q=(w*w')/size(w,2)+mean(P,3)-A*mean(Pt,3)';
+w=X(:,2:N)-A*X(:,1:N-1)-B*U(:,1:N-1);
+Q=(w*w'+SP2-A*SPt')/(N-1);
 Q=positivize(Q); %Expression above should be symmetric and PSD, but may not be because of numerical issues
-R=z*z'/size(z,2) +C*mean(P,3)*C';
+R=(z*z'+C*SP*C')/N;
 R=positivize(R); %Expression above should be symmetric and PSD, but may not be because of numerical issues
+
+P0=Q; %This is needed because otherwise P0 is monotonically decreasing. Perhaps A*P0*A'+Q?
