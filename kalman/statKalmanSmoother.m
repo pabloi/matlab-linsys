@@ -71,11 +71,12 @@ for i=(size(Y,2)-1):-1:1
   %Backward pass:
   AP=A*PP;
   APAQ=AP*A'+Q;
-  newK=lsqminnorm(APAQ,AP,1e-8)'; %Gain, eq to PP*A'/(A*PP*A'+Q)
+  %newK=lsqminnorm(APAQ,AP,1e-8)'; %Gain, eq to PP*A'/(A*PP*A'+Q)
+  newK=AP'/APAQ; %Faster, although worse conditioned than line above
   newPs=PP + newK*(prevPs - APAQ)*newK';
   
   %Improved (smoothed) state estimate
-  prevXs=x + newK*(prevXs-A*x-B*U(:,i)); 
+  prevXs=x + newK*(prevXs-Xp(:,i+1)); 
   Xs(:,i)=prevXs;
   Pt(:,:,i)=prevPs'*newK';
   
