@@ -51,7 +51,7 @@ for k=1:size(logl,1)-1
     %logl(k,2)=l;
     [A,B,C,D,Q,R,x0,P0]=estimateParams(Y,U,X,P,Pt);
     %norm(Y-C*X-D*U,'fro')
-    l=dataLogLikelihood(Y,U,A,B,C,D,Q,R,x0,P0)
+    %l=dataLogLikelihood(Y,U,A,B,C,D,Q,R,x0,P0)
     %logl(k+1,1)=l;
     %[A,B,C,~,~,Q] = canonizev2(A,B,C,X,Q);
 end
