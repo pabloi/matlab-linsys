@@ -17,7 +17,7 @@ function [A,B,C,D,Q,R,x0,P0]=estimateParams(Y,U,X,P,Pt)
 % return
 
 %True M-step
-tol=1e-8;
+%tol=1e-8;
 
 %Define vars:
 SP1=sum(P(:,:,1:end-1),3);
@@ -29,7 +29,7 @@ SPt=sum(Pt,3);
 
 %x0,P0:
 x0=X(:,1);
-P0=P(:,:,1);%-x0*x0'; %Ghahramani 1996 subtract the x0 term, Cheng 2006 doesnt
+P0=P(:,:,1);
 
 %A,B:
 xu=X(:,1:end-1)*U(:,1:end-1)';
@@ -52,7 +52,8 @@ uu=U*U';
 xx=X*X';
 O=[SP+xx xu; xu' uu];
 %CD=[Y*X' Y*U']*pinv(O,tol);
-CD=lsqminnorm(O,[X;U]*Y',tol)'; %More efficient than line above
+%CD=lsqminnorm(O,[X;U]*Y',tol)'; %More efficient than line above
+CD=Y*[X; U]'/O;
 %Notice that in absence of uncertainty in states, this reduces to [C,D]=Y/[X;U]
 C=CD(:,1:D1);
 D=CD(:,D1+1:end);
@@ -67,4 +68,6 @@ Q=positivize(Q); %Expression above should be symmetric and PSD, but may not be b
 R=(z*z'+C*SP*C')/N;
 R=positivize(R); %Expression above should be symmetric and PSD, but may not be because of numerical issues
 
-P0=Q; %This is needed because otherwise P0 is monotonically decreasing. Perhaps A*P0*A'+Q?
+iP=pinv(P0,1e-8);
+iP0=iP+C'*(R\C);
+P0=Q+A*(iP0\A'); %P0=Q+A*P0*A can be a proxy

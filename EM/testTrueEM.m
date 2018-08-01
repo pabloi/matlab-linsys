@@ -23,20 +23,34 @@ x0=zeros(D1,1);
 [Y,X]=fwdSim(U,A,B,C,D,x0,Q,R);
 [Y1,X1]=fwdSim(U,A,B,C,D,x0,[],[]); %Noiseless simulation, for comparison
 [Xs,Ps]=statKalmanSmoother(Y,A,C,Q,R,[],[],B,D,U,false); %Kalman smoother estimation of states, given the true parameters (this is the best possible estimation of states)
-logL=dataLogLikelihood(Y,U,A,B,C,D,Q,R,Xs,Ps);
+logL=dataLogLikelihood(Y,U,A,B,C,D,Q,R,Xs(:,1),Ps(:,:,1))
 %% Identify 1: fast EM
 tic
 [fAh,fBh,fCh,fDh,fQh,fRh,fXh,fPh]=fastEM(Y,U,2);
-flogLh=dataLogLikelihood(Y,U,fAh,fBh,fCh,fDh,fQh,fRh,fXh,fPh);
+flogLh=dataLogLikelihood(Y,U,fAh,fBh,fCh,fDh,fQh,fRh,fXh(:,1),fPh(:,:,1))
 toc
 [fJ,fK,fCh,fXh,fV,fQh] = canonizev2(fAh,fBh,fCh,fXh,fQh);
 
 %% Identify 2: true EM
 tic
-[Ah,Bh,Ch,Dh,Qh,Rh,Xh,Ph]=trueEM(Y,U,fXh);
-logLh=dataLogLikelihood(Y,U,Ah,Bh,Ch,Dh,Qh,Rh,Xh,Ph);
+[Ah,Bh,Ch,Dh,Qh,Rh,Xh,Ph]=trueEM(Y,U,2);
+logLh=dataLogLikelihood(Y,U,Ah,Bh,Ch,Dh,Qh,Rh,Xh(:,1),Ph(:,:,1))
 toc
 [J,K,Ch,Xh,V,Qh] = canonizev2(Ah,Bh,Ch,Xh,Qh);
+
+%% Cheng & Sabes
+addpath(genpath('../ext/lds-1.0/'))
+LDS.A=eye(size(A));
+LDS.B=ones(size(B));
+LDS.C=randn(D2,D1);
+LDS.D=randn(D2,1);
+LDS.Q=eye(size(Q));
+LDS.R=eye(size(R));
+LDS.x0=zeros(D1,1);
+LDS.V0=1e8 * eye(size(A)); %Same as my smoother uses 
+[LDS,Lik,Xcs,Vcs] = IdentifyLDS(2,Y,U,U,LDS);
+csLogLh=dataLogLikelihood(Y,U,LDS.A,LDS.B,LDS.C,LDS.D,LDS.Q,LDS.R,LDS.x0,LDS.V0)
+toc
 
 %% COmpare
 figure;
@@ -64,6 +78,7 @@ set(gca,'ColorOrderIndex',1)
 plot(X(i,:),'LineWidth',1)
 plot(Xh(i,:),'LineWidth',1)
 plot(fXh(i,:),'LineWidth',1)
+plot(Xcs(i,:),'LineWidth',1)
 title('States')
 legend([p1 p2 p3])
 end

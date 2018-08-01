@@ -16,14 +16,27 @@ Q=eye(D1)*.0005;
 R=eye(D2)*.01;
 
 %% Simulate
+addpath(genpath('../sim/'))
 NN=size(U,2);
 x0=zeros(D1,1);
 [Y,X]=fwdSim(U,A,B,C,D,x0,Q,R);
 [Y1,X1]=fwdSim(U,A,B,C,D,x0,[],[]); %Noiseless simulation, for comparison
 
 %% Do kalman smoothing with true params
-Xs=statKalmanSmoother(Y,A,C,Q,R,[],[],B,D,U,false); %Kalman smoother estimation of states, given the true parameters (this is the best possible estimation of states)
-Xf=statKalmanFilter(Y,A,C,Q,R,[],[],B,D,U,false); 
+[Xs,Ps,Pt]=statKalmanSmoother(Y,A,C,Q,R,[],[],B,D,U,false); %Kalman smoother estimation of states, given the true parameters (this is the best possible estimation of states)
+[Xf,Pf]=statKalmanFilter(Y,A,C,Q,R,[],[],B,D,U,false); 
+
+%% Use Cheng & Sabes code:
+addpath(genpath('../ext/lds-1.0/'))
+LDS.A=A;
+LDS.B=B;
+LDS.C=C;
+LDS.D=D;
+LDS.Q=Q;
+LDS.R=R;
+LDS.x0=zeros(D1,1);
+LDS.V0=1e8 * eye(size(A)); %Same as my smoother uses 
+[Lik,Xcs,Pcs,Ptcs,Scs] = SmoothLDS(LDS,Y,U,U); 
 %% Visualize results
 figure
 for i=1:2
@@ -32,6 +45,7 @@ for i=1:2
     hold on
     plot(Xf(i,:),'DisplayName','Filtered')
     plot(X(i,:),'DisplayName','Actual')
+    plot(Xcs(i,:),'DisplayName','CS2006')
     
     legend
     set(gca,'ColorOrderIndex',1)

@@ -13,5 +13,4 @@ function [x,P]=KFupdateEff(CtRinv,CtRinvC,x,P,y_d)
     %I_KC=iM\iP;
     P=I_KC*P;
     x=I_KC*x+K*(y_d); 
-
 end
