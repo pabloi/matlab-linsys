@@ -14,7 +14,7 @@ if nargin<8 || isempty(R)
    R=zeros(size(C,1)); 
 end
 for k=1:N
-  out(:,k)=output(state(:,k),in(:,k),C,D,R);
+  out(:,k)=calcOutput(state(:,k),in(:,k),C,D,R);
   state(:,k+1)=updateState(state(:,k),in(:,k),A,B,Q);
 end
 end
