@@ -18,7 +18,7 @@ z=Y-predY;
 [D2,N2]=size(z);
 
 %Fast, approximate way:
-P=R+C*Q*C'; %This is a lower bound on the uncertainty of the output
+P=R+C*(Q+A*mean(Pp,3)*A')*C'; %This is a lower bound on the uncertainty of the output
 % P=R+C*(A*Q*A'+Q)*C'; %This is an upper bound 
 logdetP= sum(log(eig(P))); 
 %minus2ly=sum(z.*(P\z)) +logdetP + D2*log(2*pi);

@@ -1,15 +1,10 @@
-function [A,B,C,D,Q,R,X,P]=trueEM(Y,U,Xguess,x0,P0)
+function [A,B,C,D,Q,R,X,P]=trueEM(Y,U,Xguess)
 %A true EM implementation to do LTI-SSM identification
 %INPUT:
 %Y is D2 x N
 %U is D3 x N
 %Xguess - Either the number of states for the system (if scalar) or a guess
 %at the initial states of the system (if D1 x N matrix)
-
-%TODO: this works, but is too slow (requires many iterations)
-%1) Check Cheng and Sabes 2006 equations. Is this function consistent with
-%those?
-%2) Can the speed be improved?
 
 
 [D2,N]=size(Y);
@@ -24,17 +19,10 @@ else
 end
 X=Xguess;
 
-[A,B,Q] = estimateAB(X, U);
-[C,D,R] = estimateCD(Y, X, U);
+[A,B,C,D,Q,R,x0,P0]=estimateParams(Y,U,X,zeros(D1,D1,N),zeros(D1,D1,N-1));
 %norm(Y-C*X-D*U,'fro')
 
-if nargin<4 || isempty(x0)
-    %Initialize x0,P0
-    x0=[];
-    P0=[];
-end
-
-logl=nan(51,1);
+logl=nan(101,1);
 logl(1,1)=dataLogLikelihood(Y,U,A,B,C,D,Q,R,x0,P0);
 %Now, do E-M
 for k=1:size(logl,1)-1
@@ -47,7 +35,7 @@ for k=1:size(logl,1)-1
 	%M-step: find parameters A,B,C,D,Q,R that maximize likelihood of data
 	[X,P,Pt,~,~,Xp,Pp,~]=statKalmanSmoother(Y,A,C,Q,R,x0,P0,B,D,U);
     %norm(Y-C*X-D*U,'fro')
-    l=dataLogLikelihood(Y,U,A,B,C,D,Q,R,Xp,Pp);
+    l=dataLogLikelihood(Y,U,A,B,C,D,Q,R,Xp(:,1),Pp(:,:,1));
     logl(k+1)=l;
     if l<logl(k,1)
        warning('logL did not increase. Stopping')
@@ -56,22 +44,36 @@ for k=1:size(logl,1)-1
     [A1,B1,C1,D1,Q1,R1,x01,P01]=estimateParams(Y,U,X,P,Pt);
     l=dataLogLikelihood(Y,U,A1,B1,C1,D1,Q1,R1,x01,P01);
     if l<logl(k+1,1) %Make only partial updates that do increase likelihood, avoids some numerical issues
+        warning('logL did not increase. Doing partial updates.')
+        ch=false;
        if dataLogLikelihood(Y,U,A,B,C1,D1,Q,R1,x0,P0)>logl(k+1,1)
+           disp('Updating C,D,R')
            C=C1; D=D1; R=R1;
+           ch=true;
        end
-       if dataLogLikelihood(Y,U,A1,B1,C,D,Q1,R,x0,P0)>logl(k+1,1)
-           A=A1; B=B1; Q=Q1;
+       if dataLogLikelihood(Y,U,A1,B1,C,D,Q,R,x0,P0)>logl(k+1,1)
+           disp('Updating A,B')
+           A=A1; B=B1;
+           ch=true;
+       end
+       if dataLogLikelihood(Y,U,A,B,C,D,Q1,R,x0,P0)>logl(k+1,1)
+           disp('Updating Q')
+           Q=Q1;
+           ch=true;
        end
        if dataLogLikelihood(Y,U,A,B,C,D,Q,R,x01,P01)>logl(k+1,1)
+           disp('Updating x0,P0')
            x0=x01; P0=P01;
+           ch=true;
        end
-       if dataLogLikelihood(Y,U,A,B,C,D,Q,R,x0,P0)<logl(k+1,1)
+       if ~ch
            warning('logL did not increase. Stopping')
            break
        end
     else %Update all
        A=A1; B=B1; C=C1; D=D1; Q=Q1; R=R1; x0=x01; P0=P01; 
     end
+    l=dataLogLikelihood(Y,U,A,B,C,D,Q,R,x0,P0)
     %norm(Y-C*X-D*U,'fro') 
     %[A,B,C,~,~,Q] = canonizev2(A,B,C,X,Q);
 end
