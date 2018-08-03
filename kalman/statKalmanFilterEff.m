@@ -13,7 +13,6 @@ if nargin<6 || isempty(x0)
   x0=zeros(size(A,1),1); %Column vector
 end
 if nargin<7 || isempty(P0)
-  %P0=1e8 * eye(size(A));
   P0inv=zeros(size(A));
 else
     P0inv=pinv(P0,tol);
@@ -29,7 +28,6 @@ if nargin<10 || isempty(U)
 end
 
 %Size checks:
-%TODO
 
 %Init arrays:
 Xp=nan(size(A,1),size(Y,2)+1);
@@ -65,18 +63,7 @@ if ~outlierRejection
       priorPinv(:,:,i+1)=prevPinv;
     end
 else
-   for i=1:size(Y,2)
-        %First, do the update given the output at this step:
-      d=D*U(:,i);
-      [prevX,prevP,rejSamples(:,i)]=KFupdate(C,R,prevX,prevP,Y(:,i),d,[]);
-      X(:,i)=prevX;
-      Pinv(:,:,i)=prevP;
-      %Then, predict next step:
-      b=B*U(:,i);
-      [prevX,prevP]=KFpredict(A,Q,prevX,prevP,b);
-      Xp(:,i+1)=prevX;
-      priorPinv(:,:,i+1)=prevP;
-    end 
+    error('Outlier rejection NOT implemented in efficient mode')
 end
 
 

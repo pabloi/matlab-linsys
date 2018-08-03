@@ -40,17 +40,12 @@ prevP=P0;
 Xp(:,1)=x0;
 Pp(:,:,1)=P0;
 
-tol=1e-8;
-CtRinv=lsqminnorm(R,C,tol)';
-CtRinvC=CtRinv*C;
-Y_D=Y-D*U;
 %Do the filtering
 for i=1:size(Y,2)
     %First, do the update given the output at this step:
   d=D*U(:,i);
   if ~outlierRejection
-    [prevX,prevP]=KFupdateEff(CtRinv,CtRinvC,prevX,prevP,Y_D(:,i)); %More efficient implementation
-    %[prevX,prevP]=KFupdate(C,R,prevX,prevP,Y(:,i),d);
+    [prevX,prevP]=KFupdate(C,R,prevX,prevP,Y(:,i),d);
   else
     [prevX,prevP,rejSamples(:,i)]=KFupdate(C,R,prevX,prevP,Y(:,i),d,[]);
   end

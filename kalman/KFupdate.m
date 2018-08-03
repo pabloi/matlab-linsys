@@ -24,7 +24,7 @@ function [x,P]=doUpdate(C,R,x,P,y,d)
     CP=C*P;
     S=CP*C'+R;
     %K=P*C'*pinv(S,1e-5); %This is equivalent to K=lsqminnorm(C*P,S,1e-5)'
-    K=lsqminnorm(S,CP,1e-5)';
+    K=S\CP;%lsqminnorm(S,CP,1e-5)';
     AA=(eye(size(P))-K*C);
     P=AA*P;
     x=x+K*(y-C*x-d);          
