@@ -66,8 +66,16 @@ w=X(:,2:N)-A*X(:,1:N-1)-B*U(:,1:N-1);
 Q=(w*w'+SP2-2*A*SPt'+A*SP1*A')/(N-1);
 Q=positivize(Q); %Expression above should be symmetric and PSD, but may not be because of numerical issues
 R=(z*z'+C*SP*C')/N;
-R=positivize(R); %Expression above should be symmetric and PSD, but may not be because of numerical issues
+%R=positivize(R); %Expression above should be symmetric and PSD, but may not be because of numerical issues
+%Diagonal imposition:
+%R=trace(R)*eye(size(R))/size(R,1); %Isotropic noise
+%r=diag(R);
+%r(r<0)=0;
+%R=diag(r);
+%Q=eye(D1)*.0005;
 
 iP=pinv(P0,1e-8);
 iP0=iP+C'*(R\C);
 P0=Q+A*(iP0\A'); %P0=Q+A*P0*A can be a proxy
+P0=positivize(P0);
+

@@ -1,5 +1,5 @@
 %%
-addpath(genpath('../')) %Adding the matlab-sysID toolbox to path, just in case
+addpath(genpath('../EM/../')) %Adding the matlab-sysID toolbox to path, just in case
 %% Create model:
 D1=2;
 D2=180;
@@ -14,7 +14,7 @@ B=(eye(size(A))-A)*ones(size(A,1),1); %WLOG, arbitrary scaling
 U=[zeros(300,1);ones(N,1);zeros(N/2,1)]'; %Step input and then removed
 C=randn(D2,D1);
 D=randn(D2,1);
-Q=eye(D1)*.0005;
+Q=eye(D1)*.0001;
 R=eye(D2)*.01;
 
 %% Simulate
@@ -29,28 +29,37 @@ tic
 [fAh,fBh,fCh,fDh,fQh,fRh,fXh,fPh]=fastEM(Y,U,2);
 flogLh=dataLogLikelihood(Y,U,fAh,fBh,fCh,fDh,fQh,fRh,fXh(:,1),fPh(:,:,1))
 toc
-[fJ,fK,fCh,fXh,fV,fQh] = canonizev2(fAh,fBh,fCh,fXh,fQh);
+[fJh,fKh,fCh,fXh,fV,fQh] = canonizev2(fAh,fBh,fCh,fXh,fQh);
 
 %% Identify 2: true EM
 tic
-[Ah,Bh,Ch,Dh,Qh,Rh,Xh,Ph]=trueEM(Y,U,2);
+[Ah,Bh,Ch,Dh,Qh,Rh,Xh,Ph]=trueEM(Y,U,Xs);
 logLh=dataLogLikelihood(Y,U,Ah,Bh,Ch,Dh,Qh,Rh,Xh(:,1),Ph(:,:,1))
 toc
-[J,K,Ch,Xh,V,Qh] = canonizev2(Ah,Bh,Ch,Xh,Qh);
-
-%% Cheng & Sabes
-addpath(genpath('../ext/lds-1.0/'))
-LDS.A=eye(size(A));
-LDS.B=ones(size(B));
-LDS.C=randn(D2,D1);
-LDS.D=randn(D2,1);
-LDS.Q=eye(size(Q));
-LDS.R=eye(size(R));
-LDS.x0=zeros(D1,1);
-LDS.V0=1e8 * eye(size(A)); %Same as my smoother uses 
-[LDS,Lik,Xcs,Vcs] = IdentifyLDS(2,Y,U,U,LDS);
-csLogLh=dataLogLikelihood(Y,U,LDS.A,LDS.B,LDS.C,LDS.D,LDS.Q,LDS.R,LDS.x0,LDS.V0)
-toc
+[Jh,Kh,Ch,Xh,V,Qh] = canonizev2(Ah,Bh,Ch,Xh,Qh);
+%%
+% LDS.A=Ah;
+% LDS.B=Bh;
+% LDS.C=Ch;
+% LDS.D=Dh;
+% LDS.Q=Qh;
+% LDS.R=Rh;
+% LDS.x0=Xh(:,1);
+% LDS.V0=Ph(:,:,1);
+% llh=LikelihoodLDS(LDS,Y,U);
+%% Cheng & Sabes %Too slow
+% addpath(genpath('../ext/lds-1.0/'))
+% LDS.A=eye(size(A));
+% LDS.B=ones(size(B));
+% LDS.C=randn(D2,D1);
+% LDS.D=randn(D2,1);
+% LDS.Q=eye(size(Q));
+% LDS.R=eye(size(R));
+% LDS.x0=zeros(D1,1);
+% LDS.V0=1e8 * eye(size(A)); %Same as my smoother uses 
+% [LDS,Lik,Xcs,Vcs] = IdentifyLDS(2,Y,U,U,LDS);
+% csLogLh=dataLogLikelihood(Y,U,LDS.A,LDS.B,LDS.C,LDS.D,LDS.Q,LDS.R,LDS.x0,LDS.V0)
+% toc
 
 %% COmpare
 figure;
@@ -62,7 +71,7 @@ plot(cc(:,1)'*(Ch*Xh+Dh*U),'LineWidth',1)
 plot(cc(:,1)'*(fCh*fXh+fDh*U),'LineWidth',1)
 title('Output projection over main PCs')
 
-[Y2,X2]=fwdSim(U,J,K,Ch,Dh,x0,[],[]);
+[Y2,X2]=fwdSim(U,Jh,Kh,Ch,Dh,x0,[],[]);
 [Y3,X3]=fwdSim(U,fJ,fK,fCh,fDh,x0,[],[]);
 for i=1:2
 subplot(3,2,2*i) %States
@@ -78,7 +87,7 @@ set(gca,'ColorOrderIndex',1)
 plot(X(i,:),'LineWidth',1)
 plot(Xh(i,:),'LineWidth',1)
 plot(fXh(i,:),'LineWidth',1)
-plot(Xcs(i,:),'LineWidth',1)
+%plot(Xcs(i,:),'LineWidth',1)
 title('States')
 legend([p1 p2 p3])
 end
