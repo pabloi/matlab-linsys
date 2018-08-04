@@ -23,9 +23,9 @@ x0=zeros(D1,1);
 [Y1,X1]=fwdSim(U,A,B,C,D,x0,[],[]); %Noiseless simulation, for comparison
 
 %% Do kalman smoothing with true params
-[Xs,Ps,Pt]=statKalmanSmoother(Y,A,C,Q,R,[],[],B,D,U,false); %Kalman smoother estimation of states, given the true parameters (this is the best possible estimation of states)
-[Xf,Pf]=statKalmanFilter(Y,A,C,Q,R,[],[],B,D,U,false); 
-
+tic
+[Xs,Ps,Pt,Xf,Pf,Xp,Pp]=statKalmanSmoother(Y,A,C,Q,R,[],[],B,D,U,false); %Kalman smoother estimation of states, given the true parameters (this is the best possible estimation of states)
+toc
 %% Use Cheng & Sabes code:
 addpath(genpath('../ext/lds-1.0/'))
 LDS.A=A;
@@ -36,19 +36,33 @@ LDS.Q=Q;
 LDS.R=R;
 LDS.x0=zeros(D1,1);
 LDS.V0=1e8 * eye(size(A)); %Same as my smoother uses 
+tic
 [Lik,Xcs,Pcs,Ptcs,Scs] = SmoothLDS(LDS,Y,U,U); 
+toc
 %% Visualize results
 figure
 for i=1:2
-    subplot(2,1,i)
+    subplot(3,1,i)
     plot(Xs(i,:),'DisplayName','Smoothed')
     hold on
     plot(Xf(i,:),'DisplayName','Filtered')
-    plot(X(i,:),'DisplayName','Actual')
     plot(Xcs(i,:),'DisplayName','CS2006')
+    plot(X(i,:),'DisplayName','Actual')
     
     legend
-    set(gca,'ColorOrderIndex',1)
-    bar(1900,sqrt(mean((X(i,1:end-1)-Xs(i,:)).^2)),'BarWidth',100,'EdgeColor','None')
-    bar(2000,sqrt(mean((X(i,1:end-1)-Xf(i,:)).^2)),'BarWidth',100,'EdgeColor','None')
+
 end
+subplot(3,1,3)
+for i=1:2
+     hold on
+     set(gca,'ColorOrderIndex',1)
+    plot(Xs(i,:)-X(i,1:end-1),'DisplayName','Smoothed')
+    plot(Xf(i,:)-X(i,1:end-1),'DisplayName','Filtered')
+    plot(Xcs(i,:)-X(i,1:end-1),'DisplayName','CS2006')
+        set(gca,'ColorOrderIndex',1)
+    bar(1900+300*i,sqrt(mean((X(i,1:end-1)-Xs(i,:)).^2)),'BarWidth',100,'EdgeColor','None')
+    bar(2000+300*i,sqrt(mean((X(i,1:end-1)-Xf(i,:)).^2)),'BarWidth',100,'EdgeColor','None')
+    bar(2100+300*i,sqrt(mean((X(i,1:end-1)-Xcs(i,:)).^2)),'BarWidth',100,'EdgeColor','None')
+    grid on
+end
+axis([0 3000 -.02 .02])
