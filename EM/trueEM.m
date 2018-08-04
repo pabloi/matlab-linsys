@@ -17,13 +17,12 @@ if numel(Xguess)==1
 else
     D1=size(Xguess,1);
 end
-X=Xguess;
-
-[A,B,C,D,Q,R,x0,P0]=estimateParams(Y,U,X,zeros(D1,D1,N),zeros(D1,D1,N-1));
+[A,B,C,D,Q,R,x0,P0]=estimateParams(Y,U,Xguess,zeros(D1,D1,N),zeros(D1,D1,N-1));
 
 debug=false;
-logl=nan(101,1);
+logl=nan(51,1);
 logl(1,1)=dataLogLikelihood(Y,U,A,B,C,D,Q,R,x0,P0);
+
 %Now, do E-M
 for k=1:size(logl,1)-1
 	%E-step: compute the expectation of latent variables given current parameter estimates
@@ -34,7 +33,6 @@ for k=1:size(logl,1)-1
     %logl(k,2)=dataLogLikelihood(Y,U,A,B,C,D,Q,R,X);
 	%M-step: find parameters A,B,C,D,Q,R that maximize likelihood of data
 	[X,P,Pt,~,~,Xp,Pp,~]=statKalmanSmoother(Y,A,C,Q,R,x0,P0,B,D,U);
-    %norm(Y-C*X-D*U,'fro')
     l=dataLogLikelihood(Y,U,A,B,C,D,Q,R,Xp,Pp); %Passing the Kalman-filtered states and uncertainty makes the computation more efficient
     logl(k+1)=l;
     if l<logl(k,1)
@@ -78,8 +76,6 @@ for k=1:size(logl,1)-1
     else
         [A,B,C,D,Q,R,x0,P0]=estimateParams(Y,U,X,P,Pt);
     end
-    %norm(Y-C*X-D*U,'fro') 
-    %[A,B,C,~,~,Q] = canonizev2(A,B,C,X,Q);
 end
 %figure
 %subplot(2,1,1)
