@@ -63,7 +63,15 @@ D=CD(:,D1+1:end);
 %consistent with Ghahramani and Hinton 1996, and Cheng and Sabes 2006
 z=Y-C*X-D*U;
 w=X(:,2:N)-A*X(:,1:N-1)-B*U(:,1:N-1);
-Q=(w*w'+SP2-2*A*SPt'+A*SP1*A')/(N-1);
+
+%Cheap outlier rejection:
+n=sqrt(sum(w.^2,1));
+n99=prctile(n,99);
+%w(:,n>n99)=repmat(mean(w,2),1,sum(n>n99));
+%Q=(w*w'+SP2-2*A*SPt'+A*SP1*A')/(N-1);
+%Alt: Robust covariance estimation:
+Q = robustcov(w') +(SP2-2*A*SPt'+A*SP1*A')/(N-1);
+%
 Q=positivize(Q); %Expression above should be symmetric and PSD, but may not be because of numerical issues
 R=(z*z'+C*SP*C')/N;
 %R=positivize(R); %Expression above should be symmetric and PSD, but may not be because of numerical issues
