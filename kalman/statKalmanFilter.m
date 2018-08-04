@@ -39,18 +39,23 @@ prevX=x0;
 prevP=P0;
 Xp(:,1)=x0;
 Pp(:,:,1)=P0;
+tol=1e-8;
+CtRinv=lsqminnorm(R,C,tol)'; 
+CtRinvC=CtRinv*C;
+Y_D=Y-D*U;
 
 %Do the filtering
 for i=1:size(Y,2)
-    %First, do the update given the output at this step:
-  d=D*U(:,i);
+  y_d=Y_D(:,i);
+  %First, do the update given the output at this step:
   if ~outlierRejection
-    [prevX,prevP]=KFupdate(C,R,prevX,prevP,Y(:,i),d);
+    [prevX,prevP]=KFupdate(CtRinv,CtRinvC,prevX,prevP,y_d);
   else
-    [prevX,prevP,rejSamples(:,i)]=KFupdate(C,R,prevX,prevP,Y(:,i),d,[]);
+    [prevX,prevP,rejSamples(:,i)]=KFupdate(CtRinv,CtRinvC,x,P,y_d,[]);
   end
   X(:,i)=prevX;
   P(:,:,i)=prevP;
+  
   %Then, predict next step:
   b=B*U(:,i);
   [prevX,prevP]=KFpredict(A,Q,prevX,prevP,b);

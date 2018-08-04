@@ -1,7 +1,7 @@
-function [x,P,outlierIndx]=KFupdate(C,R,x,P,y,d,rejectThreshold)
+function [x,P,outlierIndx]=KFupdate(CtRinv,CtRinvC,x,P,y_d,rejectThreshold) %(C,R,x,P,y,d,rejectThreshold)
 
-if nargin>6
-	[outlierIndx]=detectOutliers(y-d,x,P,C,R,rejectThreshold);
+if nargin>5
+	[outlierIndx]=detectOutliers(y_d,x,P,C,R,rejectThreshold);
 	if any(~outlierIndx)
 	%Update without outliers, by setting outliers to exactly what we expect
 	%with inifinite uncertainty
@@ -14,18 +14,15 @@ if nargin>6
 	%R=R(~outlierIndx,~outlierIndx);
 	end
 end
-[x,P]=doUpdate(C,R,x,P,y,d);
+tol=1e-8;
+iP=P\eye(size(P));%pinv(P,tol); 
+iM=iP+CtRinvC; 
+%M=pinv(iM,tol); 
+%K=M*CtRinv; 
+%I_KC=M*iP;  %=I -K*C
+%x=M*(iP*x+CtRinv*y_d); 
+%P=M;%(I_KC)*P; 
+x=iM\(iP*x+CtRinv*y_d); 
+P=iM\eye(size(iM));%(I_KC)*P; 
 
-end
-
-function [x,P]=doUpdate(C,R,x,P,y,d)
-  	%update implements Kalman's update step
-    %Fast and stable-ish implementation:
-    CP=C*P;
-    S=CP*C'+R;
-    %K=P*C'*pinv(S,1e-5); %This is equivalent to K=lsqminnorm(C*P,S,1e-5)'
-    K=S\CP;%lsqminnorm(S,CP,1e-5)';
-    AA=(eye(size(P))-K*C);
-    P=AA*P;
-    x=x+K*(y-C*x-d);          
 end
