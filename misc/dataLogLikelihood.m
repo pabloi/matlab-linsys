@@ -20,12 +20,8 @@ z=Y-predY;
 %Fast, approximate way:
 P=R+C*mean(Pp,3)*C'; %This is a lower bound on the uncertainty of the output
 % P=R+C*(A*Q*A'+Q)*C'; %This is an upper bound 
-logdetP= sum(log(eig(P))); 
-%minus2ly=sum(z.*(P\z)) +logdetP + D2*log(2*pi);
-%logL=-.5*sum(sum(z.*lsqminnorm(P,z,1e-8)) +logdetP + D2*log(2*pi));
-%sum(minus2ly) should be MINIMIZED when P=z*z'/size(z,2)
-%logL=-.5*(trace(z'*inv(P)*z)+N2*logdetP+N2*D2*log(2*pi));
-%logL=-.5*(trace(inv(P)*z*z')+N2*logdetP+N2*D2*log(2*pi));
+logdetP= sum(log(eig(P))); %Should use:https://en.wikipedia.org/wiki/Matrix_determinant_lemma to cheapen computation (can exploit knowing C'*(R\C) and det(R) ahead of time to only need computing size(Pp) determinants
+
 S=z*z'/N2;
 logL=-.5*N2*(trace(lsqminnorm(P,S,1e-8))+logdetP+D2*log(2*pi));%Naturally, this is maximized when S=P
 %Exact way: (very slow)

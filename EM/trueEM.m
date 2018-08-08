@@ -36,7 +36,10 @@ for k=1:size(logl,1)-1
     l=dataLogLikelihood(Y,U,A,B,C,D,Q,R,Xp,Pp); %Passing the Kalman-filtered states and uncertainty makes the computation more efficient
     logl(k+1)=l;
     if l<logl(k,1)
-       warning('logL did not increase. Stopping')
+       warning('logL decreased. Stopping')
+       break 
+    elseif k>1 & (1-logl(k,1)/l)<1e-5
+        warning('logL increase is within tolerance (local max). Stopping')
        break 
     end
     if debug

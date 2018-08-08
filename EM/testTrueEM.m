@@ -1,5 +1,8 @@
 %%
-addpath(genpath('../EM/../')) %Adding the matlab-sysID toolbox to path, just in case
+addpath(genpath('../EM/')) %Adding the matlab-sysID toolbox to path, just in case
+addpath(genpath('../kalman/'))
+addpath(genpath('../aux/'))
+addpath(genpath('../sim/'))
 %% Create model:
 D1=2;
 D2=180;
