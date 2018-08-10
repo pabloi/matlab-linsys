@@ -64,7 +64,12 @@ w=X(:,2:N)-A*X(:,1:N-1)-B*U(:,1:N-1);
 
 % MLE estimator of Q, under the given assumptions:
 Q2=(SP2-2*A*SPt'+A*SP1*A')/(N-1);
-Q=(w*w')/(N-1)+Q2; %Not designed to deal with outliers, autocorrelated w
+%Q=(w*w')/(N-1)+Q2; %Not designed to deal with outliers, autocorrelated w
+%Note: if we dont have exact extimates of A,B, then the residuals w are not
+%iid gaussian. They will be autocorrelated AND have outliers with respect
+%to the best-fitting multivariate normal. Thus, we benefit from doing a
+%more robust estimate, especially to avoid local minima in trueEM
+
 %Robust covariance estimation (this deals with outliers, not autocorr):
 %Q = robustcov(w') +Q2;
 %Cheap variant of robust estimation:
@@ -83,47 +88,5 @@ P0=Q+A*P0*A';
 %%Expression of covariances should be symmetric and PSD, but may not be because of numerical issues:
 P0=positivize(P0);
 Q=positivize(Q);
-%R=positivize(R);
-end
-
-function Q=robCov(w)
-%Note: if we dont have exact extimates of A,B, then the residuals w are not
-%iid gaussian. They will be autocorrelated AND have outliers with respect
-%to the best-fitting multivariate normal. Thus, we benefit from doing a
-%more robust estimate, especially to avoid local minima in trueEM
-[nD,M]=size(w);
-Q=(w*w')/M; %Standard estimate
-y=sum(w.*(Q\w),1); %if Q,w where computed on demeaned data, this is distributed as t^2/M where t^2 ~ Hotelling's T^2 = nD*(M-1)/(M-nD) F_{nD,M-nD}, see https://en.wikipedia.org/wiki/Hotelling%27s_T-squared_distribution
-yPRC=prctile(y,90);
-wRob=w(:,y<yPRC);
-%First moment of F_{nD,M-nD} = (M-nD)/(M-nD-2)  (~1 if M-nD>>2)
-%(approx) Partial first moment to th 90th-percentile:
-x=[0:.01:finv(.9,nD,M-nD)];
-fp=.01*sum(x.*fpdf(x,nD,M-nD));
-k=1/fp;
-Q=k*(wRob*wRob')/M;% k is a factor to account for the usage of only the first 90% samples and still get an ~unbiased estimate.
-
-%Some debugging:
-%prc=[.99,.95,.9];
-%yPRC=prctile(y,prc*100);
-%y99=yPRC(1);
-%y95=yPRC(2);
-%y90=yPRC(3);
-% figure;
-% plot(w(1,:),w(2,:),'o'); hold on;
-% plot(w(1,y>y90),w(2,y>y90),'mo');
-% plot(w(1,y>y95),w(2,y>y95),'go');
-% plot(w(1,y>y99),w(2,y>y99),'ro');
-% th=0:.1:2*pi;
-% x=sin(th);
-% y=cos(th);
-% 
-% col={'r','g','m'};
-% for j=1:length(prc)
-% f99=finv(prc(j),nD,M-nD); %99th percentile of relevant F distribution
-% t99=nD*(M-1)/(M-nD) * f99;  %99th of relevant T^2 distribution
-% a99=sqrt((t99)./sum([x;y].*(Q\[x;y])));
-% plot(a99.*x,a99.*y,col{j})
-% end
-% %TODO: deal with auto-correlated (ie not white) noise for better estimates.
+%R=positivize(R); %Takes too long, and is rarely not PSD
 end
