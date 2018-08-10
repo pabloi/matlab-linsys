@@ -1,4 +1,4 @@
-function Q=robCov(w,prc)
+function Q=robCov(w,prc,Niter)
 %robCov is a robust covariance matrix estimation of data. Useful if data may contain outliers.
 %It uses only an 'inner' percentage of the data (i.e. data lying inside a certain
 %ellipsoid) to estimate the covariance matrix. If data comes from a
@@ -24,21 +24,28 @@ function Q=robCov(w,prc)
 %samples?
 
 [nD,M]=size(w);
-Q=(w*w')/M; %Standard estimate
-y=sum(w.*(Q\w),1); %if Q,w weere computed on demeaned data, this is distributed as t^2/M where t^2 ~ Hotelling's T^2 = nD*(M-1)/(M-nD) F_{nD,M-nD}, see https://en.wikipedia.org/wiki/Hotelling%27s_T-squared_distribution
 if nargin<2 || isempty(prc)
     prc=90;
 elseif prc<1 %Assuming percentile was given in [0,1] range
     prc=round(100*prc);
 end
-yPRC=prctile(y,prc);
-wRob=w(:,y<yPRC);
+if nargin<3 || isempty(Niter)
+    Niter=2;
+end
 %First moment of F_{nD,M-nD} = (M-nD)/(M-nD-2)  (~1 if M-nD>>2)
 %(approx) Partial first moment to th 90th-percentile:
-x=[0:.01:finv(.9,nD,M-nD)];
+x=[0:.01:finv(prc/100,nD,M-nD)];
 fp=.01*sum(x.*fpdf(x,nD,M-nD));
 k=1/fp; % k is a factor to account for the usage of only the 'first' 90% samples and still get an ~unbiased estimate.
-Q=k*(wRob*wRob')/M;
+
+w2=w*w';
+Q=(w2)/M; %Standard estimate, to init
+for i=1:Niter
+    y=sum(w.*(Q\w),1); %if Q,w were computed on demeaned data, this is distributed as t^2 ~ Hotelling's T^2 = nD*(M-1)/(M-nD) F_{nD,M-nD}, see https://en.wikipedia.org/wiki/Hotelling%27s_T-squared_distribution
+    yPRC=prctile(y,prc);
+    wRob=w(:,y<yPRC);
+    Q=k*(wRob*wRob')/M;
+end
 
 %Some debugging:
 %prc=[.99,.95,.9];
