@@ -2,3 +2,5 @@
 *.m~
 
 ext/
+
+EM/robCov\.png

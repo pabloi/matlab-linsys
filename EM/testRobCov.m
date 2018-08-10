@@ -4,6 +4,7 @@
 %mean =0), for data drawn from a randomly chosen multinormal distribution,
 %for different values of the parameters (dimension size, sample size,
 %contamination with outlier samples).
+%TODO: add measure of dispersion/worst case performance
 %%
 clearvars
 fh=figure;
@@ -11,6 +12,7 @@ Nreps=1e1;
 cut=90;
 %% Test as function of matrix size
 subplot(4,2,1)
+hold off
 clear ae at
 Nsamp=1e3;
 for M=1:10
@@ -20,6 +22,7 @@ Nreps=1e2;
 % Estimate:
 
 Qest=nan(M,M,Nreps);
+Qest2=nan(M,M,Nreps);
 Qtrue=nan(M,M,Nreps);
 for i=1:Nreps
 % Generate data:
@@ -27,23 +30,27 @@ X=Qsqrt*randn(size(Q,2),Nsamp);
 
 % Estimate:
 Qest(:,:,i)=robCov(X,cut); %My robust estimate
+Qest2(:,:,i)=robCov(X,100-2*(100-cut)); %My robust estimate
 Qtrue(:,:,i)=X*X'/size(X,2); %Standard, MLE, estimate given a known mean
 end
 
 % Visualize
-at(M)=norm(Q-mean(Qtrue,3),'fro')/norm(Q,'fro');
-ae(M)=norm(Q-mean(Qest,3),'fro')/norm(Q,'fro');
+at(M)=sqrt(mean(sum(sum((Q-Qtrue).^2,1),2),3))/norm(Q,'fro');
+ae(M)=sqrt(mean(sum(sum((Q-Qest).^2,1),2),3))/norm(Q,'fro');
+ae2(M)=sqrt(mean(sum(sum((Q-Qest2).^2,1),2),3))/norm(Q,'fro');
 end
 p1=scatter(1:length(at),at,'filled','DisplayName','MLE');
 hold on
-p2=scatter(1:length(ae),ae,'filled','DisplayName','Robust');
+p3=scatter(1:length(ae),ae2,'filled','DisplayName',['Robust, reject=' num2str(2*(100-cut)) '%']);
+p2=scatter(1:length(ae),ae,'filled','DisplayName',['Robust, reject=' num2str(100-cut) '%']);
 title(['Nreps=' num2str(Nreps) ', Nsamples=' num2str(Nsamp) ', no outliers, reject=' num2str(100-cut) '%'])
 xlabel('Covariance size (dimension) (M)')
-ylabel('|\hat{Q}-Q|_F / |Q|_F')
+ylabel('Mean |\hat{Q}-Q|_F / |Q|_F')
 legend
 
 %% Test as function of data size
 subplot(4,2,2)
+hold off
 clear ae at ae2 ae3
 M=6;
 for j=1:5
@@ -53,6 +60,7 @@ Nreps=1e2;
 % Estimate:
 
 Qest=nan(M,M,Nreps);
+Qest2=nan(M,M,Nreps);
 Qtrue=nan(M,M,Nreps);
 for i=1:Nreps
 % Generate data:
@@ -60,16 +68,19 @@ X=Qsqrt*randn(size(Q,2),10^j);
 
 % Estimate:
 Qest(:,:,i)=robCov(X,cut); %My robust estimate
+Qest2(:,:,i)=robCov(X,100-2*(100-cut)); %My robust estimate
 Qtrue(:,:,i)=X*X'/size(X,2); %Standard, MLE, estimate given a known mean
 end
 
 % Visualize
-at(j)=norm(Q-mean(Qtrue,3),'fro')/norm(Q,'fro');
-ae(j)=norm(Q-mean(Qest,3),'fro')/norm(Q,'fro');
+at(j)=sqrt(mean(sum(sum((Q-Qtrue).^2,1),2),3))/norm(Q,'fro');
+ae(j)=sqrt(mean(sum(sum((Q-Qest).^2,1),2),3))/norm(Q,'fro');
+ae2(j)=sqrt(mean(sum(sum((Q-Qest2).^2,1),2),3))/norm(Q,'fro');
 end
 p1=scatter(1:length(at),at,'filled','DisplayName','MLE');
 hold on
-p2=scatter(1:length(ae),ae,'filled','DisplayName','Robust');
+p3=scatter(1:length(ae),ae2,'filled','DisplayName',['Robust, reject=' num2str(2*(100-cut)) '%']);
+p2=scatter(1:length(ae),ae,'filled','DisplayName',['Robust, reject=' num2str(100-cut) '%']);
 title([num2str(M) ' x ' num2str(M) ' matrix, Nreps=' num2str(Nreps) ', no outliers, reject=' num2str(100-cut) '%'])
 xlabel('Log_{10}(sample size)')
 ylabel('|\hat{Q}-Q|_F / |Q|_F')
@@ -106,10 +117,10 @@ Qtrue(:,:,i)=X*X'/size(X,2); %Standard, MLE, estimate given a known mean
 end
 
 % Visualize
-at(r)=norm(Q-mean(Qtrue,3),'fro')/norm(Q,'fro');
-ae(r)=norm(Q-mean(Qest,3),'fro')/norm(Q,'fro');
-ae2(r)=norm(Q-mean(Qest2,3),'fro')/norm(Q,'fro');
-ae3(r)=norm(Q-mean(Qest3,3),'fro')/norm(Q,'fro');
+at(r)=sqrt(mean(sum(sum((Q-Qtrue).^2,1),2),3))/norm(Q,'fro');
+ae(r)=sqrt(mean(sum(sum((Q-Qest).^2,1),2),3))/norm(Q,'fro');
+ae2(r)=sqrt(mean(sum(sum((Q-Qest2).^2,1),2),3))/norm(Q,'fro');
+ae3(r)=sqrt(mean(sum(sum((Q-Qest3).^2,1),2),3))/norm(Q,'fro');
 end
 p1=scatter(1:length(at),at,'filled','DisplayName','MLE');
 hold on
@@ -152,10 +163,10 @@ Qtrue(:,:,i)=X*X'/size(X,2); %Standard, MLE, estimate given a known mean
 end
 
 % Visualize
-at(r)=norm(Q-mean(Qtrue,3),'fro')/norm(Q,'fro');
-ae(r)=norm(Q-mean(Qest,3),'fro')/norm(Q,'fro');
-ae2(r)=norm(Q-mean(Qest2,3),'fro')/norm(Q,'fro');
-ae3(r)=norm(Q-mean(Qest3,3),'fro')/norm(Q,'fro');
+at(r)=sqrt(mean(sum(sum((Q-Qtrue).^2,1),2),3))/norm(Q,'fro');
+ae(r)=sqrt(mean(sum(sum((Q-Qest).^2,1),2),3))/norm(Q,'fro');
+ae2(r)=sqrt(mean(sum(sum((Q-Qest2).^2,1),2),3))/norm(Q,'fro');
+ae3(r)=sqrt(mean(sum(sum((Q-Qest3).^2,1),2),3))/norm(Q,'fro');
 end
 p1=scatter(1:length(at),at,'filled','DisplayName','MLE');
 hold on
@@ -197,10 +208,10 @@ Qtrue(:,:,i)=X*X'/size(X,2); %Standard, MLE, estimate given a known mean
 end
 
 % Visualize
-at(r)=norm(Q-mean(Qtrue,3),'fro')/norm(Q,'fro');
-ae(r)=norm(Q-mean(Qest,3),'fro')/norm(Q,'fro');
-ae2(r)=norm(Q-mean(Qest2,3),'fro')/norm(Q,'fro');
-ae3(r)=norm(Q-mean(Qest3,3),'fro')/norm(Q,'fro');
+at(r)=sqrt(mean(sum(sum((Q-Qtrue).^2,1),2),3))/norm(Q,'fro');
+ae(r)=sqrt(mean(sum(sum((Q-Qest).^2,1),2),3))/norm(Q,'fro');
+ae2(r)=sqrt(mean(sum(sum((Q-Qest2).^2,1),2),3))/norm(Q,'fro');
+ae3(r)=sqrt(mean(sum(sum((Q-Qest3).^2,1),2),3))/norm(Q,'fro');
 end
 p1=scatter(1:length(at),at,'filled','DisplayName','MLE');
 hold on
@@ -241,10 +252,10 @@ Qtrue(:,:,i)=X*X'/size(X,2); %Standard, MLE, estimate given a known mean
 end
 
 % Visualize
-at(r)=norm(Q-mean(Qtrue,3),'fro')/norm(Q,'fro');
-ae(r)=norm(Q-mean(Qest,3),'fro')/norm(Q,'fro');
-ae2(r)=norm(Q-mean(Qest2,3),'fro')/norm(Q,'fro');
-ae3(r)=norm(Q-mean(Qest3,3),'fro')/norm(Q,'fro');
+at(r)=sqrt(mean(sum(sum((Q-Qtrue).^2,1),2),3))/norm(Q,'fro');
+ae(r)=sqrt(mean(sum(sum((Q-Qest).^2,1),2),3))/norm(Q,'fro');
+ae2(r)=sqrt(mean(sum(sum((Q-Qest2).^2,1),2),3))/norm(Q,'fro');
+ae3(r)=sqrt(mean(sum(sum((Q-Qest3).^2,1),2),3))/norm(Q,'fro');
 end
 p1=scatter(1:length(at),at,'filled','DisplayName','MLE');
 hold on
@@ -290,9 +301,9 @@ time(i)=toc;
 end
 
 % Visualize
-at(r)=norm(Q-mean(Qtrue,3),'fro')/norm(Q,'fro');
-ae(r)=norm(Q-mean(Qest,3),'fro')/norm(Q,'fro');
-ae2(r)=norm(Q-mean(Qest2,3),'fro')/norm(Q,'fro');
+at(r)=sqrt(mean(sum(sum((Q-Qtrue).^2,1),2),3))/norm(Q,'fro');
+ae(r)=sqrt(mean(sum(sum((Q-Qest).^2,1),2),3))/norm(Q,'fro');
+ae2(r)=sqrt(mean(sum(sum((Q-Qest2).^2,1),2),3))/norm(Q,'fro');
 rt(r)=mean(time);
 re(r)=mean(rcTime);
 re2(r)=mean(rc2Time);
