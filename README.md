@@ -1,6 +1,6 @@
-# matlab-sysID
-Linear system identification toolbox for Matlab.
-Includes an implementation of the Kalman filter and Kalman smoother.
+# matlab-linsys
+Linear dynamicl systems toolbox for Matlab.
+Includes an implementation of the Kalman filter and Kalman smoother, and several methods to perform system identification.
 
 *Framework:*
 The identification methods try to find matrices A,B,C,D,Q,R from a data matrix Y representing N samples (y_k) of a D dimensional output signal, and a matrix U, representing N samples (u_k) of an M dimensional input signal. The system takes the form:
