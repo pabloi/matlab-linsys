@@ -20,7 +20,7 @@ fast EM: an approximation of the true EM method
 - Implement the implicit extended KF.
 - Implement the augmented KF.
 - Review outlier rejection scheme for KF.
-- Check sysID implementation vs. Cheng and Sabes 2006, Ghahramani and Hinton 1996, Albert and Shadmehr 2017
+- Change fastEM to do a weighted average to smooth and non-smooth state estimation based on 1-step(?) forward output error
 
 
 *Changelist*
