@@ -1,3 +1,6 @@
 [submodule "monoLS"]
 	path = ext/monoLS
 	url = https://www.github.com/pabloi/monoLS.git
+[submodule "robustCov"]
+	path = robustCov
+	url = www.github.com/pabloi/robustCov
