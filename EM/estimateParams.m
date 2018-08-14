@@ -70,9 +70,7 @@ Q2=(SP2-2*A*SPt'+A*SP1*A')/(N-1);
 %to the best-fitting multivariate normal. Thus, we benefit from doing a
 %more robust estimate, especially to avoid local minima in trueEM
 
-%Robust covariance estimation (this deals with outliers, not autocorr):
-%Q = robustcov(w') +Q2;
-%Cheap variant of robust estimation:
+%Fast variant of robustcov() estimation:
 Q=robCov(w) +Q2;
 
 %Estimate R:

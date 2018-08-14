@@ -1,5 +1,8 @@
 %%
-addpath(genpath('../')) %Adding the matlab-sysID toolbox to path, just in case
+addpath(genpath('../aux/')) 
+addpath(genpath('../kalman/')) 
+addpath(genpath('../data/'))
+addpath(genpath('../../robustCov/')) 
 %% Load real data:
 load ../data/dynamicsData.mat
 addpath(genpath('./fun/'))
@@ -27,7 +30,7 @@ U=[zeros(size(dataSym{1},1),1);ones(size(dataSym{2},1),1);zeros(size(dataSym{3},
 Y=medfilt1([median(dataSym{1},3); median(dataSym{2},3)],3)';
 U=[zeros(size(dataSym{1},1),1);ones(size(dataSym{2},1),1)]';
 %% Identify 0: handcrafted
-D1=3;
+D1=2;
 [model] = sPCAv8(Y(:,51:950)',D1,[],[],[]);
 A=model.J;
 C=model.C;
@@ -54,9 +57,9 @@ cc=get(gca,'ColorOrder');
 for i=1:size(X,1)
     patch([1:size(Xf,2),size(Xf,2):-1:1],[Xf(i,:)'+sqrt(squeeze(Pf(i,i,:)));flipud(Xf(i,:)'-sqrt(squeeze(Pf(i,i,:))))]',cc(i,:),'EdgeColor','none','FaceAlpha',.3)
 end
-%% Identify 1: fast EM
+%% Identify 1: true EM with smooth start
 tic
-[fAh,fBh,fCh,fDh,fQh,fRh,fXh,fPh]=fastEM(Y,U,Xs);
+[fAh,fBh,fCh,fDh,fQh,fRh,fXh,fPh]=trueEM(Y,U,Xs);
 %[fAh,fBh,fCh,fDh,fQh,fRh,fXh,fPh]=randomStartEM(Y,U,D1,10,'fast');
 toc
 [fJh,fKh,fCh,fXh,fV,fQh] = canonizev2(fAh,fBh,fCh,fXh,fQh);
@@ -64,8 +67,8 @@ flogLh=dataLogLikelihood(Y,U,fJh,fKh,fCh,fDh,fQh,fRh,fXh(:,1),fPh(:,:,1));
 %% Identify 2: true EM
 tic
 norm(Y-C*X-D*U,'fro')
-[Ah,Bh,Ch,Dh,Qh,Rh,Xh,Ph]=trueEM(Y,U,Xs);
-%[Ah,Bh,Ch,Dh,Qh,Rh,Xh,Ph]=randomStartEM(Y,U,Xs,10,'true');
+%[Ah,Bh,Ch,Dh,Qh,Rh,Xh,Ph]=trueEM(Y,U,Xs);
+[Ah,Bh,Ch,Dh,Qh,Rh,Xh,Ph]=randomStartEM(Y,U,D1,10,'true');
 norm(Y-Ch*Xh-Dh*U,'fro')
 toc
 [Jh,Kh,Ch,Xh,V,Qh] = canonizev2(Ah,Bh,Ch,Xh,Qh);
@@ -76,21 +79,24 @@ x0=zeros(M,1);
 figure;
 [pp,cc,aa]=pca(Y,'Centered','off');
 
-for kk=1:M
-subplot(M+2,2,(kk-1)*2+1) %Output along first PC of true data
+for kk=1:M+2
+subplot(M+3,2,(kk-1)*2+1) %Output along first PC of true data
 hold on
 plot(cc(:,kk)'*(Ch*Xh+Dh*U),'LineWidth',1)
 plot(cc(:,kk)'*(fCh*fXh+fDh*U),'LineWidth',1)
 plot(cc(:,kk)'*(C*X+D*U),'LineWidth',1)
 plot(cc(:,kk)'*(Y),'k','LineWidth',1)
+if kk==1
+    title('Output projection over main PCs')
+
 end
-title('Output projection over main PCs')
+end
 
 [Y2,X2]=fwdSim(U,Jh,Kh,Ch,Dh,x0,[],[]);
 [Y3,X3]=fwdSim(U,fJh,fKh,fCh,fDh,x0,[],[]);
 
 for i=1:M
-subplot(M+2,2,2*i) %States
+subplot(M+3,2,2*i) %States
 hold on
 %Smooth versions
 set(gca,'ColorOrderIndex',1)
@@ -109,7 +115,7 @@ title('States')
 legend([p2 p3 p1])
 end
 
-subplot(M+2,2,2*M+1) %Smooth output RMSE
+subplot(M+3,2,2*M+4) %Smooth output RMSE
 hold on
 %aux=sqrt(sum((Y-Y1).^2));
 %plot(aux)
@@ -132,7 +138,7 @@ text(1900,.8,['LogL=' num2str(slogLh)],'Color',bar0.FaceColor)
 axis([0 2200 .0 1.5])
 grid on
 
-subplot(M+2,2,2*M+3) %MLE state output error
+subplot(M+3,2,2*M+5) %MLE state output error
 hold on
 %aux=sqrt(sum((Y-Y1).^2));
 %plot(aux)
@@ -155,7 +161,7 @@ text(1900,.8,['LogL=' num2str(slogLh)],'Color',bar0.FaceColor)
 axis([0 2200 .0 1.5])
 grid on
 
-subplot(M+2,2,2*M+4) %MLE state innovation
+subplot(M+3,2,2*M+6) %MLE state innovation
 hold on
 %aux=sqrt(sum((Y-Y1).^2));
 %plot(aux)
