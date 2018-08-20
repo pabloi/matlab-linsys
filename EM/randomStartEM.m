@@ -26,14 +26,13 @@ for i=1:Nreps
         case 'fast'
             [Ai,Bi,Ci,Di,Qi,Ri,Xi,Pi]=fastEM(Y,U,Xguess);
         case 'true'
-            [Ai,Bi,Ci,Di,Qi,Ri,Xi,Pi]=trueEM(Y,U,Xguess);
+            [Ai,Bi,Ci,Di,Qi,Ri,Xi,Pi]=trueEM(Y,U,Xguess,bestLL);
     end
     logl=dataLogLikelihood(Y,U,Ai,Bi,Ci,Di,Qi,Ri,Xi(:,1),Pi(:,:,1));
     if logl>bestLL
         A=Ai; B=Bi; C=Ci; D=Di; Q=Qi; R=Ri; X=Xi; P=Pi;
         bestLL=logl;
-        disp('Success')
-        logl=dataLogLikelihood(Y,U,A,B,C,D,Q,R,X(:,1),P(:,:,1))
+        disp(['Success, best logL=' num2str(bestLL)])
     end
 end
 logl=dataLogLikelihood(Y,U,A,B,C,D,Q,R,X(:,1),P(:,:,1));
