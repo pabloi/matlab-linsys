@@ -21,7 +21,7 @@ z=Y-predY;
 P=R+C*mean(Pp,3)*C'; %This is a lower bound on the uncertainty of the output
 % P=R+C*(A*Q*A'+Q)*C'; %This is an upper bound 
 eP=eig(P);
-if ~all(eP>0) %Sanity check, the output covariance should be positive semidef., otherwise the likelihood is not well defined
+if ~all(imag(eP)==0 & eP>0) %Sanity check, the output covariance should be positive semidef., otherwise the likelihood is not well defined
     error('Covariance matrix is not PSD, cannot compute likelihood')
 end
 logdetP= sum(log(eP)); %Should use:https://en.wikipedia.org/wiki/Matrix_determinant_lemma to cheapen computation (can exploit knowing C'*(R\C) and det(R) ahead of time to only need computing size(Pp) determinants

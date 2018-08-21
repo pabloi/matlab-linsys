@@ -10,15 +10,16 @@ function [A,B,C,D,Q,R,X,P]=trueEM(Y,U,Xguess,targetLogL)
 [D2,N]=size(Y);
 %Initialize guesses of A,B,C,D,Q,R
 D=Y/U;
-if numel(Xguess)==1
-    D1=Xguess;
+X=Xguess;
+if numel(X)==1
+    D1=X;
     [pp,~,~]=pca(Y-D*U,'Centered','off');
-    Xguess=pp(:,1:D1)';
+    X=pp(:,1:D1)';
 else
-    D1=size(Xguess,1);
+    D1=size(X,1);
 end
 %Starting point:
-[A,B,C,D,Q,R,x0,P0]=estimateParams(Y,U,Xguess,zeros(D1,D1,N),zeros(D1,D1,N-1));
+[A,B,C,D,Q,R,x0,P0]=estimateParams(Y,U,X,zeros(D1,D1,N),zeros(D1,D1,N-1));
 
 
 debug=false;
@@ -40,11 +41,13 @@ for k=1:size(logl,1)-1
     
     %E-step:
     [X1,P1,Pt1,~,~,Xp,Pp,~]=statKalmanSmoother(Y,A,C,Q,R,x0,P0,B,D,U);
-    
+    if any(imag(X1(:)))~=0
+       warning('Complex states') 
+    end
     %M-step:
+    [A1,B1,C1,D1,Q1,R1,x01,P01]=estimateParams(Y,U,X1,P1,Pt1);
     if debug
         disp(['LogL as % of target:' num2str(round(l*100000/targetLogL)/1000)])
-        [A1,B1,C1,D1,Q1,R1,x01,P01]=estimateParams(Y,U,X1,P1,Pt1);
         l=dataLogLikelihood(Y,U,A1,B1,C1,D1,Q1,R1,Xp,Pp);
         if l<logl(k+1,1) %Make only partial updates that do increase likelihood, avoids some numerical issues
             warning('logL did not increase. Doing partial updates.')
@@ -77,8 +80,8 @@ for k=1:size(logl,1)-1
         %   A=A1; B=B1; C=C1; D=D1; Q=Q1; R=R1; x0=x01; P0=P01; 
         end
         %l=dataLogLikelihood(Y,U,A,B,C,D,Q,R,x0,P0)
-    else
-        [A1,B1,C1,D1,Q1,R1,x01,P01]=estimateParams(Y,U,X1,P1,Pt1);
+    %else
+    %    [A1,B1,C1,D1,Q1,R1,x01,P01]=estimateParams(Y,U,X1,P1,Pt1);
     end
     
     %Check improvements:
