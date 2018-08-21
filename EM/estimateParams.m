@@ -74,7 +74,8 @@ Q2=(SP2-2*A*SPt'+A*SP1*A')/(N-1);
 Q=robCov(w) +Q2;
 
 %Estimate R:
-R=(z*z'+C*SP*C')/N;
+aux=(SP+SP')/2; %Make it symmetric
+R=(z*z'+C*aux*C')/N;
 
 %A variant in the estimation of P0, to not make it monotonically decreasing
 %as number of iterations increase:
@@ -84,7 +85,7 @@ R=(z*z'+C*SP*C')/N;
 P0=Q+A*P0*A';
 
 %%Expression of covariances should be symmetric and PSD, but may not be because of numerical issues:
-P0=positivize(P0);
-Q=positivize(Q);
+P0=(P0+P0')/2; %positivize(P0);
+Q=(Q+Q')/2;
 %R=positivize(R); %Takes too long, and is rarely not PSD
 end

@@ -1,4 +1,4 @@
-function [A,B,C,D,Q,R,X,P]=trueEM(Y,U,Xguess)
+function [A,B,C,D,Q,R,X,P]=trueEM(Y,U,Xguess,targetLogL)
 %A true EM implementation to do LTI-SSM identification
 %INPUT:
 %Y is D2 x N
@@ -10,18 +10,24 @@ function [A,B,C,D,Q,R,X,P]=trueEM(Y,U,Xguess)
 [D2,N]=size(Y);
 %Initialize guesses of A,B,C,D,Q,R
 D=Y/U;
-if numel(Xguess)==1
-    D1=Xguess;
+X=Xguess;
+if numel(X)==1
+    D1=X;
     [pp,~,~]=pca(Y-D*U,'Centered','off');
-    Xguess=pp(:,1:D1)';
+    X=pp(:,1:D1)';
 else
-    D1=size(Xguess,1);
+    D1=size(X,1);
 end
-[A,B,C,D,Q,R,x0,P0]=estimateParams(Y,U,Xguess,zeros(D1,D1,N),zeros(D1,D1,N-1));
+%Starting point:
+[A,B,C,D,Q,R,x0,P0]=estimateParams(Y,U,X,zeros(D1,D1,N),zeros(D1,D1,N-1));
+
 
 debug=false;
-logl=nan(201,1);
+logl=nan(501,1);
 logl(1,1)=dataLogLikelihood(Y,U,A,B,C,D,Q,R,x0,P0);
+if nargin<4 || isempty(targetLogL)
+    targetLogL=logl(1);
+end
 
 %Now, do E-M
 for k=1:size(logl,1)-1
@@ -32,19 +38,17 @@ for k=1:size(logl,1)-1
     %whereas here we are computing E(X|params) to then maximize L(Y,E(X)|params)
     %logl(k,2)=dataLogLikelihood(Y,U,A,B,C,D,Q,R,X);
 	%M-step: find parameters A,B,C,D,Q,R that maximize likelihood of data
-	[X,P,Pt,~,~,Xp,Pp,~]=statKalmanSmoother(Y,A,C,Q,R,x0,P0,B,D,U);
-    l=dataLogLikelihood(Y,U,A,B,C,D,Q,R,Xp,Pp); %Passing the Kalman-filtered states and uncertainty makes the computation more efficient
-    logl(k+1)=l;
-    if l<logl(k,1)
-       warning('logL decreased. Stopping')
-       break 
-    elseif k>1 & (1-logl(k,1)/l)<1e-7
-        warning('logL increase is within tolerance (local max). Stopping')
-       break 
+    
+    %E-step:
+    [X1,P1,Pt1,~,~,Xp,Pp,~]=statKalmanSmoother(Y,A,C,Q,R,x0,P0,B,D,U);
+    if any(imag(X1(:)))~=0
+       warning('Complex states') 
     end
+    %M-step:
+    [A1,B1,C1,D1,Q1,R1,x01,P01]=estimateParams(Y,U,X1,P1,Pt1);
     if debug
-        [A1,B1,C1,D1,Q1,R1,x01,P01]=estimateParams(Y,U,X,P,Pt);
-        l=dataLogLikelihood(Y,U,A1,B1,C1,D1,Q1,R1,x01,P01);
+        disp(['LogL as % of target:' num2str(round(l*100000/targetLogL)/1000)])
+        l=dataLogLikelihood(Y,U,A1,B1,C1,D1,Q1,R1,Xp,Pp);
         if l<logl(k+1,1) %Make only partial updates that do increase likelihood, avoids some numerical issues
             warning('logL did not increase. Doing partial updates.')
             ch=false;
@@ -72,12 +76,41 @@ for k=1:size(logl,1)-1
                warning('logL did not increase. Stopping')
                break
            end
-        else %Update all
-           A=A1; B=B1; C=C1; D=D1; Q=Q1; R=R1; x0=x01; P0=P01; 
+        %else %Update all
+        %   A=A1; B=B1; C=C1; D=D1; Q=Q1; R=R1; x0=x01; P0=P01; 
         end
-        l=dataLogLikelihood(Y,U,A,B,C,D,Q,R,x0,P0)
-    else
-        [A,B,C,D,Q,R,x0,P0]=estimateParams(Y,U,X,P,Pt);
+        %l=dataLogLikelihood(Y,U,A,B,C,D,Q,R,x0,P0)
+    %else
+    %    [A1,B1,C1,D1,Q1,R1,x01,P01]=estimateParams(Y,U,X1,P1,Pt1);
+    end
+    
+    %Check improvements:
+    l=dataLogLikelihood(Y,U,A1,B1,C1,D1,Q1,R1,Xp,Pp); %Passing the Kalman-filtered states and uncertainty makes the computation more efficient
+    logl(k+1)=l;
+    improvement=l>=logl(k,1);
+    targetRelImprovement=(l-logl(k,1))/(targetLogL-l);
+    belowTarget=l<targetLogL;
+    relImprovementLast10=1-logl(max(k-10,1),1)/l; %Assessing the relative improvement on logl over the last 10 iterations (or less if there aren't as many)
+    %Check for failure conditions:
+    if imag(l)~=0
+        warning('Complex logL, probably ill-conditioned matrices involved. Stopping.')
+        break
+    elseif ~improvement %This should never happen, except that our loglikelihood is approximate, so there can be some rounding error
+        if l<logl(max(k-3,1),1) %If the logl dropped below what it was 3 steps before, then we probably have a real issue (Best case: local max)
+            warning('logL decreased. Stopping')
+            break
+        end
+    end
+    %If everything went well: replace parameters 
+    A=A1; B=B1; C=C1; D=D1; Q=Q1; R=R1; x0=x01; P0=P01; X=X1; P=P1; %Pt=Pt1;
+    %Check if we should stop early (to avoid wasting time):
+    if k>1 && (belowTarget && (targetRelImprovement)<2e-2) %Breaking if improvement less than 2% of distance to targetLogL, as this probably means we are not getting a solution better than the given target
+       warning('logL unlikely to reach target value. Stopping')
+       break 
+    elseif k>1 && (relImprovementLast10)<1e-7 %Considering the system stalled if relative improvement on logl is <1e-7
+        warning('logL increase is within tolerance (local max). Stopping')
+        %disp(['LogL as % of target:' num2str(round(l*100000/targetLogL)/1000)])
+        break 
     end
 end
 %figure

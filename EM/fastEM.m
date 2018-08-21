@@ -37,6 +37,9 @@ for k=1:size(logl,1)-1
     %X1=(C\(Y-D*U));
     %X=.5*(X1+X2(:,1:end-1));
     [X,P,~,~,~,Xp,Pp]=statKalmanSmoother(Y,A,C,Q,R,X(:,1),Q,B,D,U);
+    %TODO: instead of Kalman Smoother, do a weighted average of the states
+    %implied by A,B and C,D. Weighing according to next-state uncertainty
+    %or sth like that. Test that this is indeed faster than trueEM
     l=dataLogLikelihood(Y,U,A,B,C,D,Q,R,Xp,Pp);
     logl(k+1,1)=l;
     if l<logl(k,1)

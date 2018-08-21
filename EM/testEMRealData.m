@@ -58,10 +58,8 @@ toc
 flogLh=dataLogLikelihood(Y,U,fJh,fKh,fCh,fDh,fQh,fRh,fXh(:,1),fPh(:,:,1));
 %% Identify 2: true EM
 tic
-norm(Y-C*X-D*U,'fro')
 %[Ah,Bh,Ch,Dh,Qh,Rh,Xh,Ph]=trueEM(Y,U,Xs);
-[Ah,Bh,Ch,Dh,Qh,Rh,Xh,Ph]=randomStartEM(Y,U,D1,7,'true');
-norm(Y-Ch*Xh-Dh*U,'fro')
+[Ah,Bh,Ch,Dh,Qh,Rh,Xh,Ph]=randomStartEM(Y,U,D1,20,'true');
 toc
 [Jh,Kh,Ch,Xh,V,Qh] = canonizev2(Ah,Bh,Ch,Xh,Qh);
 logLh=dataLogLikelihood(Y,U,Jh,Kh,Ch,Dh,Qh,Rh,Xh(:,1),Ph(:,:,1));
