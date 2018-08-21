@@ -30,8 +30,8 @@ U=[zeros(size(dataSym{1},1),1);ones(size(dataSym{2},1),1);zeros(size(dataSym{3},
 Y=medfilt1([median(dataSym{1},3); median(dataSym{2},3)],3)';
 U=[zeros(size(dataSym{1},1),1);ones(size(dataSym{2},1),1)]';
 %%
-Y=medfilt1([median(data{1},3); median(data{2},3)],3)';
-U=[zeros(size(data{1},1),1);ones(size(data{2},1),1)]';
+% Y=medfilt1([median(data{1},3); median(data{2},3)],3)';
+% U=[zeros(size(data{1},1),1);ones(size(data{2},1),1)]';
 %% Identify 0: handcrafted sPCA
 D1=3;
 [model] = sPCAv8(Y(:,51:950)',D1,[],[],[]);
@@ -60,7 +60,7 @@ flogLh=dataLogLikelihood(Y,U,fJh,fKh,fCh,fDh,fQh,fRh,fXh(:,1),fPh(:,:,1));
 tic
 norm(Y-C*X-D*U,'fro')
 %[Ah,Bh,Ch,Dh,Qh,Rh,Xh,Ph]=trueEM(Y,U,Xs);
-[Ah,Bh,Ch,Dh,Qh,Rh,Xh,Ph]=randomStartEM(Y,U,D1,10,'true');
+[Ah,Bh,Ch,Dh,Qh,Rh,Xh,Ph]=randomStartEM(Y,U,D1,7,'true');
 norm(Y-Ch*Xh-Dh*U,'fro')
 toc
 [Jh,Kh,Ch,Xh,V,Qh] = canonizev2(Ah,Bh,Ch,Xh,Qh);
@@ -180,6 +180,29 @@ plot(aux2,'LineWidth',1)
 aux0=sqrt(sum((Y-C*X-D*U).^2));
 plot(aux0,'LineWidth',1)
 title('MLE state-based output error (Y-CX-DU,RMSE)')
+set(gca,'ColorOrderIndex',1)
+%bar1=bar([1900],mean([aux]),'EdgeColor','none','BarWidth',100);
+%text(1600,4,['LogL=' num2str(logL)],'Color',bar1.FaceColor)
+bar2=bar([2000],mean([aux1]),'EdgeColor','none','BarWidth',100);
+text(1700,1.2,['LogL=' num2str(logLh)],'Color',bar2.FaceColor)
+bar3=bar([2100],mean([aux2]),'EdgeColor','none','BarWidth',100);
+text(1800,1,['LogL=' num2str(flogLh)],'Color',bar3.FaceColor)
+bar0=bar([2200],mean([aux0]),'EdgeColor','none','BarWidth',100);
+text(1900,.8,['LogL=' num2str(slogLh)],'Color',bar0.FaceColor)
+axis([0 2200 .0 1.5])
+grid on
+
+subplot(M+4,4,4*(M+3)-3) %One ahead error
+hold on
+%aux=sqrt(sum((Y-Y1).^2));
+%plot(aux)
+aux1=sqrt(sum((Y(:,2:end)-Ch*(Jh*Xh(:,1:end-1)+Kh*U(:,1:end-1))-Dh*U(:,2:end)).^2));
+plot(aux1,'LineWidth',1)
+aux2=sqrt(sum((Y(:,2:end)-fCh*(fJh*fXh(:,1:end-1)+fKh*U(:,1:end-1))-fDh*U(:,2:end)).^2));
+plot(aux2,'LineWidth',1)
+aux0=sqrt(sum((Y(:,2:end)-C*(A*X(:,1:end-1)+B*U(:,1:end-1))-D*U(:,2:end)).^2));
+plot(aux0,'LineWidth',1)
+title('One-ahead error (Y_+-C(AX+BU)-DU,RMSE)')
 set(gca,'ColorOrderIndex',1)
 %bar1=bar([1900],mean([aux]),'EdgeColor','none','BarWidth',100);
 %text(1600,4,['LogL=' num2str(logL)],'Color',bar1.FaceColor)

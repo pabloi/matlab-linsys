@@ -20,7 +20,7 @@ end
 [A,B,C,D,Q,R,x0,P0]=estimateParams(Y,U,Xguess,zeros(D1,D1,N),zeros(D1,D1,N-1));
 
 debug=false;
-logl=nan(51,1);
+logl=nan(201,1);
 logl(1,1)=dataLogLikelihood(Y,U,A,B,C,D,Q,R,x0,P0);
 
 %Now, do E-M
@@ -38,7 +38,7 @@ for k=1:size(logl,1)-1
     if l<logl(k,1)
        warning('logL decreased. Stopping')
        break 
-    elseif k>1 & (1-logl(k,1)/l)<1e-5
+    elseif k>1 & (1-logl(k,1)/l)<1e-7
         warning('logL increase is within tolerance (local max). Stopping')
        break 
     end
