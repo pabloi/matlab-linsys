@@ -91,6 +91,7 @@ for k=1:size(logl,1)-1
     %Check for failure conditions:
     if imag(l)~=0
         warning('Complex logL, probably ill-conditioned matrices involved. Stopping.')
+        break
     elseif ~improvement %This should never happen, except that our loglikelihood is approximate, so there can be some rounding error
         if l<logl(max(k-3,1),1) %If the logl dropped below what it was 3 steps before, then we probably have a real issue (Best case: local max)
             warning('logL decreased. Stopping')
