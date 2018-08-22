@@ -43,33 +43,49 @@ else
 end
 
 %Priors:
+tol=1e-8;
 prevX=x0;
 prevP=P0;
+%prevsP=decomposition(prevP,'chol','upper');
+%previP=pinv(P0,tol);
 Xp(:,1)=x0;
 Pp(:,:,1)=P0;
-tol=1e-8;
+
+%sR=chol(R); %cholesky decomposition
+%isR=(sR\eye(size(sR)))'; %Cholesky decomp of Rinv
+%aux=C'*isR';
+%CtRinv=aux*isR;
+%CtRinvC=aux*aux'; %Ensures psd
+
 %CtRinv=lsqminnorm(R,C,tol)';  %Equivalent to C'/R;, not gpu ready
 CtRinv=C'*pinv(R,tol); %gpu-ready
 CtRinvC=CtRinv*C;
+
 Y_D=Y-D*U;
+CtRinvY=CtRinv*Y_D;
+BU=B*U;
+%iQ=pinv(Q,tol);
 
 %Do the filtering
 for i=1:size(Y,2)
   %First, do the update given the output at this step:
   if ~outlierRejection
-    [prevX,prevP]=KFupdate(CtRinv,CtRinvC,prevX,prevP,Y_D(:,i));
+    [prevX,prevP]=KFupdate(CtRinvY(:,i),CtRinvC,prevX,prevP);
+    %[prevX,prevsP,prevP]=KFupdatev2(CtRinvY(:,i),CtRinvC,prevX,prevsP);
+    %[prevX,previP]=KFupdateEff(CtRinvY(:,i),CtRinvC,prevX,previP);
   else
       warning('Outlier rejection not implemented')
       %TODO: reject outliers here
       %[outlierIndx]=detectOutliers(Y_D(:,i),x,P,C,R,rejectThreshold);
-    [prevX,prevP,rejSamples(:,i)]=KFupdate(CtRinv,CtRinvC,x,P,Y_D(:,i));
+     [prevX,prevP]=KFupdate(CtRinvY(:,i),CtRinvC,prevX,prevP);
   end
   X(:,i)=prevX;
   P(:,:,i)=prevP;
   
   %Then, predict next step:
-  b=B*U(:,i);
-  [prevX,prevP]=KFpredict(A,Q,prevX,prevP,b);
+  [prevX,prevP]=KFpredict(A,Q,prevX,prevP,BU(:,i));
+  %[prevX,prevsP,prevP]=KFpredictv2(A,Q,prevX,prevP,BU(:,i));
+  %[prevX,previP]=KFpredictEff(A,iQ,prevX,previP,BU(:,i));
   Xp(:,i+1)=prevX;
   Pp(:,:,i+1)=prevP;
 end

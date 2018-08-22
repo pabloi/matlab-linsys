@@ -64,21 +64,25 @@ end
 for i=(size(Y,2)-1):-1:1
   
   %First, get estimates from forward pass:
-  x=Xf(:,i); %Previous posterior estimate of covariance at this step
-  PP=Pf(:,:,i); %Previous posterior estimate of covariance at this time step
+  xf=Xf(:,i); %Previous posterior estimate of covariance at this step
+  pf=Pf(:,:,i); %Previous posterior estimate of covariance at this time step
+  xp=Xp(:,i+1); %Prediction of next step based on post estimate of this step
+  pp=Pp(:,:,i+1); %Covariance of next step based on post estimate of this step
 
   %Backward pass:
-  AP=A*PP;
-  %APAQ=AP*A'+Q; 
-  APAQ=Pp(:,:,i+1);
-  %newK=lsqminnorm(APAQ,AP,1e-8)'; %Gain, eq to PP*A'/(A*PP*A'+Q)
-  newK=AP'/APAQ; %Faster, although worse conditioned than line above
-  newPt=prevPs'*newK';
-  %newPs=PP + newK*(prevPs - APAQ)*newK';%=PP +newK*prevPs*newK' -newK*A*PP
-  newPs=PP+newK*(newPt-AP);
+  %First, compute gain:
+  AP=A*pf;
+  %pp=AP*A'+Q; %Could compute pp instead of accessing it, unclear which is faster
+  newK=AP'/pp; %Faster, although worse conditioned than: newK=lsqminnorm(pp,AP,1e-8)'
   
   %Improved (smoothed) state estimate
-  prevXs=x + newK*(prevXs-Xp(:,i+1)); 
+  newPt=prevPs'*newK'; %Transposing prevPs' is unnecessary
+  newPs=pf+newK*(newPt-AP);
+  newPs=(newPs+newPs')/2; %Ugly hack to ensure symmetry of matrix
+  
+  %xp=A*xf+B*U(:,i); %Could compute instead of acccesing it, unclear which is faster
+  prevXs=xf + newK*(prevXs-xp); 
+  
   Xs(:,i)=prevXs;
   Pt(:,:,i)=newPt;
   

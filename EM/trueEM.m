@@ -41,7 +41,7 @@ end
 
 %Initialize guesses of A,B,C,D,Q,R
 [A,B,C,D,Q,R,x0,P0]=estimateParams(Y,U,X,P,Pt);
-
+%[A,B,C,X,~,Q] = canonizev2(A,B,C,X,Q); %Make sure scaling is good
 
 debug=false;
 
@@ -114,11 +114,11 @@ for k=1:size(logl,1)-1
     relImprovementLast10=1-logl(max(k-10,1),1)/l; %Assessing the relative improvement on logl over the last 10 iterations (or less if there aren't as many)
     %Check for failure conditions:
     if imag(l)~=0
-        warning('Complex logL, probably ill-conditioned matrices involved. Stopping.')
+        warning(['Complex logL, probably ill-conditioned matrices involved. Stopping after ' num2str(k) ' iterations.'])
         break
     elseif ~improvement %This should never happen, except that our loglikelihood is approximate, so there can be some rounding error
         if l<logl(max(k-3,1),1) %If the logl dropped below what it was 3 steps before, then we probably have a real issue (Best case: local max)
-            warning('logL decreased. Stopping')
+            warning(['logL decreased. Stopping after ' num2str(k) ' iterations.'])
             break
         end
     end
@@ -126,16 +126,11 @@ for k=1:size(logl,1)-1
     A=A1; B=B1; C=C1; D=D1; Q=Q1; R=R1; x0=x01; P0=P01; X=X1; P=P1; %Pt=Pt1;
     %Check if we should stop early (to avoid wasting time):
     if k>1 && (belowTarget && (targetRelImprovement)<2e-2) %Breaking if improvement less than 2% of distance to targetLogL, as this probably means we are not getting a solution better than the given target
-       warning('logL unlikely to reach target value. Stopping')
+       warning(['logL unlikely to reach target value. Stopping after ' num2str(k) ' iterations.'])
        break 
     elseif k>1 && (relImprovementLast10)<1e-7 %Considering the system stalled if relative improvement on logl is <1e-7
-        warning('logL increase is within tolerance (local max). Stopping')
+        warning(['logL increase is within tolerance (local max). Stopping after ' num2str(k) ' iterations.'])
         %disp(['LogL as % of target:' num2str(round(l*100000/targetLogL)/1000)])
         break 
     end
 end
-%figure
-%subplot(2,1,1)
-%plot(reshape(logl',numel(logl),1))
-%subplot(2,1,2)
-%plot(logl(:,2)-logl(:,1))

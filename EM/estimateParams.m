@@ -25,6 +25,12 @@ SP2=sum(P(:,:,2:end),3);
 SP=sum(P,3);
 SPt=sum(Pt,3);
 [D1,N]=size(X);
+%Check
+if sum(sum((SP-SP').^2))~=0 
+%    error('b')
+%elseif sum(sum((SPt*A'-A*SPt').^2))~=0 
+%    error('a')
+end
 
 %x0,P0:
 x0=X(:,1);
@@ -64,6 +70,7 @@ w=X(:,2:N)-A*X(:,1:N-1)-B*U(:,1:N-1);
 
 % MLE estimator of Q, under the given assumptions:
 Q2=(SP2-2*A*SPt'+A*SP1*A')/(N-1);
+Q2=(Q2+Q2')/2; %A*SPt' should be symmetric, but numerical issues
 %Q=(w*w')/(N-1)+Q2; %Not designed to deal with outliers, autocorrelated w
 %Note: if we dont have exact extimates of A,B, then the residuals w are not
 %iid gaussian. They will be autocorrelated AND have outliers with respect
@@ -76,6 +83,8 @@ Q=robCov(w) +Q2;
 %Estimate R:
 aux=(SP+SP')/2; %Make it symmetric
 R=(z*z'+C*aux*C')/N;
+R=(R+R')/2;
+%R=R+1e-15*eye(size(R)); %Avoid numerical issues
 
 %A variant in the estimation of P0, to not make it monotonically decreasing
 %as number of iterations increase:
@@ -86,6 +95,5 @@ P0=Q+A*P0*A';
 
 %%Expression of covariances should be symmetric and PSD, but may not be because of numerical issues:
 P0=(P0+P0')/2; %positivize(P0);
-Q=(Q+Q')/2;
 %R=positivize(R); %Takes too long, and is rarely not PSD
 end
