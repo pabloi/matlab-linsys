@@ -16,40 +16,35 @@ function [Xs,Ps,Pt,Xf,Pf,Xp,Pp,rejSamples]=statKalmanSmoother(Y,A,C,Q,R,x0,P0,B,
 %See also:
 % statKalmanFilter, filterStationary_wConstraint, trueEM
 
-  %Init missing params:
-  if nargin<6 || isempty(x0)
-    x0=zeros(size(A,1),1); %Column vector
-  end
-  if nargin<7 || isempty(P0)
-    P0=1e8 * eye(size(A));
-  end
-  if nargin<8 || isempty(B)
-    B=0;
-  end
-  if nargin<9 || isempty(D)
-    D=0;
-  end
-  if nargin<10 || isempty(U)
-     U=zeros(1,size(Y,2)); 
-  end
-  if nargin<11 || isempty(outRejFlag)
-      outRejFlag=0;
-  end
-  if nargin<12 || isempty(constFun)
-      constFunFlag=0;
-  else
-      constFunFlag=1;
-  end
+%Init missing params:
+if nargin<6 || isempty(x0)
+x0=zeros(size(A,1),1); %Column vector
+end
+if nargin<7 || isempty(P0)
+P0=1e8 * eye(size(A));
+end
+if nargin<8 || isempty(B)
+B=0;
+end
+if nargin<9 || isempty(D)
+D=0;
+end
+if nargin<10 || isempty(U)
+ U=zeros(1,size(Y,2)); 
+end
+if nargin<11 || isempty(outRejFlag)
+  outRejFlag=0;
+end
 
-  %Size checks:
-  %TODO
-
+%Size checks:
+%TODO
+  
 %Step 1: forward filter
-if constFunFlag==0
-    %[X,P,Xp,Pp,rejSamples]=filterStationary(Y,A,C,Q,R,x0,P0,B,D,U,outRejFlag);
-    [Xf,Pf,Xp,Pp,rejSamples]=statKalmanFilter(Y,A,C,Q,R,x0,P0,B,D,U,outRejFlag);
+if nargin<12 || isempty(constFun)
+  %[X,P,Xp,Pp,rejSamples]=filterStationary(Y,A,C,Q,R,x0,P0,B,D,U,outRejFlag);
+  [Xf,Pf,Xp,Pp,rejSamples]=statKalmanFilter(Y,A,C,Q,R,x0,P0,B,D,U,outRejFlag);
 else
-    [Xf,Pf,Xp,Pp,rejSamples]=filterStationary_wConstraint(Y,A,C,Q,R,x0,P0,B,D,U,constFun);  
+  [Xf,Pf,Xp,Pp,rejSamples]=filterStationary_wConstraint(Y,A,C,Q,R,x0,P0,B,D,U,constFun); 
 end
 
 %Step 2: backward pass: (following the Rauch-Tung-Striebel implementation:
@@ -60,7 +55,11 @@ prevXs=Xf(:,end);
 prevPs=Pf(:,:,end);
 %S=pinv(Q)*A;
 D1=size(A,1);
-Pt=nan(D1,D1,size(Y,2)-1); %Transition covariance matrix
+if isa(Xs,'gpuArray') %For code to work on gpu
+    Pt=nan(D1,D1,size(Y,2)-1,'gpuArray'); %Transition covariance matrix
+else
+    Pt=nan(D1,D1,size(Y,2)-1); %Transition covariance matrix
+end
 
 for i=(size(Y,2)-1):-1:1
   

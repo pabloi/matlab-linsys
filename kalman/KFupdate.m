@@ -1,6 +1,5 @@
-function [x,P,outlierIndx]=KFupdate(CtRinv,CtRinvC,x,P,y_d,rejectThreshold) %(C,R,x,P,y,d,rejectThreshold)
+function [x,P]=KFupdate(CtRinv,CtRinvC,x,P,y_d) %(C,R,x,P,y,d,rejectThreshold)
 
-if nargin>5
 	[outlierIndx]=detectOutliers(y_d,x,P,C,R,rejectThreshold);
 	if any(~outlierIndx)
 	%Update without outliers, by setting outliers to exactly what we expect

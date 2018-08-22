@@ -18,7 +18,10 @@ z=Y-predY;
 [D2,N2]=size(z);
 
 %Fast, approximate way:
-P=R+C*mean(Pp,3)*C'; %This is a lower bound on the uncertainty of the output
+%ss=sqrtm(mean(Pp,3)); %To compute in a way that ensures the matrices are PSD, cant be done on gpu
+CPpCt=C*mean(Pp,3)*C';
+CPpCt=(CPpCt+CPpCt')/2; %Cheap way to ensure PSD
+P=R+CPpCt; %This is a lower bound on the uncertainty of the output
 % P=R+C*(A*Q*A'+Q)*C'; %This is an upper bound 
 eP=eig(P);
 if ~all(imag(eP)==0 & eP>0) %Sanity check, the output covariance should be positive semidef., otherwise the likelihood is not well defined
@@ -28,7 +31,8 @@ logdetP= sum(log(eP)); %Should use:https://en.wikipedia.org/wiki/Matrix_determin
 
 
 S=z*z'/N2;
-logL=-.5*N2*(trace(lsqminnorm(P,S,1e-8))+logdetP+D2*log(2*pi));
+%logL=-.5*N2*(trace(lsqminnorm(P,S,1e-8))+logdetP+D2*log(2*pi)); %Non-gpu ready
+logL=-.5*N2*(trace(P\S)+logdetP+D2*log(2*pi)); %This line is gpu-executable
 %Naturally, this is maximized over positive semidef. P (for a given set of residuals z) when P=S, and then it only depends on the sample covariance of the residuals logL=-.5*N2*(D2+log(det(S))+D2*log(2*pi))
 %Whenever R is fit (optimized, as in E-M), we expect this to be the case: R should be set to the value that minimizes this quantity, thus logL is only a function of the 1-step ahead residuals
 %NOTE: even though changing R will also change the filtered predictions, and hence the residuals, for any change in R that changes the filtering, there exists a change in Q such that the predictions are unchanged 

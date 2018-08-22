@@ -8,22 +8,43 @@ function [A,B,C,D,Q,R,X,P]=trueEM(Y,U,Xguess,targetLogL)
 
 
 [D2,N]=size(Y);
-%Initialize guesses of A,B,C,D,Q,R
-D=Y/U;
-X=Xguess;
-if numel(X)==1
-    D1=X;
-    [pp,~,~]=pca(Y-D*U,'Centered','off');
-    X=pp(:,1:D1)';
-else
-    D1=size(X,1);
+
+%Define init guess of state:
+if numel(Xguess)==1 %Xguess is just dimension
+    D1=Xguess;
+    D=Y/U;
+    if isa(Y,'gpuArray')
+        [pp,~,~]=pca(gather(Y-D*U),'Centered','off'); %Can this be done in the gpu?
+    else
+       [pp,~,~]=pca((Y-D*U),'Centered','off'); %Can this be done in the gpu? 
+    end
+    Xguess=pp(:,1:D1)';
+else %Xguess is an actual initial state
+    D1=size(Xguess,1);
 end
-%Starting point:
-[A,B,C,D,Q,R,x0,P0]=estimateParams(Y,U,X,zeros(D1,D1,N),zeros(D1,D1,N-1));
+X=Xguess;
+
+Niter=501;
+%Move things to gpu if needed
+if isa(Y,'gpuArray')
+    Y=gpuArray(Y);
+    U=gpuArray(U);
+    X=gpuArray(X);
+    P=zeros(D1,D1,N,'gpuArray');
+    Pt=zeros(D1,D1,N-1,'gpuArray');
+    logl=nan(Niter,1,'gpuArray');
+else
+    P=zeros(D1,D1,N);
+    Pt=zeros(D1,D1,N-1);
+    logl=nan(Niter,1);
+end
+
+%Initialize guesses of A,B,C,D,Q,R
+[A,B,C,D,Q,R,x0,P0]=estimateParams(Y,U,X,P,Pt);
 
 
 debug=false;
-logl=nan(501,1);
+
 logl(1,1)=dataLogLikelihood(Y,U,A,B,C,D,Q,R,x0,P0);
 if nargin<4 || isempty(targetLogL)
     targetLogL=logl(1);

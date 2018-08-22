@@ -72,11 +72,16 @@ classdef linsys
     end
     
     methods(Static)
-        function this=sysid(output,input,order)
+        function this=sysid(output,input,order) %randomStartEM wrapper for this class
             Nreps=10;
             method='true';
             [A,B,C,D,Q,R,X,P]=randomStartEM(output,input,order,Nreps,method);
             this=linsys(A,C,R,B,D,Q);
+            this.trainingState=X;
+            this.trainingStateUncertainty=P;
+        end
+        function this=EM(Y,U,Xguess,targetLogL) %trueEM wrapper for this class
+            [A,B,C,D,Q,R,X,P]=trueEM(Y,U,Xguess,targetLogL);
             this.trainingState=X;
             this.trainingStateUncertainty=P;
         end

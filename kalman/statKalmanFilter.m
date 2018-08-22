@@ -28,11 +28,19 @@ end
 %TODO
 
 %Init arrays:
-Xp=nan(size(A,1),size(Y,2)+1);
-X=nan(size(A,1),size(Y,2));
-Pp=nan(size(A,1),size(A,1),size(Y,2)+1);
-P=nan(size(A,1),size(A,1),size(Y,2));
-rejSamples=zeros(size(Y));
+if isa(Y,'gpuArray') %For code to work on gpu
+    Xp=nan(size(A,1),size(Y,2)+1,'gpuArray');
+    X=nan(size(A,1),size(Y,2),'gpuArray');
+    Pp=nan(size(A,1),size(A,1),size(Y,2)+1,'gpuArray');
+    P=nan(size(A,1),size(A,1),size(Y,2),'gpuArray');
+    rejSamples=zeros(size(Y),'gpuArray');
+else
+    Xp=nan(size(A,1),size(Y,2)+1);
+    X=nan(size(A,1),size(Y,2));
+    Pp=nan(size(A,1),size(A,1),size(Y,2)+1);
+    P=nan(size(A,1),size(A,1),size(Y,2));
+    rejSamples=zeros(size(Y));
+end
 
 %Priors:
 prevX=x0;
@@ -40,18 +48,21 @@ prevP=P0;
 Xp(:,1)=x0;
 Pp(:,:,1)=P0;
 tol=1e-8;
-CtRinv=lsqminnorm(R,C,tol)'; 
+%CtRinv=lsqminnorm(R,C,tol)';  %Equivalent to C'/R;, not gpu ready
+CtRinv=C'*pinv(R,tol); %gpu-ready
 CtRinvC=CtRinv*C;
 Y_D=Y-D*U;
 
 %Do the filtering
 for i=1:size(Y,2)
-  y_d=Y_D(:,i);
   %First, do the update given the output at this step:
   if ~outlierRejection
-    [prevX,prevP]=KFupdate(CtRinv,CtRinvC,prevX,prevP,y_d);
+    [prevX,prevP]=KFupdate(CtRinv,CtRinvC,prevX,prevP,Y_D(:,i));
   else
-    [prevX,prevP,rejSamples(:,i)]=KFupdate(CtRinv,CtRinvC,x,P,y_d,[]);
+      warning('Outlier rejection not implemented')
+      %TODO: reject outliers here
+      %[outlierIndx]=detectOutliers(Y_D(:,i),x,P,C,R,rejectThreshold);
+    [prevX,prevP,rejSamples(:,i)]=KFupdate(CtRinv,CtRinvC,x,P,Y_D(:,i));
   end
   X(:,i)=prevX;
   P(:,:,i)=prevP;
