@@ -1,4 +1,4 @@
-function [X,P,Xp,Pp,rejSamples]=statKalmanFilter(Y,A,C,Q,R,x0,P0,B,D,U,outlierRejection)
+function [X,P,Xp,Pp,rejSamples]=statKalmanFilterFast(Y,A,C,Q,R,x0,P0,B,D,U,outlierRejection)
 %filterStationary implements a Kalman filter assuming
 %stationary (fixed) noise matrices and system dynamics
 %The model is: x[k+1]=A*x[k]+b+v[k], v~N(0,Q)
@@ -6,6 +6,7 @@ function [X,P,Xp,Pp,rejSamples]=statKalmanFilter(Y,A,C,Q,R,x0,P0,B,D,U,outlierRe
 %And X[0] ~ N(x0,P0) -> Notice that this is different from other
 %implementations, where P0 is taken to be cov(x[0|-1]) so x[0]~N(x0,A*P0*A'+Q)
 %See for example Ghahramani and Hinton 1996
+%Fast implementation by assuming that filter's steady-state is reached after 10 steps
 
 %Init missing params:
 if nargin<6 || isempty(x0)
@@ -67,8 +68,9 @@ CtRinvY=CtRinv*Y_D;
 BU=B*U;
 %iQ=pinv(Q,tol);
 
-%Do the filtering
-for i=1:size(Y,2)
+%Do the true filtering for 10 steps
+Mm=15;
+for i=1:Mm
   %First, do the update given the output at this step:
   if ~outlierRejection
     [prevX,prevP]=KFupdate(CtRinvY(:,i),CtRinvC,prevX,prevP);
@@ -89,6 +91,21 @@ for i=1:size(Y,2)
   %[prevX,previP]=KFpredictEff(A,iQ,prevX,previP,BU(:,i));
   Xp(:,i+1)=prevX;
   Pp(:,:,i+1)=prevP;
+end
+
+%Steady-state matrices:
+Psteady=prevP;
+iPsteady=prevP\eye(size(prevP));%For some reason, this is much faster than pinv
+Ksteady=(iPsteady+CtRinvC)\iPsteady;
+innov=(iPsteady+CtRinvC)\CtRinvY;
+APAQsteady=A*Psteady*A'+Q;
+Pp(:,:,Mm+2:end)=repmat(APAQsteady,1,1,size(Y,2)-Mm);
+P(:,:,Mm+1:end)=repmat(Psteady,1,1,size(Y,2)-Mm);
+for i=Mm+1:size(Y,2)
+    prevX=Ksteady*prevX+innov(:,i); %Update
+    X(:,i)=prevX;
+    prevX=A*prevX+B*U(:,i); %Predict
+    Xp(:,i+1)=prevX;
 end
 
 end

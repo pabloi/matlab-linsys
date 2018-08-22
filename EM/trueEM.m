@@ -1,4 +1,4 @@
-function [A,B,C,D,Q,R,X,P]=trueEM(Y,U,Xguess,targetLogL)
+function [A,B,C,D,Q,R,X,P]=trueEM(Y,U,Xguess,targetLogL,fastFlag)
 %A true EM implementation to do LTI-SSM identification
 %INPUT:
 %Y is D2 x N
@@ -8,6 +8,11 @@ function [A,B,C,D,Q,R,X,P]=trueEM(Y,U,Xguess,targetLogL)
 
 
 [D2,N]=size(Y);
+if nargin<5
+    fastFlag=false;
+else
+    fastFlag=true;
+end
 
 %Define init guess of state:
 if numel(Xguess)==1 %Xguess is just dimension
@@ -41,7 +46,7 @@ end
 
 %Initialize guesses of A,B,C,D,Q,R
 [A,B,C,D,Q,R,x0,P0]=estimateParams(Y,U,X,P,Pt);
-%[A,B,C,X,~,Q] = canonizev2(A,B,C,X,Q); %Make sure scaling is good
+[A,B,C,X,~,Q] = canonizev3(A,B,C,X,Q); %Make sure scaling is good
 
 debug=false;
 
@@ -61,49 +66,17 @@ for k=1:size(logl,1)-1
 	%M-step: find parameters A,B,C,D,Q,R that maximize likelihood of data
     
     %E-step:
-    [X1,P1,Pt1,~,~,Xp,Pp,~]=statKalmanSmoother(Y,A,C,Q,R,x0,P0,B,D,U);
-    if any(imag(X1(:)))~=0
-       warning('Complex states') 
+    if ~fastFlag
+        [X1,P1,Pt1,~,~,Xp,Pp,~]=statKalmanSmoother(Y,A,C,Q,R,x0,P0,B,D,U);
+    else
+        [X1,P1,Pt1,~,~,Xp,Pp,~]=statKalmanSmootherFast(Y,A,C,Q,R,x0,P0,B,D,U);
     end
+    if any(imag(X1(:)))~=0
+       error('Complex states') 
+    end
+    
     %M-step:
     [A1,B1,C1,D1,Q1,R1,x01,P01]=estimateParams(Y,U,X1,P1,Pt1);
-    if debug
-        disp(['LogL as % of target:' num2str(round(l*100000/targetLogL)/1000)])
-        l=dataLogLikelihood(Y,U,A1,B1,C1,D1,Q1,R1,Xp,Pp);
-        if l<logl(k+1,1) %Make only partial updates that do increase likelihood, avoids some numerical issues
-            warning('logL did not increase. Doing partial updates.')
-            ch=false;
-           if dataLogLikelihood(Y,U,A,B,C1,D1,Q,R1,x0,P0)>logl(k+1,1)
-               disp('Updating C,D,R')
-               C=C1; D=D1; R=R1;
-               ch=true;
-           end
-           if dataLogLikelihood(Y,U,A1,B1,C,D,Q,R,x0,P0)>logl(k+1,1)
-               disp('Updating A,B')
-               A=A1; B=B1;
-               ch=true;
-           end
-           if dataLogLikelihood(Y,U,A,B,C,D,Q1,R,x0,P0)>logl(k+1,1)
-               disp('Updating Q')
-               Q=Q1;
-               ch=true;
-           end
-           if dataLogLikelihood(Y,U,A,B,C,D,Q,R,x01,P01)>logl(k+1,1)
-               disp('Updating x0,P0')
-               x0=x01; P0=P01;
-               ch=true;
-           end
-           if ~ch
-               warning('logL did not increase. Stopping')
-               break
-           end
-        %else %Update all
-        %   A=A1; B=B1; C=C1; D=D1; Q=Q1; R=R1; x0=x01; P0=P01; 
-        end
-        %l=dataLogLikelihood(Y,U,A,B,C,D,Q,R,x0,P0)
-    %else
-    %    [A1,B1,C1,D1,Q1,R1,x01,P01]=estimateParams(Y,U,X1,P1,Pt1);
-    end
     
     %Check improvements:
     l=dataLogLikelihood(Y,U,A1,B1,C1,D1,Q1,R1,Xp,Pp); %Passing the Kalman-filtered states and uncertainty makes the computation more efficient
@@ -112,14 +85,15 @@ for k=1:size(logl,1)-1
     targetRelImprovement=(l-logl(k,1))/(targetLogL-l);
     belowTarget=l<targetLogL;
     relImprovementLast10=1-logl(max(k-10,1),1)/l; %Assessing the relative improvement on logl over the last 10 iterations (or less if there aren't as many)
+    
     %Check for failure conditions:
     if imag(l)~=0
         warning(['Complex logL, probably ill-conditioned matrices involved. Stopping after ' num2str(k) ' iterations.'])
         break
     elseif ~improvement %This should never happen, except that our loglikelihood is approximate, so there can be some rounding error
+        [A1,B1,C1,X1,~,Q1] = canonizev3(A1,B1,C1,X1,Q1); %Make sure scaling is good
         if l<logl(max(k-3,1),1) %If the logl dropped below what it was 3 steps before, then we probably have a real issue (Best case: local max)
-            warning(['logL decreased. Stopping after ' num2str(k) ' iterations.'])
-            break
+            warning(['logL decreased at iteration ' num2str(k) '.'])
         end
     end
     %If everything went well: replace parameters 

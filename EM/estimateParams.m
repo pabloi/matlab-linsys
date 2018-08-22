@@ -83,8 +83,8 @@ Q=robCov(w) +Q2;
 %Estimate R:
 aux=(SP+SP')/2; %Make it symmetric
 R=(z*z'+C*aux*C')/N;
-R=(R+R')/2;
-%R=R+1e-15*eye(size(R)); %Avoid numerical issues
+%R=(R+R')/2;
+R=R+1e-15*eye(size(R)); %Avoid numerical issues
 
 %A variant in the estimation of P0, to not make it monotonically decreasing
 %as number of iterations increase:

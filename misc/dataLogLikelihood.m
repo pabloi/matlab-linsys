@@ -29,7 +29,6 @@ if ~all(imag(eP)==0 & eP>0) %Sanity check, the output covariance should be posit
 end
 logdetP= sum(log(eP)); %Should use:https://en.wikipedia.org/wiki/Matrix_determinant_lemma to cheapen computation (can exploit knowing C'*(R\C) and det(R) ahead of time to only need computing size(Pp) determinants
 
-
 S=z*z'/N2;
 %logL=-.5*N2*(trace(lsqminnorm(P,S,1e-8))+logdetP+D2*log(2*pi)); %Non-gpu ready
 logL=-.5*N2*(trace(P\S)+logdetP+D2*log(2*pi)); %This line is gpu-executable

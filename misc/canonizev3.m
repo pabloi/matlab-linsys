@@ -35,7 +35,7 @@ sys=ss(A,B,C,zeros(size(C,1),size(B,2)),1);
 %m=max(abs(K),[],2);
 %s=sign(K(abs(K)==m));
 %scale=(eye(size(J))-J)*ones(size(J,1),1).*s./m;
-scale=sum(csys.C.^2,1).*sign(max(csys.B,[],2))';
+scale=sqrt(sum(csys.C.^2,1)).*sign(max(csys.B,[],2))';
 V2=diag(scale);
 csys = ss2ss(csys,V2); 
 J=csys.A;
