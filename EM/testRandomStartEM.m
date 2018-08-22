@@ -22,14 +22,22 @@ NN=size(U,2);
 x0=zeros(D1,1);
 [Y,X]=fwdSim(U,A,B,C,D,x0,Q,R);
 [Y1,X1]=fwdSim(U,A,B,C,D,x0,[],[]); %Noiseless simulation, for comparison
-[Xs,Ps]=statKalmanSmoother(Y,A,C,Q,R,[],[],B,D,U,false); %Kalman smoother estimation of states, given the true parameters (this is the best possible estimation of states)
-logL=dataLogLikelihood(Y,U,A,B,C,D,Q,R,Xs,Ps)
+[Xs,Ps,~,~,~,Xp,Pp]=statKalmanSmoother(Y,A,C,Q,R,[],[],B,D,U,false); %Kalman smoother estimation of states, given the true parameters (this is the best possible estimation of states)
+logL=dataLogLikelihood(Y,U,A,B,C,D,Q,R,Xp,Pp)
 %%
 Nreps=10;
 D1=2;
 method='fast';
+tic
 [Ae,Be,Ce,De,Qe,Re,Xe,Pe]=randomStartEM(Y,U,D1,Nreps,method);
-logl=dataLogLikelihood(Y,U,Ae,Be,Ce,De,Qe,Re,Xe)
+toc
+logl=dataLogLikelihood(Y,U,Ae,Be,Ce,De,Qe,Re,Xe(:,1),Pe(:,:,1));
+tic
+if strcmp(method,'fast') %Refine final solution with true EM
+    [Ae,Be,Ce,De,Qe,Re,Xe,Pe]=trueEM(Y,U,Xe,logl,0);
+end
+toc
+logl=dataLogLikelihood(Y,U,Ae,Be,Ce,De,Qe,Re,Xe(:,1),Pe(:,:,1))
 
 %TODO: keep some record of all local optima, and compare them: are they
 %similar solutions?

@@ -41,8 +41,6 @@ end
   
 %Step 1: forward filter
 if nargin<12 || isempty(constFun)
-  %[X,P,Xp,Pp,rejSamples]=filterStationary(Y,A,C,Q,R,x0,P0,B,D,U,outRejFlag);
-  %[Xf,Pf,Xp,Pp,rejSamples]=statKalmanFilter(Y,A,C,Q,R,x0,P0,B,D,U,outRejFlag);
   [Xf,Pf,Xp,Pp,rejSamples]=statKalmanFilterFast(Y,A,C,Q,R,x0,P0,B,D,U,outRejFlag);
 else
   %[Xf,Pf,Xp,Pp,rejSamples]=filterStationary_wConstraint(Y,A,C,Q,R,x0,P0,B,D,U,constFun); 
@@ -62,7 +60,7 @@ else
     Pt=nan(D1,D1,size(Y,2)-1); %Transition covariance matrix
 end
 
-Mm=3;
+Mm=50;
 for i=(size(Y,2)-1):-1:(size(Y,2)-Mm)
   
   %First, get estimates from forward pass:

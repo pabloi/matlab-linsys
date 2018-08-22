@@ -8,7 +8,7 @@ function [A,B,C,D,Q,R,X,P]=trueEM(Y,U,Xguess,targetLogL,fastFlag)
 
 
 [D2,N]=size(Y);
-if nargin<5
+if nargin<5 || isempty(fastFlag) || fastFlag==0
     fastFlag=false;
 else
     fastFlag=true;
@@ -45,16 +45,17 @@ else
 end
 
 %Initialize guesses of A,B,C,D,Q,R
-[A,B,C,D,Q,R,x0,P0]=estimateParams(Y,U,X,P,Pt);
-[A,B,C,X,~,Q] = canonizev3(A,B,C,X,Q); %Make sure scaling is good
+[A1,B1,C1,D1,Q1,R1,x01,P01]=estimateParams(Y,U,X,P,Pt);
+[A1,B1,C1,x01,~,Q1] = canonizev3(A1,B1,C1,x01,Q1); %Make sure scaling is good
+A=A1; B=B1; C=C1; D=D1; Q=Q1; R=R1;
 
 debug=false;
 
-logl(1,1)=dataLogLikelihood(Y,U,A,B,C,D,Q,R,x0,P0);
+logl(1,1)=dataLogLikelihood(Y,U,A1,B1,C1,D1,Q1,R1,x01,P01);
 if nargin<4 || isempty(targetLogL)
     targetLogL=logl(1);
 end
-
+failCounter=0;
 %Now, do E-M
 for k=1:size(logl,1)-1
 	%E-step: compute the expectation of latent variables given current parameter estimates
@@ -67,9 +68,9 @@ for k=1:size(logl,1)-1
     
     %E-step:
     if ~fastFlag
-        [X1,P1,Pt1,~,~,Xp,Pp,~]=statKalmanSmoother(Y,A,C,Q,R,x0,P0,B,D,U);
+        [X1,P1,Pt1,~,~,Xp,Pp,~]=statKalmanSmoother(Y,A1,C1,Q1,R1,x01,P01,B1,D1,U);
     else
-        [X1,P1,Pt1,~,~,Xp,Pp,~]=statKalmanSmootherFast(Y,A,C,Q,R,x0,P0,B,D,U);
+        [X1,P1,Pt1,~,~,Xp,Pp,~]=statKalmanSmootherFast(Y,A1,C1,Q1,R1,x01,P01,B1,D1,U);
     end
     if any(imag(X1(:)))~=0
        error('Complex states') 
@@ -91,15 +92,25 @@ for k=1:size(logl,1)-1
         warning(['Complex logL, probably ill-conditioned matrices involved. Stopping after ' num2str(k) ' iterations.'])
         break
     elseif ~improvement %This should never happen, except that our loglikelihood is approximate, so there can be some rounding error
-        [A1,B1,C1,X1,~,Q1] = canonizev3(A1,B1,C1,X1,Q1); %Make sure scaling is good
-        if l<logl(max(k-3,1),1) %If the logl dropped below what it was 3 steps before, then we probably have a real issue (Best case: local max)
-            warning(['logL decreased at iteration ' num2str(k) '.'])
+        warning(['logL decreased at iteration ' num2str(k) ', drop = ' num2str(l-logl(k,1))])
+        failCounter=failCounter+1;
+        if failCounter>4
+            warning('Dropped for 5 consecutive steps. Stopping.')
+            break
         end
+    else
+        failCounter=0;
+        %If everything went well: replace parameters  (notice the algorithm
+        %may continue even if the logl dropped, but in that case we do not
+        %save the parameters)
+        %TODO: should update only if current logl is best than any previous
+        %values (currently it suffices that it is better than the prev
+        %step, which may not be the best so far)
+        A=A1; B=B1; C=C1; D=D1; Q=Q1; R=R1; x0=x01; P0=P01; X=X1; P=P1; %Pt=Pt1;
     end
-    %If everything went well: replace parameters 
-    A=A1; B=B1; C=C1; D=D1; Q=Q1; R=R1; x0=x01; P0=P01; X=X1; P=P1; %Pt=Pt1;
+
     %Check if we should stop early (to avoid wasting time):
-    if k>1 && (belowTarget && (targetRelImprovement)<2e-2) %Breaking if improvement less than 2% of distance to targetLogL, as this probably means we are not getting a solution better than the given target
+    if k>1 && (belowTarget && (targetRelImprovement)<1e-2) %Breaking if improvement less than 1% of distance to targetLogL, as this probably means we are not getting a solution better than the given target
        warning(['logL unlikely to reach target value. Stopping after ' num2str(k) ' iterations.'])
        break 
     elseif k>1 && (relImprovementLast10)<1e-7 %Considering the system stalled if relative improvement on logl is <1e-7

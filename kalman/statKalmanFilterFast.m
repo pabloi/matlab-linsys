@@ -69,7 +69,7 @@ BU=B*U;
 %iQ=pinv(Q,tol);
 
 %Do the true filtering for 10 steps
-Mm=15;
+Mm=50;
 for i=1:Mm
   %First, do the update given the output at this step:
   if ~outlierRejection
