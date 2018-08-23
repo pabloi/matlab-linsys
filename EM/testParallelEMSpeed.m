@@ -5,7 +5,7 @@ addpath(genpath('../aux/'))
 addpath(genpath('../sim/'))
 addpath(genpath('../../robustCov/'))
 %% Create parallel pool
-pp=gcp;
+pp=gcp; %This starts a pool with the 'local' profile if no pool is open
 %% Create model:
 D1=2;
 D2=180;
@@ -32,14 +32,31 @@ logL=dataLogLikelihood(Y,U,A,B,C,D,Q,R,Xs(:,1),Ps(:,:,1))
 
 %% randomStartEM - classic
 tic
-[Ah1,Bh1,Ch1,Dh1,Qh1,Rh1,Xh1,Ph1]=randomStartEM(Y,U,2,24);
+[Ah1,Bh1,Ch1,Dh1,Qh1,Rh1,Xh1,Ph1]=randomStartEM(Y,U,2,28);
 logLh1=dataLogLikelihood(Y,U,Ah1,Bh1,Ch1,Dh1,Qh1,Rh1,Xh1(:,1),Ph1(:,:,1));
 toc
 [Ah1,Bh1,Ch1,Xh1,~,Qh1] = canonizev2(Ah1,Bh1,Ch1,Xh1,Qh1);
 
-%% randomStartEM - parallel
+%% randomStartEM - parallel: for some reason the parallelization does not improve run time
+%TODO: find out why. Is it that the early stopping is already so optimized
+%that we pay a larger cost for parallelization overhead + running
+%iterations with suboptimal targets (i.e. wasteful iterations) than we gain
+%from having some of the iterations run in parallel?
+%If so, unclear if scaling would hurt or improve the issue: if the inner
+%size is larger, then overhead per iteration drops, but wasteful iterations
+%increase.
+%Is there a way to update within loop? spmd + broadcast message
+%(labBroadcast when new best is reached, labProbe in each worker to see if
+%new data was broadcast and read if so)
 tic
-[Ah2,Bh2,Ch2,Dh2,Qh2,Rh2,Xh2,Ph2]=randomStartEM_par(Y,U,2,24);
+[Ah2,Bh2,Ch2,Dh2,Qh2,Rh2,Xh2,Ph2]=randomStartEM_par(Y,U,2,28);
+logLh2=dataLogLikelihood(Y,U,Ah2,Bh2,Ch2,Dh2,Qh2,Rh2,Xh2(:,1),Ph2(:,:,1));
+toc
+[Ah2,Bh2,Ch2,Xh2,~,Qh2] = canonizev2(Ah2,Bh2,Ch2,Xh2,Qh2);
+
+%%
+tic
+[Ah2,Bh2,Ch2,Dh2,Qh2,Rh2,Xh2,Ph2]=randomStartEM_parv2(Y,U,2,28);
 logLh2=dataLogLikelihood(Y,U,Ah2,Bh2,Ch2,Dh2,Qh2,Rh2,Xh2(:,1),Ph2(:,:,1));
 toc
 [Ah2,Bh2,Ch2,Xh2,~,Qh2] = canonizev2(Ah2,Bh2,Ch2,Xh2,Qh2);

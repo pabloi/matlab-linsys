@@ -95,6 +95,7 @@ for k=1:size(logl,1)-1
     elseif ~improvement %This should never happen, except that our loglikelihood is approximate, so there can be some rounding error
         warning(['logL decreased at iteration ' num2str(k) ', drop = ' num2str(l-logl(k,1))])
         failCounter=failCounter+1;
+        %TO DO: figure out why logl sometimes drops a lot on iter 1.
         if failCounter>4
             warning('Dropped for 5 consecutive steps. Stopping.')
             break
