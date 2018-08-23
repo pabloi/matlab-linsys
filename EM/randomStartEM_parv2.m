@@ -28,7 +28,7 @@ else
 end
 
 %First iter:
-disp(['Starting rep 0.']);
+fprintf(['Starting rep 0... ']);
 [A,B,C,D,Q,R,X,P]=trueEM(Y,U,nd,[],1); %Fast EM is used for the first iter
 startLL=dataLogLikelihood(Y,U,A,B,C,D,Q,R,X(:,1),P(:,:,1));
 bestLL=startLL;
@@ -37,7 +37,7 @@ m=struct();
 
 spmd (parForArg)
     for i=1:outerLoopSize %Each worker will go through this loop
-        disp(['Starting rep ' num2str(i+(labindex-1)*outerLoopSize) '. Best logL so far=' num2str(bestLL)]);
+        fprintf(['Starting rep ' num2str(i+(labindex-1)*outerLoopSize) '. Best logL so far=' num2str(bestLL) '... ']);
 
         %Initialize starting point:
         x01=randn(nd,1);

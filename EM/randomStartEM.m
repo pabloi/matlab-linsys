@@ -7,6 +7,7 @@ if nargin<5 || isempty(method)
 end %TODO: if method is given, check that it is 'true' or 'fast'
 
 %First iter:
+fprintf(['Starting rep 0... ']);
 [A,B,C,D,Q,R,X,P]=trueEM(Y,U,nd,[],1); %FastEM
 bestLL=dataLogLikelihood(Y,U,A,B,C,D,Q,R,X(:,1),P(:,:,1));
 N=size(Y,2);
@@ -18,18 +19,18 @@ switch method
         fastFlag=1;
 end
 
-for i=2:Nreps
-    disp(['Starting rep ' num2str(i) '. Best logL so far=' num2str(bestLL)]);
+for i=1:Nreps
+    fprintf(['Starting rep ' num2str(i) '. Best logL so far=' num2str(bestLL) '... ']);
 
-    %Init start point:
+    %Initialize starting point:
     x01=randn(nd,1);
     P01=1e5*eye(nd); %No sense in being certain about made up numbers
-    A1=randn(nd,nd);
+    A1=diag(rand(nd,1).*sign(randn(nd,1))); %WLOG
     B1=randn(nd,size(U,1)); 
     C1=randn(size(Y,1),nd)/size(Y,1); %WLOG
     D1=randn(size(Y,1),1);
-    Q1=(abs(randn)+1e-5)*eye(nd);
-    R1=(abs(randn)+1e-5)*eye(size(Y,1));
+    Q1=(abs(randn)+1e-7)*eye(nd); %Needs to be psd
+    R1=(abs(randn)+1e-7)*eye(size(Y,1)); %Needs to be psd
     [Xguess]=statKalmanSmoother(Y,A1,C1,Q1,R1,x01,P01,B1,D1,U);
     Xguess=medfilt1(Xguess,9,[],2);
     

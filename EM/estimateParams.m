@@ -33,8 +33,8 @@ if sum(sum((SP-SP').^2))~=0
 end
 
 %x0,P0:
-x0=X(:,1);
-P0=P(:,:,1);
+x0=X(:,1); %Smoothed estimate
+P0=P(:,:,1); %Smoothed estimate
 
 %A,B:
 xu=X(:,1:end-1)*U(:,1:end-1)';
@@ -49,6 +49,9 @@ AB=[SPt+xx1 xu1]/O; %More efficient than above
 %Notice that in absence of uncertainty in states, this reduces to
 %[A,B]=X+/[X;U], where X+ is X one step in the future
 A=AB(:,1:D1);
+if any(abs(eig(A))>1)
+    warning('Unstable system')
+end
 B=AB(:,D1+1:end);
 
 %C,D:
