@@ -40,5 +40,5 @@ for i=2:Nreps
         disp(['Success, best logL=' num2str(bestLL)])
     end
 end
-disp(['End. Best logL=' num2str(logl)]);
+disp(['End. Best logL=' num2str(bestLL)]);
 end

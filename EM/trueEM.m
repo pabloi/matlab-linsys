@@ -46,12 +46,13 @@ end
 
 %Initialize guesses of A,B,C,D,Q,R
 [A1,B1,C1,D1,Q1,R1,x01,P01]=estimateParams(Y,U,X,P,Pt);
+logl(1,1)=dataLogLikelihood(Y,U,A1,B1,C1,D1,Q1,R1,x01,P01);
 [A1,B1,C1,x01,~,Q1] = canonizev3(A1,B1,C1,x01,Q1); %Make sure scaling is good
 A=A1; B=B1; C=C1; D=D1; Q=Q1; R=R1;
 
 debug=false;
 
-logl(1,1)=dataLogLikelihood(Y,U,A1,B1,C1,D1,Q1,R1,x01,P01);
+
 if nargin<4 || isempty(targetLogL)
     targetLogL=logl(1);
 end
@@ -98,19 +99,19 @@ for k=1:size(logl,1)-1
             warning('Dropped for 5 consecutive steps. Stopping.')
             break
         end
-    else
-        failCounter=0;
-        %If everything went well: replace parameters  (notice the algorithm
-        %may continue even if the logl dropped, but in that case we do not
-        %save the parameters)
-        %TODO: should update only if current logl is best than any previous
-        %values (currently it suffices that it is better than the prev
-        %step, which may not be the best so far)
-        A=A1; B=B1; C=C1; D=D1; Q=Q1; R=R1; x0=x01; P0=P01; X=X1; P=P1; %Pt=Pt1;
+    else %There was improvement
+        if l>=max(logl)
+            failCounter=0;
+            %If everything went well and these parameters are the best ever: 
+            %replace parameters  (notice the algorithm
+            %may continue even if the logl dropped, but in that case we do not
+            %save the parameters)
+            A=A1; B=B1; C=C1; D=D1; Q=Q1; R=R1; x0=x01; P0=P01; X=X1; P=P1; %Pt=Pt1;
+        end
     end
 
     %Check if we should stop early (to avoid wasting time):
-    if k>1 && (belowTarget && (targetRelImprovement)<1e-2) %Breaking if improvement less than 1% of distance to targetLogL, as this probably means we are not getting a solution better than the given target
+    if k>1 && (belowTarget && (targetRelImprovement)<2e-2) %Breaking if improvement less than 2% of distance to targetLogL, as this probably means we are not getting a solution better than the given target
        warning(['logL unlikely to reach target value. Stopping after ' num2str(k) ' iterations.'])
        break 
     elseif k>1 && (relImprovementLast10)<1e-7 %Considering the system stalled if relative improvement on logl is <1e-7
