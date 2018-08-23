@@ -122,7 +122,7 @@ for k=1:size(logl,1)-1
 end
 end
 
-function maxLperSample=fastLogL(predError)
+function maxLperSamplePerDim=fastLogL(predError)
 %A fast implementation of the logL when we assume R is set to be optimal 
 %over PSD matrices
 %Computing in this way is faster, and avoids dealing with numerical issues
@@ -131,8 +131,9 @@ function maxLperSample=fastLogL(predError)
 %for this assumption
 %INPUT:
 %predError: the one-step ahead prediction errors for the model
-    [D2,N2]=size(predError);
+    [~,N2]=size(predError);
     S=predError*predError'/N2;
-    logdetS=sum(log(eig(S)));
-    maxLperSample = -.5*(D2+logdetS+D2*log(2*pi));
+    logdetS=mean(log(eig(S)));
+    maxLperSamplePerDim = -.5*(1+log(2*pi)+logdetS);
+    %maxLperSample = D2*maxLperSamplePerDim;
 end

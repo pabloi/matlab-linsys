@@ -1,4 +1,4 @@
-function logLperSample=dataLogLikelihood(Y,U,A,B,C,D,Q,R,X0,P0)
+function logLperSamplePerDim=dataLogLikelihood(Y,U,A,B,C,D,Q,R,X0,P0)
 %Evaluates the likelihood of the data under a given model
 
 if nargin<10 || isempty(X0) || isempty(P0)
@@ -27,14 +27,17 @@ eP=eig(P);
 if ~all(imag(eP)==0 & eP>0) %Sanity check, the output covariance should be positive semidef., otherwise the likelihood is not well defined
     error('Covariance matrix is not PSD, cannot compute likelihood')
 end
-logdetP= sum(log(eP)); %Should use:https://en.wikipedia.org/wiki/Matrix_determinant_lemma to cheapen computation (can exploit knowing C'*(R\C) and det(R) ahead of time to only need computing size(Pp) determinants
+logdetP= mean(log(eP)); %Should use:https://en.wikipedia.org/wiki/Matrix_determinant_lemma to cheapen computation (can exploit knowing C'*(R\C) and det(R) ahead of time to only need computing size(Pp) determinants
 
 S=z*z'/N2;
 %logL=-.5*N2*(trace(lsqminnorm(P,S,1e-8))+logdetP+D2*log(2*pi)); %Non-gpu ready
-logLperSample=-.5*(trace(P\S)+logdetP+D2*log(2*pi)); %This line is gpu-executable
+logLperSamplePerDim=-.5*(mean(diag(P\S))+logdetP+log(2*pi)); %This line is gpu-executable
+%Computing logl() per sample and per dim makes results comparable across
+%models with different dimensions and sample sizes.
+%logLperSample=D2*logLperSamplePerDim;
 %Naturally, this is maximized over positive semidef. P (for a given set of residuals z) 
 %when P=S, and then it only depends on the sample covariance of the residuals:
-%maxLperSample = -.5*(D2+sum(log(eig(S)))+D2*log(2*pi));
+%maxLperSamplePerDim = -.5*(1+mean(log(eig(S)))+log(2*pi));
 
 %Whenever R is fit (optimized, as in E-M), we expect this to be the case: R should be set to the value that minimizes this quantity, thus logL is only a function of the 1-step ahead residuals
 %NOTE: even though changing R will also change the filtered predictions, and hence the residuals, for any change in R that changes the filtering, there exists a change in Q such that the predictions are unchanged 
