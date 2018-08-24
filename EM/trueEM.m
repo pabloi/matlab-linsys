@@ -1,4 +1,4 @@
-function [A,B,C,D,Q,R,X,P]=trueEM(Y,U,Xguess,targetLogL,fastFlag)
+function [A,B,C,D,Q,R,X,P,bestLogL]=trueEM(Y,U,Xguess,targetLogL,fastFlag)
 %A true EM implementation to do LTI-SSM identification
 %INPUT:
 %Y is D2 x N
@@ -11,7 +11,9 @@ function [A,B,C,D,Q,R,X,P]=trueEM(Y,U,Xguess,targetLogL,fastFlag)
 if nargin<5 || isempty(fastFlag)
     fastFlag=[];
 else
-    fastFlag=0;
+    fastFlag=0; %Disable warnings relating to unstable systems in fast estimation
+    w = warning ('off','statKFfast:unstable');
+    w = warning ('off','statKSfast:unstable');
 end
 
 %Define init guess of state:
@@ -50,8 +52,9 @@ end
 
 %Initialize guesses of A,B,C,D,Q,R
 [A1,B1,C1,D1,Q1,R1,x01,P01]=estimateParams(Y,U,X,P,Pt);
-logl(1,1)=dataLogLikelihood(Y,U,A1,B1,C1,D1,Q1,R1,x01,P01);
-%[A1,B1,C1,x01,~,Q1] = canonizev3(A1,B1,C1,x01,Q1); %Make sure scaling is good
+bestLogL=dataLogLikelihood(Y,U,A1,B1,C1,D1,Q1,R1,x01,P01);
+logl(1,1)=bestLogL;
+[A1,B1,C1,x01,~,Q1] = canonizev3(A1,B1,C1,x01,Q1); %Make sure scaling is good
 A=A1; B=B1; C=C1; D=D1; Q=Q1; R=R1;
 
 if nargin<4 || isempty(targetLogL)
@@ -83,7 +86,13 @@ for k=1:Niter-1
     predError=Y-C1*Xp(:,1:end-1)-D1*U; %One-step ahead prediction error of model
     l=fastLogL(predError);
     logl(k+1)=l;
-    improvement=l>=logl(k,1);
+    delta=l-logl(k,1);
+    if mod(k,50)==0 %Print info
+        pOverTarget=100*(l/targetLogL-1);
+        lastChange=l-logl(k-49,1);
+    disp(['Iter = ' num2str(k) ', \Delta = ' num2str(lastChange) ', % over target = ' num2str(pOverTarget)])
+    end
+    improvement=delta>0;
     targetRelImprovement10=(l-logl(max(k-10,1),1))/(targetLogL-l);
     belowTarget=l<targetLogL;
     relImprovementLast10=1-logl(max(k-10,1),1)/l; %Assessing the relative improvement on logl over the last 10 iterations (or less if there aren't as many)
@@ -98,9 +107,8 @@ for k=1:Niter-1
         %fprintf(['Unstable system detected. Stopping. ' num2str(k) ' iterations.\n'])
         %break
     elseif ~improvement %This should never happen, except that our loglikelihood is approximate, so there can be some rounding error
-        drop=l-logl(k,1);
-        if abs(drop)>1e-7 %Do not bother reporting drops within numerical precision
-            warning(['logL decreased at iteration ' num2str(k) ', drop = ' num2str(drop)])
+        if abs(delta)>1e-6 %Do not bother reporting drops within numerical precision
+            warning(['logL decreased at iteration ' num2str(k) ', drop = ' num2str(delta)])
         end
         failCounter=failCounter+1;
         %TO DO: figure out why logl sometimes drops a lot on iter 1.
@@ -109,21 +117,22 @@ for k=1:Niter-1
             break
         end
     else %There was improvement
-        if l>=max(logl)
+        if l>=bestLogL
             failCounter=0;
             %If everything went well and these parameters are the best ever: 
             %replace parameters  (notice the algorithm
             %may continue even if the logl dropped, but in that case we do not
             %save the parameters)
             A=A1; B=B1; C=C1; D=D1; Q=Q1; R=R1; x0=x01; P0=P01; X=X1; P=P1; %Pt=Pt1;
+            bestLogL=l;
         end
     end
 
     %Check if we should stop early (to avoid wasting time):
-    if k>1 && (belowTarget && (targetRelImprovement10)<1e-1) %Breaking if improvement less than 2% of distance to targetLogL, as this probably means we are not getting a solution better than the given target
+    if k>1 && (belowTarget && (targetRelImprovement10)<2e-1) %Breaking if improvement less than 20% of distance to targetLogL, as this probably means we are not getting a solution better than the given target
        fprintf(['unlikely to reach target value. ' num2str(k) ' iterations.\n'])
        break 
-    elseif k>1 && (relImprovementLast10)<1e-9 %Considering the system stalled if relative improvement on logl is <1e-7
+    elseif k>1 && (relImprovementLast10)<1e-10 %Considering the system stalled if relative improvement on logl is <1e-7
         fprintf(['increase is within tolerance (local max). '  num2str(k) ' iterations.\n'])
         %disp(['LogL as % of target:' num2str(round(l*100000/targetLogL)/1000)])
         break 
@@ -133,6 +142,11 @@ for k=1:Niter-1
     
     %M-step:
     [A1,B1,C1,D1,Q1,R1,x01,P01]=estimateParams(Y,U,X1,P1,Pt1);
+end
+
+if fastFlag==0 %Re-enable disabled warnings
+    w = warning ('on','statKFfast:unstable');
+    w = warning ('on','statKSfast:unstable');
 end
 end
 
@@ -146,8 +160,13 @@ function maxLperSamplePerDim=fastLogL(predError)
 %INPUT:
 %predError: the one-step ahead prediction errors for the model
     [~,N2]=size(predError);
-    S=predError*predError'/N2;
-    logdetS=mean(log(eig(S)));
-    maxLperSamplePerDim = -.5*(1+log(2*pi)+logdetS);
+    if sum(predError(:).^2)>1e20 %This can happen when current estimate of system is unstable, and doing fast filtering
+        maxLperSamplePerDim=-Inf;
+    else
+        u=predError/sqrt(N2);
+        S=u*u';
+        logdetS=mean(log(eig(S)));
+        maxLperSamplePerDim = -.5*(1+log(2*pi)+logdetS);
+    end
     %maxLperSample = D2*maxLperSamplePerDim;
 end

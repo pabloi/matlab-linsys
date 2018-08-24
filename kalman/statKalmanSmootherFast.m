@@ -40,9 +40,19 @@ if nargin<12 || isempty(fastFlag)
     fastFlag=[];
     M=N; %Do true filtering for all samples
 elseif fastFlag==0
-    M=20; %Default for fast filtering: 20 samples
+    M2=20; %Default for fast filtering: 20 samples
+    M1=ceil(3*max(-1./log(abs(eig(A))))); %This many strides ensures ~convergence of gains before we assume steady-state
+    M=max(M1,M2);
+    M=min(M,N); %Prevent more than N, if this happens, we are not doing fast filtering
 else
     M=min(ceil(abs(fastFlag)),N); %If fastFlag is a number but not 0, use that as number of samples
+end
+
+if M<N && any(abs(eig(A))>1)
+    %If the system is unstable, there is no guarantee that the kalman gain
+    %converges, and the fast filtering will lead to divergence of estimates
+    warning('statKFfast:unstable','Doing steady-state (fast) filtering on an unstable system. States will diverge. Doing traditional filtering instead.')
+    M=N;
 end
 
 %Size checks:
@@ -95,6 +105,9 @@ for i=(N-1):-1:(N-M+1)
 end
 
 if M<N %From now on, assume steady-state:
+    if any(abs(eig(newK))>1)
+        error('Unstable smoothing')
+    end
     aux=Xf-newK*Xp(:,2:end); %Precompute for speed
     for i=(N-M):-1:1
         %xp=Xp(:,i+1);

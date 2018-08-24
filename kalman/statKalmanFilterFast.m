@@ -31,13 +31,23 @@ end
 if nargin<12 || isempty(fastFlag)
     M=N; %Do true filtering for all samples
 elseif fastFlag==0
-    M=20; %Default for fast filtering: 20 samples
+    M2=20; %Default for fast filtering: 20 samples
+    M1=ceil(3*max(-1./log(abs(eig(A))))); %This many strides ensures ~convergence of gains before we assume steady-state
+    M=max(M1,M2);
+    M=min(M,N); %Prevent more than N, if this happens, we are not doing fast filtering
 else
     M=min(ceil(abs(fastFlag)),N); %If fastFlag is a number but not 0, use that as number of samples
 end
 
 %Size checks:
 %TODO
+
+if M<N && any(abs(eig(A))>1)
+    %If the system is unstable, there is no guarantee that the kalman gain
+    %converges, and the fast filtering will lead to divergence of estimates
+    warning('statKSfast:unstable','Doing steady-state (fast) filtering on an unstable system. States will diverge. Doing traditional filtering instead.')
+    M=N;
+end
 
 %Init arrays:
 if isa(Y,'gpuArray') %For code to work on gpu
