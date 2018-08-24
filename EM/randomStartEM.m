@@ -35,8 +35,8 @@ for i=1:Nreps
     Xguess=medfilt1(Xguess,9,[],2);
     
     %Optimize:
-    [Ai,Bi,Ci,Di,Qi,Ri,Xi,Pi]=trueEM(Y,U,Xguess,bestLL,fastFlag);
-    logl=dataLogLikelihood(Y,U,Ai,Bi,Ci,Di,Qi,Ri,Xi(:,1),Pi(:,:,1));
+    [Ai,Bi,Ci,Di,Qi,Ri,Xi,Pi,logl]=trueEM(Y,U,Xguess,bestLL,fastFlag);
+    %logl=dataLogLikelihood(Y,U,Ai,Bi,Ci,Di,Qi,Ri,Xi(:,1),Pi(:,:,1));
     
     %If solution improved, save and display:
     if logl>bestLL
