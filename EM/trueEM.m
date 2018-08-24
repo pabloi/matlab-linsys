@@ -29,19 +29,23 @@ else %Xguess is an actual initial state
 end
 X=Xguess;
 
+%Initialize covariance to plausible values:
+dX=diff(X');
+Px=cov(dX); 
+P=repmat(Px,1,1,N);
+Pt=repmat(Px',1,1,N);
+
 Niter=501;
+logl=nan(Niter,1);
+
 %Move things to gpu if needed
 if isa(Y,'gpuArray')
     Y=gpuArray(Y);
     U=gpuArray(U);
     X=gpuArray(X);
-    P=zeros(D1,D1,N,'gpuArray');
-    Pt=zeros(D1,D1,N-1,'gpuArray');
+    P=gpuArray(P);
+    Pt=gpuArray(Pt);
     logl=nan(Niter,1,'gpuArray');
-else
-    P=zeros(D1,D1,N);
-    Pt=zeros(D1,D1,N-1);
-    logl=nan(Niter,1);
 end
 
 %Initialize guesses of A,B,C,D,Q,R
@@ -55,7 +59,7 @@ if nargin<4 || isempty(targetLogL)
 end
 failCounter=0;
 %Now, do E-M
-for k=1:size(logl,1)-1
+for k=1:Niter-1
 	%E-step: compute the expectation of latent variables given current parameter estimates
     %Note this is an approximation of true E-step in E-M algorithm. The
     %E-step requires to compute the expectation of the likelihood of the data under the
@@ -80,17 +84,19 @@ for k=1:size(logl,1)-1
     l=fastLogL(predError);
     logl(k+1)=l;
     improvement=l>=logl(k,1);
-    targetRelImprovement=(l-logl(k,1))/(targetLogL-l);
+    targetRelImprovement10=(l-logl(max(k-10,1),1))/(targetLogL-l);
     belowTarget=l<targetLogL;
     relImprovementLast10=1-logl(max(k-10,1),1)/l; %Assessing the relative improvement on logl over the last 10 iterations (or less if there aren't as many)
     
     %Check for failure conditions:
     if imag(l)~=0 %This does not happen
-        warning(['Complex logL, probably ill-conditioned matrices involved. Stopping after ' num2str(k) ' iterations.'])
+        fprintf(['Complex logL, probably ill-conditioned matrices involved. Stopping after ' num2str(k) ' iterations.\n'])
         break
     elseif any(abs(eig(A1))>1)
-        fprintf(['Unstable system detected. Stopping. ' num2str(k) ' iterations.\n'])
-        break
+        %No need to break for unstable systems, usually they converge to a
+        %stable system or lack of improvement in logl makes the iteration stop
+        %fprintf(['Unstable system detected. Stopping. ' num2str(k) ' iterations.\n'])
+        %break
     elseif ~improvement %This should never happen, except that our loglikelihood is approximate, so there can be some rounding error
         drop=l-logl(k,1);
         if abs(drop)>1e-7 %Do not bother reporting drops within numerical precision
@@ -98,8 +104,8 @@ for k=1:size(logl,1)-1
         end
         failCounter=failCounter+1;
         %TO DO: figure out why logl sometimes drops a lot on iter 1.
-        if failCounter>4
-            fprintf(['Dropped 5 times w/o besting the fit. ' num2str(k) ' iterations.\n'])
+        if failCounter>9
+            fprintf(['Dropped 10 times w/o besting the fit. ' num2str(k) ' iterations.\n'])
             break
         end
     else %There was improvement
@@ -114,13 +120,15 @@ for k=1:size(logl,1)-1
     end
 
     %Check if we should stop early (to avoid wasting time):
-    if k>1 && (belowTarget && (targetRelImprovement)<2e-2) %Breaking if improvement less than 2% of distance to targetLogL, as this probably means we are not getting a solution better than the given target
+    if k>1 && (belowTarget && (targetRelImprovement10)<1e-1) %Breaking if improvement less than 2% of distance to targetLogL, as this probably means we are not getting a solution better than the given target
        fprintf(['unlikely to reach target value. ' num2str(k) ' iterations.\n'])
        break 
-    elseif k>1 && (relImprovementLast10)<1e-7 %Considering the system stalled if relative improvement on logl is <1e-7
+    elseif k>1 && (relImprovementLast10)<1e-9 %Considering the system stalled if relative improvement on logl is <1e-7
         fprintf(['increase is within tolerance (local max). '  num2str(k) ' iterations.\n'])
         %disp(['LogL as % of target:' num2str(round(l*100000/targetLogL)/1000)])
         break 
+    elseif k==Niter-1
+        fprintf(['max number of iterations reached. '  num2str(k) ' iterations.\n'])
     end
     
     %M-step:

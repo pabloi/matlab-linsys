@@ -7,6 +7,7 @@ if nargin<10 || isempty(X0) || isempty(P0)
 end
 if size(X0,2)<=1 %True init state guess
     [~,~,Xp,Pp,~]=statKalmanFilter(Y,A,C,Q,R,X0,P0,B,D,U,0);
+    %[~,~,Xp,Pp,~]=statKalmanFilterFast(Y,A,C,Q,R,X0,P0,B,D,U,[],0);
 else %whole filtered priors are provided, not just t=0
     Xp=X0;
     Pp=P0;
