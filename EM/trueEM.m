@@ -8,10 +8,10 @@ function [A,B,C,D,Q,R,X,P]=trueEM(Y,U,Xguess,targetLogL,fastFlag)
 
 
 [~,N]=size(Y);
-if nargin<5 || isempty(fastFlag) || fastFlag==0
-    fastFlag=false;
+if nargin<5 || isempty(fastFlag)
+    fastFlag=[];
 else
-    fastFlag=true;
+    fastFlag=0;
 end
 
 %Define init guess of state:
@@ -65,11 +65,11 @@ for k=1:size(logl,1)-1
 	%M-step: find parameters A,B,C,D,Q,R that maximize likelihood of data
     
     %E-step:
-    if ~fastFlag
-        [X1,P1,Pt1,~,~,Xp,Pp,~]=statKalmanSmoother(Y,A1,C1,Q1,R1,x01,P01,B1,D1,U);
-    else
-        [X1,P1,Pt1,~,~,Xp,Pp,~]=statKalmanSmootherFast(Y,A1,C1,Q1,R1,x01,P01,B1,D1,U);
-    end
+    %if ~fastFlag
+    %    [X1,P1,Pt1,~,~,Xp,Pp,~]=statKalmanSmoother(Y,A1,C1,Q1,R1,x01,P01,B1,D1,U);
+    %else
+        [X1,P1,Pt1,~,~,Xp,Pp,~]=statKalmanSmootherFast(Y,A1,C1,Q1,R1,x01,P01,B1,D1,U,[],fastFlag);
+    %end
     if any(imag(X1(:)))~=0
        error('Complex states') 
     end

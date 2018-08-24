@@ -1,4 +1,4 @@
-function [Xs,Ps,Pt,Xf,Pf,Xp,Pp,rejSamples]=statKalmanSmootherFast(Y,A,C,Q,R,x0,P0,B,D,U,outRejFlag,constFun)
+function [Xs,Ps,Pt,Xf,Pf,Xp,Pp,rejSamples]=statKalmanSmootherFast(Y,A,C,Q,R,x0,P0,B,D,U,outRejFlag,fastFlag)
 %Implements a Kalman smoother for a stationary system
 %INPUT:
 %Y: D1xN observed data
@@ -16,6 +16,7 @@ function [Xs,Ps,Pt,Xf,Pf,Xp,Pp,rejSamples]=statKalmanSmootherFast(Y,A,C,Q,R,x0,P
 %See also:
 % statKalmanFilter, filterStationary_wConstraint, trueEM
 
+[D2,N]=size(Y);
 %Init missing params:
 if nargin<6 || isempty(x0)
 x0=zeros(size(A,1),1); %Column vector
@@ -35,16 +36,20 @@ end
 if nargin<11 || isempty(outRejFlag)
   outRejFlag=0;
 end
+if nargin<12 || isempty(fastFlag)
+    fastFlag=[];
+    M=N; %Do true filtering for all samples
+elseif fastFlag==0
+    M=20; %Default for fast filtering: 20 samples
+else
+    M=min(ceil(abs(fastFlag)),N); %If fastFlag is a number but not 0, use that as number of samples
+end
 
 %Size checks:
 %TODO
   
 %Step 1: forward filter
-if nargin<12 || isempty(constFun)
-  [Xf,Pf,Xp,Pp,rejSamples]=statKalmanFilterFast(Y,A,C,Q,R,x0,P0,B,D,U,outRejFlag);
-else
-  %[Xf,Pf,Xp,Pp,rejSamples]=filterStationary_wConstraint(Y,A,C,Q,R,x0,P0,B,D,U,constFun); 
-end
+[Xf,Pf,Xp,Pp,rejSamples]=statKalmanFilterFast(Y,A,C,Q,R,x0,P0,B,D,U,outRejFlag,M);
 
 %Step 2: backward pass: (following the Rauch-Tung-Striebel implementation:
 %https://en.wikipedia.org/wiki/Kalman_filter#Fixed-interval_smoothers)
@@ -52,7 +57,6 @@ Xs=Xf;
 Ps=Pf;
 prevXs=Xf(:,end);
 prevPs=Pf(:,:,end);
-%S=pinv(Q)*A;
 D1=size(A,1);
 if isa(Xs,'gpuArray') %For code to work on gpu
     Pt=nan(D1,D1,size(Y,2)-1,'gpuArray'); %Transition covariance matrix
@@ -60,9 +64,8 @@ else
     Pt=nan(D1,D1,size(Y,2)-1); %Transition covariance matrix
 end
 
-Mm=20;
-for i=(size(Y,2)-1):-1:(size(Y,2)-Mm)
-  
+%Do true smoothing for first M samples:
+for i=(N-1):-1:(N-M+1) 
   %First, get estimates from forward pass:
   xf=Xf(:,i); %Previous posterior estimate of covariance at this step
   pf=Pf(:,:,i); %Previous posterior estimate of covariance at this time step
@@ -90,16 +93,23 @@ for i=(size(Y,2)-1):-1:(size(Y,2)-Mm)
   prevPs=newPs;
   Ps(:,:,i)=prevPs;
 end
-%From now on, assume steady-state:
-Pt(:,:,1:(size(Y,2)-Mm))=repmat(newPt,1,1,(size(Y,2)-Mm));
-Ps(:,:,1:(size(Y,2)-Mm))=repmat(newPs,1,1,(size(Y,2)-Mm));
-aux=Xf-newK*Xp(:,2:end); %Precompute for speed
-for i=(size(Y,2)-Mm-1):-1:1
-    %xp=Xp(:,i+1);
-    %xf=Xf(:,i);
-    %prevXs=xf + newK*prevXs-newK*xp; 
-    prevXs=aux(:,i) + newK*prevXs;
-    Xs(:,i)=prevXs;
+
+if M<N %From now on, assume steady-state:
+    aux=Xf-newK*Xp(:,2:end); %Precompute for speed
+    for i=(N-M):-1:1
+        %xp=Xp(:,i+1);
+        %xf=Xf(:,i);
+        %prevXs=xf + newK*prevXs-newK*xp; 
+        prevXs=aux(:,i) + newK*prevXs;
+        Xs(:,i)=prevXs;
+    end
+    %Compute covariances if requested:
+    if nargout>2
+        Ps(:,:,1:(size(Y,2)-M))=repmat(newPs,1,1,(size(Y,2)-M));
+    end
+    if nargout>3
+        Pt(:,:,1:(size(Y,2)-M))=repmat(newPt,1,1,(size(Y,2)-M));
+    end
 end
 
 end

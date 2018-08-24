@@ -1,4 +1,4 @@
-function [X,P,Xp,Pp,rejSamples]=statKalmanFilterFast(Y,A,C,Q,R,x0,P0,B,D,U,outlierRejection)
+function [X,P,Xp,Pp,rejSamples]=statKalmanFilterFast(Y,A,C,Q,R,x0,P0,B,D,U,outlierRejection,fastFlag)
 %filterStationary implements a Kalman filter assuming
 %stationary (fixed) noise matrices and system dynamics
 %The model is: x[k+1]=A*x[k]+b+v[k], v~N(0,Q)
@@ -6,8 +6,9 @@ function [X,P,Xp,Pp,rejSamples]=statKalmanFilterFast(Y,A,C,Q,R,x0,P0,B,D,U,outli
 %And X[0] ~ N(x0,P0) -> Notice that this is different from other
 %implementations, where P0 is taken to be cov(x[0|-1]) so x[0]~N(x0,A*P0*A'+Q)
 %See for example Ghahramani and Hinton 1996
-%Fast implementation by assuming that filter's steady-state is reached after 10 steps
+%Fast implementation by assuming that filter's steady-state is reached after 20 steps
 
+[D2,N]=size(Y);
 %Init missing params:
 if nargin<6 || isempty(x0)
   x0=zeros(size(A,1),1); %Column vector
@@ -24,58 +25,55 @@ end
 if nargin<10 || isempty(U)
   U=zeros(size(B,2),size(X,2));
 end
+if nargin<11 || isempty(outlierRejection)
+    outlierRejection=false;
+end
+if nargin<12 || isempty(fastFlag)
+    M=N; %Do true filtering for all samples
+elseif fastFlag==0
+    M=20; %Default for fast filtering: 20 samples
+else
+    M=min(ceil(abs(fastFlag)),N); %If fastFlag is a number but not 0, use that as number of samples
+end
 
 %Size checks:
 %TODO
 
 %Init arrays:
 if isa(Y,'gpuArray') %For code to work on gpu
-    Xp=nan(size(A,1),size(Y,2)+1,'gpuArray');
-    X=nan(size(A,1),size(Y,2),'gpuArray');
-    Pp=nan(size(A,1),size(A,1),size(Y,2)+1,'gpuArray');
-    P=nan(size(A,1),size(A,1),size(Y,2),'gpuArray');
-    rejSamples=zeros(size(Y),'gpuArray');
+    Xp=nan(size(A,1),N+1,'gpuArray');
+    X=nan(size(A,1),N,'gpuArray');
+    Pp=nan(size(A,1),size(A,1),N+1,'gpuArray');
+    P=nan(size(A,1),size(A,1),N,'gpuArray');
+    rejSamples=zeros(D2,N,'gpuArray');
 else
-    Xp=nan(size(A,1),size(Y,2)+1);
-    X=nan(size(A,1),size(Y,2));
-    Pp=nan(size(A,1),size(A,1),size(Y,2)+1);
-    P=nan(size(A,1),size(A,1),size(Y,2));
-    rejSamples=zeros(size(Y));
+    Xp=nan(size(A,1),N+1);
+    X=nan(size(A,1),N);
+    Pp=nan(size(A,1),size(A,1),N+1);
+    P=nan(size(A,1),size(A,1),N);
+    rejSamples=zeros(D2,N);
 end
 
 %Priors:
 tol=1e-8;
 prevX=x0;
 prevP=P0;
-%prevsP=decomposition(prevP,'chol','upper');
-%previP=pinv(P0,tol);
 Xp(:,1)=x0;
 Pp(:,:,1)=P0;
 
-% sR=chol(R); %cholesky decomposition
-% %isR=(sR\eye(size(sR)))'; %Cholesky decomp of Rinv
-% isR=pinv(sR,tol)'; %Cholesky decomp of Rinv
-% aux=C'*isR';
-% CR=aux*isR;
-% CRC=aux*aux'; %Ensures psd
-
-%CtRinv=lsqminnorm(R,C,tol)';  %Equivalent to C'/R;, not gpu ready
-CtRinv=C'*pinv(R,tol); %gpu-ready
+%Pre-computing for speed:
+CtRinv=C'*pinv(R,tol); %gpu-ready  %Equivalent to lsqminnorm(R,C,tol)';, not gpu ready
 CtRinvC=CtRinv*C;
 
 Y_D=Y-D*U;
 CtRinvY=CtRinv*Y_D;
 BU=B*U;
-%iQ=pinv(Q,tol);
 
-%Do the true filtering for 20 steps
-Mm=20;
-for i=1:Mm
+%Do the true filtering for M steps
+for i=1:M
   %First, do the update given the output at this step:
   if ~outlierRejection
-    [prevX,prevP]=KFupdate(CtRinvY(:,i),CtRinvC,prevX,prevP);
-    %[prevX,prevsP,prevP]=KFupdatev2(CtRinvY(:,i),CtRinvC,prevX,prevsP);
-    %[prevX,previP]=KFupdateEff(CtRinvY(:,i),CtRinvC,prevX,previP);
+      [prevX,prevP]=KFupdate(CtRinvY(:,i),CtRinvC,prevX,prevP);
   else
       warning('Outlier rejection not implemented')
       %TODO: reject outliers here
@@ -87,29 +85,30 @@ for i=1:Mm
   
   %Then, predict next step:
   [prevX,prevP]=KFpredict(A,Q,prevX,prevP,BU(:,i));
-  %[prevX,prevsP,prevP]=KFpredictv2(A,Q,prevX,prevP,BU(:,i));
-  %[prevX,previP]=KFpredictEff(A,iQ,prevX,previP,BU(:,i));
   Xp(:,i+1)=prevX;
   Pp(:,:,i+1)=prevP;
 end
 
-%Steady-state matrices:
-Psteady=prevP; %Steady-state predicted uncertainty matrix
-iPsteady=prevP\eye(size(prevP));%For some reason, this is much faster than pinv
-Ksteady=(iPsteady+CtRinvC)\iPsteady;
-innov=(iPsteady+CtRinvC)\CtRinvY;
-P(:,:,Mm+1:end)=repmat(P(:,:,Mm),1,1,size(Y,2)-Mm);
-%Pre-compute matrices to reduce computing time:
-KBU=Ksteady*B*U;
-KBUY=KBU+innov;
-KA=Ksteady*A;
-for i=Mm+1:size(Y,2)
-    prevX=KA*prevX+KBUY(:,i); %Update+predict 
-    X(:,i)=prevX;
-end
-%Compute Xp, Pp if requested:
-if nargout>2
-    Xp(:,2:end)=A*X+B*U;
-    Pp(:,:,Mm+2:end)=repmat(Psteady,1,1,size(Y,2)-Mm);
+%Do the fast filtering for any remaining steps:
+if M<N
+    %Steady-state matrices:
+    Psteady=prevP; %Steady-state predicted uncertainty matrix
+    iPsteady=prevP\eye(size(prevP));%For some reason, this is much faster than pinv
+    Ksteady=(iPsteady+CtRinvC)\iPsteady;
+    innov=(iPsteady+CtRinvC)\CtRinvY;
+    P(:,:,M+1:end)=repmat(P(:,:,M),1,1,size(Y,2)-M);
+    %Pre-compute matrices to reduce computing time:
+    KBUY=Ksteady*BU+innov;
+    KA=Ksteady*A;
+    %Loop for remaining steps:
+    for i=M+1:size(Y,2)
+        prevX=KA*prevX+KBUY(:,i); %Predict+Update
+        X(:,i)=prevX;
+    end
+    %Compute Xp, Pp if requested:
+    if nargout>2
+        Xp(:,2:end)=A*X+B*U;
+        Pp(:,:,M+2:end)=repmat(Psteady,1,1,size(Y,2)-M);
+    end
 end
 end
