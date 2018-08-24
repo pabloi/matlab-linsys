@@ -60,7 +60,7 @@ else
     Pt=nan(D1,D1,size(Y,2)-1); %Transition covariance matrix
 end
 
-Mm=50;
+Mm=20;
 for i=(size(Y,2)-1):-1:(size(Y,2)-Mm)
   
   %First, get estimates from forward pass:
@@ -93,7 +93,7 @@ end
 %From now on, assume steady-state:
 Pt(:,:,1:(size(Y,2)-Mm))=repmat(newPt,1,1,(size(Y,2)-Mm));
 Ps(:,:,1:(size(Y,2)-Mm))=repmat(newPs,1,1,(size(Y,2)-Mm));
-aux=Xf-newK*Xp(:,2:end);
+aux=Xf-newK*Xp(:,2:end); %Precompute for speed
 for i=(size(Y,2)-Mm-1):-1:1
     %xp=Xp(:,i+1);
     %xf=Xf(:,i);

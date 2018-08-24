@@ -37,8 +37,7 @@ logLperSamplePerDim=-.5*(mean(diag(P\S))+logdetP+log(2*pi)); %This line is gpu-e
 %logLperSample=D2*logLperSamplePerDim;
 %Naturally, this is maximized over positive semidef. P (for a given set of residuals z) 
 %when P=S, and then it only depends on the sample covariance of the residuals:
-%maxLperSamplePerDim = -.5*(1+mean(log(eig(S)))+log(2*pi));
-
+%maxLperSamplePerDim = -.5*(1+mean(log(eig(S)))+log(2*pi))
 %Whenever R is fit (optimized, as in E-M), we expect this to be the case: R should be set to the value that minimizes this quantity, thus logL is only a function of the 1-step ahead residuals
 %NOTE: even though changing R will also change the filtered predictions, and hence the residuals, for any change in R that changes the filtering, there exists a change in Q such that the predictions are unchanged 
 %(all that matters is that for given C, Q and C'*R*C maintain their proportionality, so the Kalman gain is unchanged, thus we can consider the optimization of R with fixed residuals)

@@ -68,8 +68,8 @@ CtRinvY=CtRinv*Y_D;
 BU=B*U;
 %iQ=pinv(Q,tol);
 
-%Do the true filtering for 10 steps
-Mm=50;
+%Do the true filtering for 20 steps
+Mm=20;
 for i=1:Mm
   %First, do the update given the output at this step:
   if ~outlierRejection
@@ -94,18 +94,22 @@ for i=1:Mm
 end
 
 %Steady-state matrices:
-Psteady=prevP;
+Psteady=prevP; %Steady-state predicted uncertainty matrix
 iPsteady=prevP\eye(size(prevP));%For some reason, this is much faster than pinv
 Ksteady=(iPsteady+CtRinvC)\iPsteady;
 innov=(iPsteady+CtRinvC)\CtRinvY;
-APAQsteady=A*Psteady*A'+Q;
-Pp(:,:,Mm+2:end)=repmat(APAQsteady,1,1,size(Y,2)-Mm);
-P(:,:,Mm+1:end)=repmat(Psteady,1,1,size(Y,2)-Mm);
+P(:,:,Mm+1:end)=repmat(P(:,:,Mm),1,1,size(Y,2)-Mm);
+%Pre-compute matrices to reduce computing time:
+KBU=Ksteady*B*U;
+KBUY=KBU+innov;
+KA=Ksteady*A;
 for i=Mm+1:size(Y,2)
-    prevX=Ksteady*prevX+innov(:,i); %Update
+    prevX=KA*prevX+KBUY(:,i); %Update+predict 
     X(:,i)=prevX;
-    prevX=A*prevX+B*U(:,i); %Predict
-    Xp(:,i+1)=prevX;
 end
-
+%Compute Xp, Pp if requested:
+if nargout>2
+    Xp(:,2:end)=A*X+B*U;
+    Pp(:,:,Mm+2:end)=repmat(Psteady,1,1,size(Y,2)-Mm);
+end
 end
