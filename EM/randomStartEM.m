@@ -8,15 +8,15 @@ end %TODO: if method is given, check that it is 'true' or 'fast'
 
 %First iter:
 fprintf(['Starting rep 0... ']);
-[A,B,C,D,Q,R,X,P]=trueEM(Y,U,nd,[],1); %FastEM
+[A,B,C,D,Q,R,X,P]=trueEM(Y,U,nd,[],0); %FastEM
 bestLL=dataLogLikelihood(Y,U,A,B,C,D,Q,R,X(:,1),P(:,:,1));
 N=size(Y,2);
 
 switch method
     case 'true'
-        fastFlag=0;
+        fastFlag=[];
     otherwise
-        fastFlag=1;
+        fastFlag=0;
 end
 
 for i=1:Nreps
@@ -31,7 +31,7 @@ for i=1:Nreps
     D1=randn(size(Y,1),1);
     Q1=(abs(randn)+1e-7)*eye(nd); %Needs to be psd
     R1=(abs(randn)+1e-7)*eye(size(Y,1)); %Needs to be psd
-    [Xguess]=statKalmanSmoother(Y,A1,C1,Q1,R1,x01,P01,B1,D1,U);
+    [Xguess]=statKalmanSmootherFast(Y,A1,C1,Q1,R1,x01,P01,B1,D1,U,[],0);
     Xguess=medfilt1(Xguess,9,[],2);
     
     %Optimize:

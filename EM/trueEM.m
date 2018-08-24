@@ -85,11 +85,17 @@ for k=1:size(logl,1)-1
     relImprovementLast10=1-logl(max(k-10,1),1)/l; %Assessing the relative improvement on logl over the last 10 iterations (or less if there aren't as many)
     
     %Check for failure conditions:
-    if imag(l)~=0
+    if imag(l)~=0 %This does not happen
         warning(['Complex logL, probably ill-conditioned matrices involved. Stopping after ' num2str(k) ' iterations.'])
         break
+    elseif any(abs(eig(A1))>1)
+        fprintf(['Unstable system detected. Stopping. ' num2str(k) ' iterations.\n'])
+        break
     elseif ~improvement %This should never happen, except that our loglikelihood is approximate, so there can be some rounding error
-        warning(['logL decreased at iteration ' num2str(k) ', drop = ' num2str(l-logl(k,1))])
+        drop=l-logl(k,1);
+        if abs(drop)>1e-7 %Do not bother reporting drops within numerical precision
+            warning(['logL decreased at iteration ' num2str(k) ', drop = ' num2str(drop)])
+        end
         failCounter=failCounter+1;
         %TO DO: figure out why logl sometimes drops a lot on iter 1.
         if failCounter>4
