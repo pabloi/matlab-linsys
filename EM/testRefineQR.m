@@ -33,10 +33,18 @@ tic
 [Ah1,Bh1,Ch1,Dh1,Qh1,Rh1,Xh1,Ph1]=trueEM(Y,U,2,[],1);
 logLh1=dataLogLikelihood(Y,U,Ah1,Bh1,Ch1,Dh1,Qh1,Rh1,Xh1(:,1),Ph1(:,:,1))
 toc
-[Ah1,Bh1,Ch1,Xh1,~,Qh1] = canonizev2(Ah1,Bh1,Ch1,Xh1,Qh1);
-
+%[Ah1,Bh1,Ch1,Xh1,~,Qh1] = canonizev2(Ah1,Bh1,Ch1,Xh1,Qh1);
+%[Ah1,Bh1,Ch1,Xh1,~,Ph1(:,:,1)] = canonizev2(Ah1,Bh1,Ch1,Xh1,Ph1(:,:,1));
+[Xs1,Ps1,Pt1,~,~,Xp1,Pp1]=statKalmanSmoother(Y,Ah1,Ch1,Qh1,Rh1,Xh1(:,1),Ph1(:,:,1),Bh1,Dh1,U,false);
+[Xs3,Ps3,Pt3,~,~,Xp3,Pp3]=statKalmanSmootherFast(Y,Ah1,Ch1,Qh1,Rh1,Xh1(:,1),Ph1(:,:,1),Bh1,Dh1,U,false);
 %% Do QR refinement
-
+[Qopt,Ropt]=refineQR(Y-Ch1*Xp1(:,1:end-1)-Dh1*U,Pp1,Ch1,Ah1,Rh1);
 %% See that the estimated states did not change
-
+[Xs2,Ps2,Pt2,~,~,Xp2,Pp2]=statKalmanSmoother(Y,Ah1,Ch1,Qopt,Ropt,Xh1(:,1),Ph1(:,:,1),Bh1,Dh1,U,false);
+figure;
+plot(Xp1');
+hold on
+set(gca,'ColorOrderIndex',1)
+ plot(Xp2','--');
 %% See the logL improved nonetheless
+logLh2=dataLogLikelihood(Y,U,Ah1,Bh1,Ch1,Dh1,Qopt,Ropt,Xh1(:,1),Ph1(:,:,1))
