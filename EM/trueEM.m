@@ -82,9 +82,10 @@ for k=1:Niter-1
     end
     
     %Check improvements:
-    %l=dataLogLikelihood(Y,U,A1,B1,C1,D1,Q1,R1,Xp,Pp); %Passing the Kalman-filtered states and uncertainty makes the computation more efficient
-    predError=Y-C1*Xp(:,1:end-1)-D1*U; %One-step ahead prediction error of model
-    l=fastLogL(predError);
+    l=dataLogLikelihood(Y,U,A1,B1,C1,D1,Q1,R1,Xp,Pp,'approx'); %Passing the Kalman-filtered states and uncertainty makes the computation more efficient
+    %l=dataLogLikelihood(Y,U,A1,B1,C1,D1,Q1,R1,Xp,Pp,'max');
+    %predError=Y-C1*Xp(:,1:end-1)-D1*U; %One-step ahead prediction error of model
+    %l=fastLogL(predError); %Equivalent to using dataLogLikelihood with 'max' method
     logl(k+1)=l;
     delta=l-logl(k,1);
     if mod(k,50)==0 %Print info
@@ -107,7 +108,7 @@ for k=1:Niter-1
         %fprintf(['Unstable system detected. Stopping. ' num2str(k) ' iterations.\n'])
         %break
     elseif ~improvement %This should never happen, except that our loglikelihood is approximate, so there can be some rounding error
-        if abs(delta)>1e-6 %Do not bother reporting drops within numerical precision
+        if abs(delta)>1e-7 %Do not bother reporting drops within numerical precision
             warning(['logL decreased at iteration ' num2str(k) ', drop = ' num2str(delta)])
         end
         failCounter=failCounter+1;

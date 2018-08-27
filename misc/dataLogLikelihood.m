@@ -27,6 +27,8 @@ switch method
         logLperSamplePerDim=logLexact(z,Pp,C,R);
     case 'max'
         logLperSamplePerDim=logLopt(z);
+    case 'fast'
+        logLperSamplePerDim=logLfast(z,Pp,C,R,A);
 end
 
 end
@@ -36,7 +38,9 @@ function logLperSamplePerDim=logLexact(z,Pp,C,R)
 %Exact way: (very slow)
 minus2ly=nan(size(z,2),1);
 for i=1:size(z,2)
-    P=R+C*Pp(:,:,i)*C'; 
+    sP=chol(Pp(:,:,i));
+    CsP=C*sP';
+    P=R+CsP*CsP'; 
     logdetP= sum(log(eig(P)));%Should use:https://en.wikipedia.org/wiki/Matrix_determinant_lemma to cheapen computation (can exploit knowing C'*(R\C) and det(R) ahead of time to only need computing size(Pp) determinants
     eP=eig(P);
     if ~all(imag(eP)==0 & eP>0) %Sanity check, the output covariance should be positive semidef., otherwise the likelihood is not well defined
@@ -51,7 +55,8 @@ end
 
 function logLperSamplePerDim=logLapprox(z,Pp,C,R)
 %Faster, approximate way:
-CPpCt=C*mean(Pp,3)*C';
+[D,N]=size(z);
+CPpCt=C*median(Pp,3)*C'; %Mean makes no sense, changed to median
 CPpCt=(CPpCt+CPpCt')/2; %Cheap way to ensure PSD
 P=R+CPpCt; 
 eP=eig(P);
@@ -59,7 +64,7 @@ if ~all(imag(eP)==0 & eP>0) %Sanity check, the output covariance should be posit
     error('Covariance matrix is not PSD, cannot compute likelihood')
 end
 logdetP= mean(log(eP)); %Should use:https://en.wikipedia.org/wiki/Matrix_determinant_lemma to cheapen computation (can exploit knowing C'*(R\C) and det(R) ahead of time to only need computing size(Pp) determinants
-S=z*z'/N2;
+S=z*z'/N;
 %logL=-.5*N2*(trace(lsqminnorm(P,S,1e-8))+logdetP+D2*log(2*pi)); %Non-gpu ready
 logLperSamplePerDim=-.5*(mean(diag(P\S))+logdetP+log(2*pi));
 %Naturally, this is maximized over positive semidef. P (for a given set of residuals z) 
@@ -67,10 +72,29 @@ logLperSamplePerDim=-.5*(mean(diag(P\S))+logdetP+log(2*pi));
 %maxLperSamplePerDim = -.5*(1+mean(log(eig(S)))+log(2*pi))
 end
 
+function logLperSamplePerDim=logLfast(z,Pp,C,R,A)
+%Do exact for M samples, do approximate afterwards. Should be almost equal
+%to the exact version, but much faster. We exploit the fact that on a
+%stable system the uncertainty reaches a steady-state, so the computation
+%reduces to that of the approximate version
+
+[D,N]=size(z);
+M2=20; %Default for fast filtering: 20 samples
+M1=ceil(3*max(-1./log(abs(eig(A))))); %This many strides ensures ~convergence of gains before we assume steady-state
+M=max(M1,M2);
+M=min(M,N); %Prevent more than N, if this happens, we are not doing fast filtering    
+
+logLperSamplePerDim1=logLexact(z(:,1:M),Pp(:,:,1:M),C,R);
+logLperSamplePerDim2=logLapprox(z(:,M+1:N),Pp(:,:,M+1:N),C,R);
+logLperSamplePerDim=(M*logLperSamplePerDim1+(N-M)*logLperSamplePerDim2)/N;
+
+end
+
 function logLperSamplePerDim=logLopt(z)
 %Max possible log-likelihood over all matrices P
 %See refineQR for computing optimal values of Q,R that preserve z and
 %maximize logL
+[D2,N2]=size(z);
 u=z/sqrt(N2);
 S=u*u';
 logdetS=mean(log(eig(S)));

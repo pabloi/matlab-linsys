@@ -1,77 +1,67 @@
 function [Qopt,Ropt]=refineQR(predError,predUncertainty,C,A,R)
 %Finds the analytically optimal (in the log-likelihood of data sense)
 %values for Q,R given the one-step ahead prediction errors and the C matrix.
-%Naturally, the new Q,R values will generate the same kalman filtered (or
-%smoothed) states, such that the prediction errors are preserved.
+%Naturally, the new Q,R values will generate approximately the same kalman filtered (or
+%smoothed) states, such that the prediction errors are preserved 
+%(not so for the prediction uncertainties).
+%Exact preservation of filtered states requires exact preservation of
+%kalman gain, which cannot be guaranteed for the general case.
 
 %First, compute error covariance:
 S=predError*predError'/size(predError,2);
 
 %Second compute steady-state Kalman gain:
-V=mean(predUncertainty,3); %Could take steady-state value instead
-CVC=C*V*C';
-K=V*C'/(CVC+R);
+V=median(predUncertainty,3); %Could take steady-state value instead
+sV=chol(V);
+Csv=C*sV';
+CVC=Csv*Csv';
+oldK=V*C'/(CVC+R);
+oldCK=CVC/(CVC+R);
+Asv=A*sV';
+Aksv=A*chol(oldK*C*sV'*sV)';
+oldQ=sV'*sV - Asv*Asv' +Aksv*Aksv';
 
-%CK=CVC/(CVC+R);
-I_CK=R/(CVC+R);
-CiRC=C'*pinv(R)*C;
-KC=(CiRC+pinv(V))\CiRC;
-I_KC=(CiRC+pinv(V))\pinv(V);
 
-%Optimal value of R:
-%Ropt=(eye(size(R))-C*K)*S; %this should be symmetric
-Ropt=I_CK*S; %this should be symmetric, but isn't (?)
+%Optimal value of steady-state prediction uncertainty:
+newV=oldK*S/C'; %newV*C' = K*S, the issue is this equation may not have exact solutions
+%Ensure symmetry:
+sV=chol(newV);
+newV=sV'*sV; 
+Csv=sV*C';
+%newCVC=Csv'*Csv;
+%newVC=newV*C; %=K*S
+%Csv=C*sV';
+%newCVC=Csv*Csv';
 
 %Optimal value of Q:
-%Qopt=K*S*pinv(C') - A*K*C*pinv(C'*pinv(Ropt)*C)*A';
-iC=pinv(C);
-%Qopt=K*S*pinv(C)' - A*K*C*pinv(C)*Ropt*pinv(C)'*A';
-Qopt=K*S*iC' - A*KC*iC*Ropt*iC'*A';
-newV=K*S*iC';
-Qopt=newV - A*I_KC*newV*A';
-Qopt=newV - A*newV*A' -A*K*C*newV*A';
+Asv=A*sV';
+%sS=chol(S);
+Aksv=A*chol(oldK*C*newV)';
+Qopt=sV'*sV - Asv*Asv' +Aksv*Aksv';
+
+%Optimal value of R:
+Ropt=S-Csv'*Csv; %=I_CK*S; %Equivalent expression, numerically unstable (not symm)
+
+
 %Check:
+% norm(newV-newV','fro')/norm(newV,'fro') %This should be 0 
+% norm(Ropt-Ropt','fro')/norm(Ropt,'fro') %This should be 0 
+% newCK=newCVC/S;
+% norm(newCK-oldCK,'fro')/norm(oldCK,'fro') %This should be 0 
+% norm(S-Ropt-newCVC,'fro')/norm(S,'fro') %This should be 0 
 
-newCVC=C*newV*C';
-newK=newV*C'/(newCVC+Ropt);
-norm(K-newK)/norm(K) %This should be 0 and is not
-norm(S-Ropt-newCVC)/norm(S) %This should be 0 and is not
-
+%A different, more basic, approach:
 %Decompose R into a C-potent (Rp) and a C-null (Rn) matrices: R=Rn+Rp and
 %C'*Rn*C=0, and the column-spaces of Rp and Rn are orthogonal but their
 %union is the whole space.
-
-% %First, find the optimal value of R:
-% S=predError*predError'/size(predError,2);
-% [~,Sn]=decomp2(S,C);
-% %Ropt=S-C*mean(predUncertainty,3)*C'; %There is no guarantee this is PSD
-% 
-% %Second, find the C-null part of Ropt, R
-% %iRopt=pinv(Ropt);
-% %iR=pinv(R);
-% %[Po,Rnopt]=decomp2(iRopt,C);
-% %[P,Rn]=decomp2(iR,C);
-% %Ropt=pinv(iR-Rn+Rnopt);
-% 
-% %[Po,Rnopt]=decomp2(Ropt,C);
-% [P,Rn]=decomp2(R,C);
-% Ropt=R-Rn+Sn; %We only change the C-null part of R, in a way that is guaranteed to be PSD
-% 
-% %Third, find optimal Q:
-% %S=Po/P;
-% %Qopt=S*Q*S';
-% %(iQopt+C'*pinv(Ropt)*C) \(C'*pinv(Ropt)*C) = (iQ+C'*pinv(R)*C)\(C'*pinv(R)*C)
-% %(C'*pinv(Ropt)*C) = (iQopt+C'*pinv(Ropt)*C)*((iQ+C'*pinv(R)*C)\(C'*pinv(R)*C))
-% %iQopt+C'*pinv(Ropt)*C = ((C'*pinv(Ropt)*C)/ (C'*pinv(R)*C)) * (iQ+C'*pinv(R)*C)
-% %iQopt= (C'*iRopt*C)*((C'*iR*C)\(iQ+C'*iR*C)-eye);
-% %iQopt= (C'*iRopt*C)*((C'*iR*C)\pinv(Q));
-% %iQopt= (Po*Po')/(P*P')*pinv(Q);
-% %T=chol(Q);
-% %iQopt= (Po*Po')/(P*P')*pinv(Q);
-% %Qopt=pinv(iQopt);
-% %PTP=Po\(P*T');
-% %Qopt=PTP*PTP';
-% Qopt=Q;
+%Do nothing for Q
+%[~,Sn]=decomp2(S,C);
+%[~,Rn]=decomp2(R,C);
+%Ropt=R-Rn+Sn; %We only change the C-null part of R, in a way that is guaranteed to be PSD
+%Qopt=oldQ;
+%This is guaranteed to improve the model logL GIVEN the estimated states
+%and uncertainty. However, if we re-estimate them using the new value of R,
+%there is no guarantee that the logL will go up, or at least not go down.
 end
 
 function [P,Bn]=decomp(B,A)
