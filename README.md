@@ -1,6 +1,6 @@
 # matlab-linsys
-Linear dynamicl systems toolbox for Matlab.
-Includes an implementation of the Kalman filter and Kalman smoother, and several methods to perform system identification.
+Linear dynamic systems toolbox for Matlab.
+Includes an implementation of the Kalman filter and Kalman smoother, and several methods to perform system identification. Emphasis on speed.
 
 *Framework:*
 The identification methods try to find matrices A,B,C,D,Q,R from a data matrix Y representing N samples (y_k) of a D dimensional output signal, and a matrix U, representing N samples (u_k) of an M dimensional input signal. The system takes the form:
@@ -13,14 +13,17 @@ sPCA: ONLY identifies a purely deterministic, arbitrary size, LTI-SSM assuming r
 
 true EM: an implementation of an Expectation-Maximization algorithm. Alternates between estimating A,B,C,D,Q,R given some guess of the latents x, and estimating x from A,B,C,D,Q,R through the (optimal) Kalman smoother.
 
-fast EM: an approximation of the true EM method
+fast EM: an approximation of the true EM method, by exploiting steady-state behavior of the kalman filter/smoother
 
 *To Do*
 - Implement the extended KF, and extended Kalman Smoother.
 - Implement the implicit extended KF.
 - Implement the augmented KF.
 - Review outlier rejection scheme for KF.
-- Change fastEM to do a weighted average to smooth and non-smooth state estimation based on 1-step(?) forward output error
+- Implement adaptive KF
+- Change approximate logl computation to use median or steady-state uncertainty instead of mean, which makes no sense.
+- Change refineQR to use steady-state or median kalman gain instead of mean, which makes no sense.. Check if these changes make a difference.
+- Implement a fast loglikelihood calculation that uses the same trick as fast KF: assume that uncertainty reaches a steady-state after some number of steps given by the largest eigenvalue of A.
 
 
 *Changelist*
