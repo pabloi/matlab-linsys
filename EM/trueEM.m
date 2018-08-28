@@ -1,4 +1,4 @@
-function [A,B,C,D,Q,R,X,P,bestLogL]=trueEM(Y,U,Xguess,targetLogL,fastFlag)
+function [A,B,C,D,Q,R,x0,P0,bestLogL]=trueEM(Y,U,Xguess,targetLogL,fastFlag)
 %A true EM implementation to do LTI-SSM identification
 %INPUT:
 %Y is D2 x N
@@ -6,8 +6,6 @@ function [A,B,C,D,Q,R,X,P,bestLogL]=trueEM(Y,U,Xguess,targetLogL,fastFlag)
 %Xguess - Either the number of states for the system (if scalar) or a guess
 %at the initial states of the system (if D1 x N matrix)
 
-
-[~,N]=size(Y);
 if nargin<5 || isempty(fastFlag)
     fastFlag=[];
 else
@@ -16,52 +14,36 @@ else
     w = warning ('off','statKSfast:unstable');
 end
 
+%% ------------Init stuff:-------------------------------------------
 %Define init guess of state:
-if numel(Xguess)==1 %Xguess is just dimension
+if isempty(Xguess)
+    error('Xguess has to be a guess of the states (D x N matrix) or a scalar indicating the number of states to be estimated')
+elseif numel(Xguess)==1 %Xguess is just dimension
     D1=Xguess;
-    D=Y/U;
-    if isa(Y,'gpuArray')
-        [pp,~,~]=pca(gather(Y-D*U),'Centered','off'); %Can this be done in the gpu?
-    else
-       [pp,~,~]=pca((Y-D*U),'Centered','off'); %Can this be done in the gpu? 
-    end
-    Xguess=pp(:,1:D1)';
-else %Xguess is an actual initial state
-    D1=size(Xguess,1);
+    Xguess=initGuess(Y,U,D1);
 end
 X=Xguess;
 
-%Initialize covariance to plausible values:
-dX=diff(X');
-Px=cov(dX); 
-P=repmat(Px,1,1,N);
-Pt=repmat(Px',1,1,N);
+% Init params:
+[A1,B1,C1,D1,Q1,R1,x01,P01,bestLogL]=initParams(Y,U,X);
 
+%Initialize log-likelihood register & current best solution:
 Niter=501;
 logl=nan(Niter,1);
-
-%Move things to gpu if needed
+logl(1,1)=bestLogL;
 if isa(Y,'gpuArray')
-    Y=gpuArray(Y);
-    U=gpuArray(U);
-    X=gpuArray(X);
-    P=gpuArray(P);
-    Pt=gpuArray(Pt);
     logl=nan(Niter,1,'gpuArray');
 end
+A=A1; B=B1; C=C1; D=D1; Q=Q1; R=R1; x0=x01; P0=P01;
 
-%Initialize guesses of A,B,C,D,Q,R
-[A1,B1,C1,D1,Q1,R1,x01,P01]=estimateParams(Y,U,X,P,Pt);
-bestLogL=dataLogLikelihood(Y,U,A1,B1,C1,D1,Q1,R1,x01,P01);
-logl(1,1)=bestLogL;
-[A1,B1,C1,x01,~,Q1] = canonizev3(A1,B1,C1,x01,Q1); %Make sure scaling is good
-A=A1; B=B1; C=C1; D=D1; Q=Q1; R=R1;
-
+%Initialize target logL:
 if nargin<4 || isempty(targetLogL)
     targetLogL=logl(1);
 end
+
+
+%% ----------------Now, do E-M-----------------------------------------
 failCounter=0;
-%Now, do E-M
 for k=1:Niter-1
 	%E-step: compute the expectation of latent variables given current parameter estimates
     %Note this is an approximation of true E-step in E-M algorithm. The
@@ -72,20 +54,21 @@ for k=1:Niter-1
 	%M-step: find parameters A,B,C,D,Q,R that maximize likelihood of data
     
     %E-step:
-    %if ~fastFlag
-    %    [X1,P1,Pt1,~,~,Xp,Pp,~]=statKalmanSmoother(Y,A1,C1,Q1,R1,x01,P01,B1,D1,U);
-    %else
+    if isa(Y,'cell') %Data is many realizations of same system
+        [X1,P1,Pt1,~,~,Xp,Pp,~]=cellfun(@(y,x0,p0,u) statKalmanSmootherFast(y,A1,C1,Q1,R1,x0,p0,B1,D1,u,[],fastFlag),Y,x01,P01,U,'UniformOutput',false);
+        if any(cellfun(@(x) any(imag(x(:))~=0),X1))
+            error('Complex states') 
+        end
+    else
         [X1,P1,Pt1,~,~,Xp,Pp,~]=statKalmanSmootherFast(Y,A1,C1,Q1,R1,x01,P01,B1,D1,U,[],fastFlag);
-    %end
-    if any(imag(X1(:)))~=0
-       error('Complex states') 
+        if any(imag(X1(:))~=0)
+            error('Complex states') 
+        end
     end
+    
     
     %Check improvements:
     l=dataLogLikelihood(Y,U,A1,B1,C1,D1,Q1,R1,Xp,Pp,'approx'); %Passing the Kalman-filtered states and uncertainty makes the computation more efficient
-    %l=dataLogLikelihood(Y,U,A1,B1,C1,D1,Q1,R1,Xp,Pp,'max');
-    %predError=Y-C1*Xp(:,1:end-1)-D1*U; %One-step ahead prediction error of model
-    %l=fastLogL(predError); %Equivalent to using dataLogLikelihood with 'max' method
     logl(k+1)=l;
     delta=l-logl(k,1);
     if mod(k,50)==0 %Print info
@@ -107,24 +90,23 @@ for k=1:Niter-1
         %stable system or lack of improvement in logl makes the iteration stop
         %fprintf(['Unstable system detected. Stopping. ' num2str(k) ' iterations.\n'])
         %break
-    elseif ~improvement %This should never happen, except that our loglikelihood is approximate, so there can be some rounding error
+    elseif ~improvement %This should never happen, except that our loglikelihood is approximate, so there can be some error
         if abs(delta)>1e-7 %Do not bother reporting drops within numerical precision
             warning(['logL decreased at iteration ' num2str(k) ', drop = ' num2str(delta)])
         end
         failCounter=failCounter+1;
         %TO DO: figure out why logl sometimes drops a lot on iter 1.
-        if failCounter>9
-            fprintf(['Dropped 10 times w/o besting the fit. ' num2str(k) ' iterations.\n'])
+        if failCounter>4
+            fprintf(['Dropped 5 times w/o besting the fit. ' num2str(k) ' iterations.\n'])
             break
         end
     else %There was improvement
         if l>=bestLogL
             failCounter=0;
             %If everything went well and these parameters are the best ever: 
-            %replace parameters  (notice the algorithm
-            %may continue even if the logl dropped, but in that case we do not
-            %save the parameters)
-            A=A1; B=B1; C=C1; D=D1; Q=Q1; R=R1; x0=x01; P0=P01; X=X1; P=P1; %Pt=Pt1;
+            %replace parameters  (notice the algorithm may continue even if 
+            %the logl dropped, but in that case we do not save the parameters)
+            A=A1; B=B1; C=C1; D=D1; Q=Q1; R=R1; x0=x01; P0=P01; %X=X1; P=P1; %Pt=Pt1;
             bestLogL=l;
         end
     end
@@ -145,6 +127,7 @@ for k=1:Niter-1
     [A1,B1,C1,D1,Q1,R1,x01,P01]=estimateParams(Y,U,X1,P1,Pt1);
 end
 
+%%
 if fastFlag==0 %Re-enable disabled warnings
     w = warning ('on','statKFfast:unstable');
     w = warning ('on','statKSfast:unstable');
@@ -170,4 +153,52 @@ function maxLperSamplePerDim=fastLogL(predError)
         maxLperSamplePerDim = -.5*(1+log(2*pi)+logdetS);
     end
     %maxLperSample = D2*maxLperSamplePerDim;
+end
+
+function [A1,B1,C1,D1,Q1,R1,x01,P01,logL]=initParams(Y,U,X)
+
+if isa(Y,'cell')
+    [P,Pt]=cellfun(@initCov,X,'UniformOutput',false);
+else
+    %Initialize covariance to plausible values:
+    [P,Pt]=initCov(X);
+
+    %Move things to gpu if needed
+    if isa(Y,'gpuArray')
+        U=gpuArray(U);
+        X=gpuArray(X);
+        P=gpuArray(P);
+        Pt=gpuArray(Pt);
+    end
+end
+
+    %Initialize guesses of A,B,C,D,Q,R
+    [A1,B1,C1,D1,Q1,R1,x01,P01]=estimateParams(Y,U,X,P,Pt);
+    %Make sure scaling is appropriate:
+    %[A1,B1,C1,x01,~,Q1,P01] = canonizev3(A1,B1,C1,x01,Q1,P01); 
+    %Compute logL:
+    logL=dataLogLikelihood(Y,U,A1,B1,C1,D1,Q1,R1,x01,P01,'approx');
+end
+
+function [P,Pt]=initCov(X)
+    [~,N]=size(X);
+    %Initialize covariance to plausible values:
+    dX=diff(X');
+    Px=cov(dX); 
+    P=repmat(Px,1,1,N);
+    Pt=repmat(Px',1,1,N);
+end
+
+function X=initGuess(Y,U,D1)
+if isa(Y,'cell')
+    X=cellfun(@(y,u) initGuess(y,u,D1),Y,U,'UniformOutput',false);
+else
+    D=Y/U;
+    if isa(Y,'gpuArray')
+        [pp,~,~]=pca(gather(Y-D*U),'Centered','off'); %Can this be done in the gpu?
+    else
+       [pp,~,~]=pca((Y-D*U),'Centered','off'); %Can this be done in the gpu? 
+    end
+    X=pp(:,1:D1)';
+end
 end

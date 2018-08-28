@@ -1,4 +1,4 @@
-function [J,K,C,X,V,Q] = canonizev2(A,B,C,Xa,Q)
+function [J,K,C,X,V,Q,P] = canonizev2(A,B,C,Xa,Q,Pa)
 %Canonize returns the canonical form of the linear system given by
 %A,B,C,D,X; scaling C to have unity norm along each column
 
@@ -20,8 +20,14 @@ function [J,K,C,X,V,Q] = canonizev2(A,B,C,Xa,Q)
 % X=scale'.*(V\Xa);
 % K=scale'.*K;
 
-if nargin<5
-    Q=zeros(size(J));
+if nargin<6
+    Pa=zeros(size(A));
+end
+if nargin<5 || isempty(Q)
+    Q=zeros(size(A));
+end
+if nargin<4 || isempty(Xa)
+    Xa=zeros(size(A,1),1);
 end
 %[J,K,C,X,V,Q] = canonizev3(A,B,C,Xa,Q);
 %return
@@ -48,7 +54,16 @@ J=csys.A;
 K=csys.B;
 C=csys.C;
 V=V2*V;
-X=V*Xa;
+if isa(Xa,'cell') %Many realizations of same system
+    X=cellfun(@(x) V*x,Xa,'UniformOutput',false);
+else
+    X=V*Xa;
+end
+if isa(Pa,'cell') %Many realizations of same system
+    P=cellfun(@(x) V*x*V',Pa,'UniformOutput',false);
+else
+    P=V*Pa*V';
+end
 Q=V*Q*V';
 
 %Sort states according to increasing time-constants
@@ -56,7 +71,17 @@ Q=V*Q*V';
 J=J(idx,idx);
 K=K(idx);
 C=C(:,idx);
-X=X(idx,:);
+if isa(X,'cell') %Many realizations of same system
+    X=cellfun(@(x) x(idx,:),X,'UniformOutput',false);
+else
+    X=X(idx,:);
+end
+if isa(P,'cell') %Many realizations of same system
+    P=cellfun(@(x) x(idx,idx),P,'UniformOutput',false);
+else
+    P=P(idx,idx);
+end
+
 V=V(idx,:);
 Q=Q(idx,idx);
 

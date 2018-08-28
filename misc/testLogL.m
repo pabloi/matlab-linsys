@@ -50,7 +50,9 @@ tic
 logLmax=dataLogLikelihood(Y,U,A,B,C,D,Q,R,Xp(:,1),10000*Pp(:,:,1),'max')
 toc
 %%
+tic
 [A1,B1,C1,D1,Q1,R1,X1,P1]=trueEM(Y,U,2,[],1);
+toc
 [Xs1,Ps1,~,~,~,Xp1,Pp1]=statKalmanSmoother(Y,A1,C1,Q1,R1,[],[],B1,D1,U,false); %
 tic 
 logLapp1=dataLogLikelihood(Y,U,A1,B1,C1,D1,Q1,R1,Xp1(:,1),Pp1(:,:,1),'approx')

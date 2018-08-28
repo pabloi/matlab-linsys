@@ -8,29 +8,36 @@ if nargin<10 || isempty(X0) || isempty(P0)
     X0=[];
     P0=[];
 end
-if size(X0,2)<=1 %True init state guess
-    [~,~,Xp,Pp,~]=statKalmanFilter(Y,A,C,Q,R,X0,P0,B,D,U,0);
-    %[~,~,Xp,Pp,~]=statKalmanFilterFast(Y,A,C,Q,R,X0,P0,B,D,U,[],0);
-else %whole filtered priors are provided, not just t=0
-    Xp=X0;
-    Pp=P0;
+
+if isa(Y,'cell') %Case where input/output data corresponds to many realizations of system, requires Y,U,x0,P0 to be cells of same size
+    logLperSamplePerDim=cellfun(@(y,u,x0,p0) dataLogLikelihood(y,u,A,B,C,D,Q,R,x0,p0,method),Y,U,X0,P0);
+    logLperSamplePerDim=mean(logLperSamplePerDim);
+else
+
+    if size(X0,2)<=1 %True init state guess
+        [~,~,Xp,Pp,~]=statKalmanFilter(Y,A,C,Q,R,X0,P0,B,D,U,0);
+        %[~,~,Xp,Pp,~]=statKalmanFilterFast(Y,A,C,Q,R,X0,P0,B,D,U,[],0);
+    else %whole filtered priors are provided, not just t=0
+        Xp=X0;
+        Pp=P0;
+    end
+
+    %'Incomplete' logLikelihood: p({y}|params) [Albert and Shadmehr 2017, eq. A1.25]
+    predY=C*Xp(:,1:end-1)+D*U;
+    z=Y-predY;
+
+    switch method
+        case 'approx'
+            logLperSamplePerDim=logLapprox(z,Pp,C,R); 
+        case 'exact'
+            logLperSamplePerDim=logLexact(z,Pp,C,R);
+        case 'max'
+            logLperSamplePerDim=logLopt(z);
+        case 'fast'
+            logLperSamplePerDim=logLfast(z,Pp,C,R,A);
+    end
+
 end
-
-%'Incomplete' logLikelihood: p({y}|params) [Albert and Shadmehr 2017, eq. A1.25]
-predY=C*Xp(:,1:end-1)+D*U;
-z=Y-predY;
-
-switch method
-    case 'approx'
-        logLperSamplePerDim=logLapprox(z,Pp,C,R); 
-    case 'exact'
-        logLperSamplePerDim=logLexact(z,Pp,C,R);
-    case 'max'
-        logLperSamplePerDim=logLopt(z);
-    case 'fast'
-        logLperSamplePerDim=logLfast(z,Pp,C,R,A);
-end
-
 end
 
 function logLperSamplePerDim=logLexact(z,Pp,C,R)
