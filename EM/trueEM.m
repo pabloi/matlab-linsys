@@ -44,6 +44,8 @@ end
 
 %% ----------------Now, do E-M-----------------------------------------
 failCounter=0;
+breakFlag=false;
+%fh=figure;
 for k=1:Niter-1
 	%E-step: compute the expectation of latent variables given current parameter estimates
     %Note this is an approximation of true E-step in E-M algorithm. The
@@ -71,11 +73,6 @@ for k=1:Niter-1
     l=dataLogLikelihood(Y,U,A1,B1,C1,D1,Q1,R1,Xp,Pp,'approx'); %Passing the Kalman-filtered states and uncertainty makes the computation more efficient
     logl(k+1)=l;
     delta=l-logl(k,1);
-    if mod(k,50)==0 %Print info
-        pOverTarget=100*(l/targetLogL-1);
-        lastChange=l-logl(k-49,1);
-    disp(['Iter = ' num2str(k) ', \Delta = ' num2str(lastChange) ', % over target = ' num2str(pOverTarget)])
-    end
     improvement=delta>0;
     targetRelImprovement10=(l-logl(max(k-10,1),1))/(targetLogL-l);
     belowTarget=l<targetLogL;
@@ -84,7 +81,7 @@ for k=1:Niter-1
     %Check for failure conditions:
     if imag(l)~=0 %This does not happen
         fprintf(['Complex logL, probably ill-conditioned matrices involved. Stopping after ' num2str(k) ' iterations.\n'])
-        break
+        breakFlag=true;
     elseif any(abs(eig(A1))>1)
         %No need to break for unstable systems, usually they converge to a
         %stable system or lack of improvement in logl makes the iteration stop
@@ -98,7 +95,7 @@ for k=1:Niter-1
         %TO DO: figure out why logl sometimes drops a lot on iter 1.
         if failCounter>4
             fprintf(['Dropped 5 times w/o besting the fit. ' num2str(k) ' iterations.\n'])
-            break
+            breakFlag=true;
         end
     else %There was improvement
         if l>=bestLogL
@@ -114,15 +111,44 @@ for k=1:Niter-1
     %Check if we should stop early (to avoid wasting time):
     if k>1 && (belowTarget && (targetRelImprovement10)<2e-1) %Breaking if improvement less than 20% of distance to targetLogL, as this probably means we are not getting a solution better than the given target
        fprintf(['unlikely to reach target value. ' num2str(k) ' iterations.\n'])
-       break 
+       breakFlag=true; 
     elseif k>1 && (relImprovementLast10)<1e-10 %Considering the system stalled if relative improvement on logl is <1e-7
         fprintf(['increase is within tolerance (local max). '  num2str(k) ' iterations.\n'])
         %disp(['LogL as % of target:' num2str(round(l*100000/targetLogL)/1000)])
-        break 
+        breakFlag=true;
     elseif k==Niter-1
         fprintf(['max number of iterations reached. '  num2str(k) ' iterations.\n'])
     end
     
+    %Print some info
+    if mod(k,50)==0 || breakFlag %Print info
+        pOverTarget=100*(l/targetLogL-1);
+        if k>50 & ~breakFlag
+            lastChange=l-logl(k-49,1);
+            disp(['Iter = ' num2str(k) ', \Delta = ' num2str(lastChange) ', % over target = ' num2str(pOverTarget)])
+        else %k==1 || breakFlag
+            disp(['Iter = ' num2str(k) ', logL = ' num2str(l) ', % over target = ' num2str(pOverTarget)])
+        end
+%         %figure(fh)
+%         %Canonical form, for plotting:
+%         [~,~,~,Xp,~,~,~] = canonizev2(A1,B1,C1,Xp,Q1,P01); 
+%         if isa(Xp,'cell')
+%             for i=1:numel(Xp)
+%                 subplot(numel(Xp),1,i)
+%                 set(gca,'ColorOrderIndex',1)
+%                 hold on
+%                 plot(Xp{i}')
+%             end
+%         else
+%             hold on
+%             set(gca,'ColorOrderIndex',1)
+%             plot(Xp')
+%             text(4*k,max(Xp(:)),num2str(l),'FontSize',7)
+%         end
+    end
+    if breakFlag
+        break
+    end
     %M-step:
     [A1,B1,C1,D1,Q1,R1,x01,P01]=estimateParams(Y,U,X1,P1,Pt1);
 end
@@ -175,7 +201,7 @@ end
     %Initialize guesses of A,B,C,D,Q,R
     [A1,B1,C1,D1,Q1,R1,x01,P01]=estimateParams(Y,U,X,P,Pt);
     %Make sure scaling is appropriate:
-    %[A1,B1,C1,x01,~,Q1,P01] = canonizev3(A1,B1,C1,x01,Q1,P01); 
+    [A1,B1,C1,x01,~,Q1,P01] = canonizev2(A1,B1,C1,x01,Q1,P01); 
     %Compute logL:
     logL=dataLogLikelihood(Y,U,A1,B1,C1,D1,Q1,R1,x01,P01,'approx');
 end

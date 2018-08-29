@@ -11,7 +11,8 @@ end
 
 if isa(Y,'cell') %Case where input/output data corresponds to many realizations of system, requires Y,U,x0,P0 to be cells of same size
     logLperSamplePerDim=cellfun(@(y,u,x0,p0) dataLogLikelihood(y,u,A,B,C,D,Q,R,x0,p0,method),Y,U,X0,P0);
-    logLperSamplePerDim=mean(logLperSamplePerDim);
+    sampleSize=cellfun(@(y) size(y,2),Y);
+    logLperSamplePerDim=(logLperSamplePerDim*sampleSize')/sum(sampleSize);
 else
 
     if size(X0,2)<=1 %True init state guess

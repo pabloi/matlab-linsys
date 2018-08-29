@@ -10,7 +10,7 @@ function [A,B,C,D,Q,R,x0,P0]=estimateParams(Y,U,X,P,Pt)
 %See Cheng and Sabes 2006, Ghahramani and Hinton 1996, Shumway and Stoffer 1982
 
 %Define vars:
-[yx,yu,xx,uu,xu,SP,SPt,xx_,uu_,xu_,xx1,xu1,SP_,SP__,N]=computeRelevantMatrices(Y,X,U,P,Pt);
+[yx,yu,xx,uu,xu,SP,SPt,xx_,uu_,xu_,xx1,xu1,SP_,SP__]=computeRelevantMatrices(Y,X,U,P,Pt);
 D1=size(xx,1);
 
 %A,B:
@@ -31,7 +31,10 @@ D=CD(:,D1+1:end);
 % MLE estimator of Q, under the given assumptions:
 aux=chol(SP_); %Enforce symmetry
 Aa=A*aux';
-Q2=(SP__-2*A*SPt'+Aa*Aa')/(N-1); %Should verify that A*SPt is symmetric
+Nw=size(w,2);
+bux=chol(SPt'/A');
+Ab=A*bux';
+Q2=(SP__-2*(Ab*Ab')+Aa*Aa')/(Nw); %If these matrices come from kalman smoothing, they satisfy a relation that guarantees Q2 is psd. This need not be the case exactly because of the way I am enforcing symmetry for A*Spt';
 %Q=(w*w')/(N-1)+Q2; %true MLE estimator. But not designed to deal with outliers, autocorrelated w
 %Note: if we dont have exact extimates of A,B, then the residuals w are not
 %iid gaussian. They will be autocorrelated AND have outliers with respect
@@ -42,7 +45,8 @@ Q=robCov(w) +Q2; %Fast variant of robustcov() estimation
 %MLE of R:
 aux=chol(SP); %Enforce symmetry
 Ca=C*aux';
-R=(z*z'+Ca*Ca')/N;
+Nz=size(z,2);
+R=(z*z'+Ca*Ca')/Nz;
 R=R+1e-15*eye(size(R)); %Avoid numerical issues
 
 %x0,P0:
@@ -62,13 +66,13 @@ Aa=A*aux';
 P0=Q+Aa*Aa';
 end
 
-function [yx,yu,xx,uu,xu,SP,SPt,xx_,uu_,xu_,xx1,xu1,SP_,SP__,N]=computeRelevantMatrices(Y,X,U,P,Pt)
+function [yx,yu,xx,uu,xu,SP,SPt,xx_,uu_,xu_,xx1,xu1,SP_,SP__]=computeRelevantMatrices(Y,X,U,P,Pt)
 %Notice all outputs are DxD matrices, where D=size(X,1);
 
 if isa(X,'cell') %Case where data is many realizations of same system
-    [yx,yu,xx,uu,xu,SP,SPt,xx_,uu_,xu_,xx1,xu1,SP_,SP__,N]=computeRelevantMatrices(Y{1},X{1},U{1},P{1},Pt{1});
+    [yx,yu,xx,uu,xu,SP,SPt,xx_,uu_,xu_,xx1,xu1,SP_,SP__]=computeRelevantMatrices(Y{1},X{1},U{1},P{1},Pt{1});
     for i=2:numel(X)
-        [yxa,yua,xxa,uua,xua,SPa,SPta,xx_a,uu_a,xu_a,xx1a,xu1a,SP_a,SP__a,Na]=computeRelevantMatrices(Y{i},X{i},U{i},P{i},Pt{i});
+        [yxa,yua,xxa,uua,xua,SPa,SPta,xx_a,uu_a,xu_a,xx1a,xu1a,SP_a,SP__a]=computeRelevantMatrices(Y{i},X{i},U{i},P{i},Pt{i});
         xx=xx+xxa;
         xu=xu+xua;
         uu=uu+uua;
@@ -83,22 +87,20 @@ if isa(X,'cell') %Case where data is many realizations of same system
         SPt=SPt+SPta;
         yx=yx+yxa;
         yu=yu+yua;
-        N=N+Na;
     end
 else %Data is in matrix form, i.e., single realization
-    N=size(X,2);
     xu=X*U';
+    xu_=X(:,1:end-1)*U(:,1:end-1)'; %=xu - X(:,end)*U(:,end)'
     uu=U*U';
+    uu_=U(:,1:end-1)*U(:,1:end-1)'; %=uu - U(:,end)*U(:,end)'
     xx=X*X';
+    xx_=X(:,1:end-1)*X(:,1:end-1)'; %=xx - X(:,end)*X(:,end)'
     SP=sum(P,3);
+    SP_=sum(P(:,:,1:end-1),3); %=SP-P(:,:,end);
+    SP__=sum(P(:,:,2:end),3); %=SP-P(:,:,1);
     SPt=sum(Pt,3);
-    xu_=X(:,1:end-1)*U(:,1:end-1)';
-    uu_=U(:,1:end-1)*U(:,1:end-1)';
     xu1=X(:,2:end)*U(:,1:end-1)';
-    xx_=X(:,1:end-1)*X(:,1:end-1)';
     xx1=X(:,2:end)*X(:,1:end-1)';
-    SP_=sum(P(:,:,1:end-1),3);
-    SP__=sum(P(:,:,2:end),3);
     yx=Y*X';
     yu=Y*U';
 end

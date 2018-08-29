@@ -20,7 +20,6 @@ C=randn(D2,D1);
 D=randn(D2,1);
 Q=eye(D1)*.0001;
 R=eye(D2)*.01;
-[A,B,C,~,~,Q] = canonizev3(A,B,C,[],Q);
 %% Simulate many times:
 for k=1:10
     NN=size(U,2);
@@ -30,12 +29,29 @@ for k=1:10
     P0{k}=eye(size(Q));
 end
 %%
-logL=dataLogLikelihood(Y,Uu,A,B,C,D,Q,R,x0,P0)
+[A,B,C,x0,~,Q,P0] = canonizev2(A,B,C,X,Q,P0);
+logLo=dataLogLikelihood(Y,Uu,A,B,C,D,Q,R,x0,P0)
 
-%% Estimate params:
+%% Estimate params with a single realization:
 fastFlag=0; %Should be empty for regular EM
 [Ae,Be,Ce,De,Qe,Re,x0e,P0e,bestLogLe]=trueEM(Y{1},Uu{1},D1,[],fastFlag);
-logL=dataLogLikelihood(Y,Uu,Ae,Be,Ce,De,Qe,Re,x0e,P0e)
-[Ae,Be,Ce,x0e,~,Qe,P0e] = canonizev3(Ae,Be,Ce,x0e,Qe,P0e);
-logL=dataLogLikelihood(Y,Uu,Ae,Be,Ce,De,Qe,Re,x0e,P0e)
+[Ae,Be,Ce,x0e,~,Qe,P0e] = canonizev2(Ae,Be,Ce,x0e,Qe,P0e);
+logL=dataLogLikelihood(Y{1},Uu{1},Ae,Be,Ce,De,Qe,Re,x0e,P0e);
+%Add actual states:
+fh=gcf;
+hold on
+plot(X{1}','k')
+text(100,max(X{1}(:)),num2str(logLo))
+
+%% Estimate with many:
+fastFlag=0; %Should be empty for regular EM
+[Ae,Be,Ce,De,Qe,Re,x0e,P0e,bestLogLe]=trueEM(Y,Uu,D1,[],fastFlag);
+[Ae,Be,Ce,x0e,~,Qe,P0e] = canonizev2(Ae,Be,Ce,x0e,Qe,P0e);
+logL=dataLogLikelihood(Y,Uu,Ae,Be,Ce,De,Qe,Re,x0e,P0e);
+fh=gcf;
+for i=1:numel(X)
+    subplot(numel(X),1,i)
+    hold on
+plot(X{i}','k')
+end
 %% PLot?

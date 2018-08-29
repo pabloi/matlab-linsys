@@ -89,9 +89,12 @@ for i=(N-1):-1:(N-M+1)
   newK=AP'/pp; %Faster, although worse conditioned than: newK=lsqminnorm(pp,AP,1e-8)'
   
   %Improved (smoothed) state estimate
-  newPt=prevPs*newK';
-  newPs=pf+newK*(newPt-AP); %=newK*prevPs'*newK' + pf -pf'*(A'/pp)*A*pf =  newK*prevPs'*newK' + pf -((pf'*A')/(A*pf*A'+Q))*A*pf = 
-  newPs=(newPs+newPs')/2; %Ugly hack to ensure symmetry of matrix
+  newPt=prevPs*newK'; %This should be such that A*newPt' is hermitian
+  %newPs=pf+newK*(newPt-AP); %=newK*prevPs'*newK' + pf -pf'*(A'/pp)*A*pf =  newK*prevPs'*newK' + pf -((pf'*A')/(A*pf*A'+Q))*A*pf = newK*prevPs'*newK' + inv(inv(pf) +A'*inv(Q)*A) = 
+  sPs=chol(prevPs); %Ensure symmetry:
+  Kps=newK*sPs';
+  sPr=chol(newK*AP); %newK*AP= ((pf'*A')/(A*pf*A'+Q))*A*pf
+  newPs=Kps*Kps' + pf -sPr'*sPr;  %Would it be more precise/efficient to compute the sum of the last two terms as inv(inv(pf) +A'*inv(Q)*A) ?
   
   %xp=A*xf+B*U(:,i); %Could compute instead of acccesing it, unclear which is faster
   prevXs=xf + newK*(prevXs-xp); 
