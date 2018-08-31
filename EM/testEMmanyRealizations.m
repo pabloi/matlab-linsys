@@ -34,7 +34,7 @@ logLo=dataLogLikelihood(Y,Uu,A,B,C,D,Q,R,x0,P0)
 
 %% Estimate params with a single realization:
 fastFlag=0; %Should be empty for regular EM
-[Ae,Be,Ce,De,Qe,Re,x0e,P0e,bestLogLe]=trueEM(Y{1},Uu{1},D1,[],fastFlag);
+[Ae,Be,Ce,De,Qe,Re,x0e,P0e,bestLogLe]=EM(Y{1},Uu{1},D1,[],fastFlag);
 [Ae,Be,Ce,x0e,~,Qe,P0e] = canonizev2(Ae,Be,Ce,x0e,Qe,P0e);
 logL=dataLogLikelihood(Y{1},Uu{1},Ae,Be,Ce,De,Qe,Re,x0e,P0e);
 %Add actual states:
@@ -45,7 +45,7 @@ text(100,max(X{1}(:)),num2str(logLo))
 
 %% Estimate with many:
 fastFlag=0; %Should be empty for regular EM
-[Ae,Be,Ce,De,Qe,Re,x0e,P0e,bestLogLe]=trueEM(Y,Uu,D1,[],fastFlag);
+[Ae,Be,Ce,De,Qe,Re,x0e,P0e,bestLogLe]=EM(Y,Uu,D1,[],fastFlag);
 [Ae,Be,Ce,x0e,~,Qe,P0e] = canonizev2(Ae,Be,Ce,x0e,Qe,P0e);
 logL=dataLogLikelihood(Y,Uu,Ae,Be,Ce,De,Qe,Re,x0e,P0e);
 fh=gcf;

@@ -30,7 +30,7 @@ logL=dataLogLikelihood(Y,U,A,B,C,D,Q,R,Xs(:,1),Ps(:,:,1))
 
 %% fast EM estimation
 tic
-[Ah1,Bh1,Ch1,Dh1,Qh1,Rh1,Xh1,Ph1]=trueEM(Y,U,2,[],1);
+[Ah1,Bh1,Ch1,Dh1,Qh1,Rh1,Xh1,Ph1]=EM(Y,U,2,[],1);
 logLh1=dataLogLikelihood(Y,U,Ah1,Bh1,Ch1,Dh1,Qh1,Rh1,Xh1(:,1),Ph1(:,:,1))
 toc
 %[Ah1,Bh1,Ch1,Xh1,~,Qh1] = canonizev2(Ah1,Bh1,Ch1,Xh1,Qh1);

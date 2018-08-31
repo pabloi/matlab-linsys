@@ -8,7 +8,7 @@ end %TODO: if method is given, check that it is 'true' or 'fast'
 
 %First iter:
 fprintf(['Starting rep 0... ']);
-[A,B,C,D,Q,R,X,P]=trueEM(Y,U,nd,[],0); %FastEM
+[A,B,C,D,Q,R,X,P]=EM(Y,U,nd,[],0); %FastEM
 bestLL=dataLogLikelihood(Y,U,A,B,C,D,Q,R,X(:,1),P(:,:,1));
 N=size(Y,2);
 
@@ -35,7 +35,7 @@ for i=1:Nreps
     Xguess=medfilt1(Xguess,9,[],2);
     
     %Optimize:
-    [Ai,Bi,Ci,Di,Qi,Ri,Xi,Pi,logl]=trueEM(Y,U,Xguess,bestLL,fastFlag);
+    [Ai,Bi,Ci,Di,Qi,Ri,Xi,Pi,logl]=EM(Y,U,Xguess,bestLL,fastFlag);
     %logl=dataLogLikelihood(Y,U,Ai,Bi,Ci,Di,Qi,Ri,Xi(:,1),Pi(:,:,1));
     
     %If solution improved, save and display:

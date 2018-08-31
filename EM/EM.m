@@ -1,4 +1,4 @@
-function [A,B,C,D,Q,R,x0,P0,bestLogL]=trueEM(Y,U,Xguess,targetLogL,fastFlag)
+function [A,B,C,D,Q,R,X,P,bestLogL]=EM(Y,U,Xguess,targetLogL,fastFlag)
 %A true EM implementation to do LTI-SSM identification
 %INPUT:
 %Y is D2 x N
@@ -34,7 +34,7 @@ logl(1,1)=bestLogL;
 if isa(Y,'gpuArray')
     logl=nan(Niter,1,'gpuArray');
 end
-A=A1; B=B1; C=C1; D=D1; Q=Q1; R=R1; x0=x01; P0=P01;
+A=A1; B=B1; C=C1; D=D1; Q=Q1; R=R1; x0=x01; P0=P01; P=repmat(P0,1,1,size(X,2));
 
 %Initialize target logL:
 if nargin<4 || isempty(targetLogL)
@@ -88,7 +88,7 @@ for k=1:Niter-1
         %fprintf(['Unstable system detected. Stopping. ' num2str(k) ' iterations.\n'])
         %break
     elseif ~improvement %This should never happen, except that our loglikelihood is approximate, so there can be some error
-        if abs(delta)>1e-7 %Do not bother reporting drops within numerical precision
+        if abs(delta)>1e-6 %Do not bother reporting drops within numerical precision
             warning(['logL decreased at iteration ' num2str(k) ', drop = ' num2str(delta)])
         end
         failCounter=failCounter+1;
@@ -103,7 +103,7 @@ for k=1:Niter-1
             %If everything went well and these parameters are the best ever: 
             %replace parameters  (notice the algorithm may continue even if 
             %the logl dropped, but in that case we do not save the parameters)
-            A=A1; B=B1; C=C1; D=D1; Q=Q1; R=R1; x0=x01; P0=P01; %X=X1; P=P1; %Pt=Pt1;
+            A=A1; B=B1; C=C1; D=D1; Q=Q1; R=R1; x0=x01; P0=P01; X=X1; P=P1; %Pt=Pt1;
             bestLogL=l;
         end
     end
@@ -112,7 +112,7 @@ for k=1:Niter-1
     if k>1 && (belowTarget && (targetRelImprovement10)<2e-1) %Breaking if improvement less than 20% of distance to targetLogL, as this probably means we are not getting a solution better than the given target
        fprintf(['unlikely to reach target value. ' num2str(k) ' iterations.\n'])
        breakFlag=true; 
-    elseif k>1 && (relImprovementLast10)<1e-10 %Considering the system stalled if relative improvement on logl is <1e-7
+    elseif k>1 && (relImprovementLast10)<1e-7 %Considering the system stalled if relative improvement on logl is <1e-7
         fprintf(['increase is within tolerance (local max). '  num2str(k) ' iterations.\n'])
         %disp(['LogL as % of target:' num2str(round(l*100000/targetLogL)/1000)])
         breakFlag=true;
@@ -160,27 +160,6 @@ if fastFlag==0 %Re-enable disabled warnings
 end
 end
 
-function maxLperSamplePerDim=fastLogL(predError)
-%A fast implementation of the logL when we assume R is set to be optimal 
-%over PSD matrices
-%Computing in this way is faster, and avoids dealing with numerical issues
-%arising from the attempt to compute the optimal R within trueEM.
-%See dataLogLikelihood for the exact logl() function and the conditions 
-%for this assumption
-%INPUT:
-%predError: the one-step ahead prediction errors for the model
-    [~,N2]=size(predError);
-    if sum(predError(:).^2)>1e20 %This can happen when current estimate of system is unstable, and doing fast filtering
-        maxLperSamplePerDim=-Inf;
-    else
-        u=predError/sqrt(N2);
-        S=u*u';
-        logdetS=mean(log(eig(S)));
-        maxLperSamplePerDim = -.5*(1+log(2*pi)+logdetS);
-    end
-    %maxLperSample = D2*maxLperSamplePerDim;
-end
-
 function [A1,B1,C1,D1,Q1,R1,x01,P01,logL]=initParams(Y,U,X)
 
 if isa(Y,'cell')
@@ -210,9 +189,10 @@ function [P,Pt]=initCov(X)
     [~,N]=size(X);
     %Initialize covariance to plausible values:
     dX=diff(X');
-    Px=cov(dX); 
+    Px=(dX'*dX)/N; 
     P=repmat(Px,1,1,N);
-    Pt=repmat(Px',1,1,N);
+    Px1=(dX(2:end,:)'*dX(1:end-1,:));
+    Pt=repmat(zeros(size(Px)),1,1,N);
 end
 
 function X=initGuess(Y,U,D1)

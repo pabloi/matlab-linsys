@@ -25,7 +25,7 @@ else
 
     %'Incomplete' logLikelihood: p({y}|params) [Albert and Shadmehr 2017, eq. A1.25]
     predY=C*Xp(:,1:end-1)+D*U;
-    z=Y-predY;
+    z=Y-predY; %If this values are too high, it may be convenient to just set logL=-Inf, for numerical reasons
 
     switch method
         case 'approx'

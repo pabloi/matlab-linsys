@@ -33,7 +33,7 @@ U=[zeros(size(dataSym{1},1),1);ones(size(dataSym{2},1),1)]';
 % Y=medfilt1([median(data{1},3); median(data{2},3)],3)';
 % U=[zeros(size(data{1},1),1);ones(size(data{2},1),1)]';
 %% Identify 0: handcrafted sPCA
-D1=3;
+D1=2;
 [model] = sPCAv8(Y(:,51:950)',D1,[],[],[]);
 A=model.J;
 C=model.C;
@@ -50,7 +50,7 @@ slogLh=dataLogLikelihood(Y,U,A,B,C,D,Q,R,X(:,1),Q);
 [Xs,Ps,Pt,Xf,Pf,rejSamples]=statKalmanSmoother(Y,A,C,Q,R,[],[],B,D,U);
 %% Identify 1: true EM with smooth start
 tic
-[fAh,fBh,fCh,fDh,fQh,fRh,fXh,fPh]=trueEM(Y,U,Xs);
+[fAh,fBh,fCh,fDh,fQh,fRh,fXh,fPh]=EM(Y,U,Xs);
 %[fAh,fBh,fCh,fDh,fQh,fRh,fXh,fPh]=randomStartEM(Y,U,D1,10,'fast');
 toc
 [fJh,fKh,fCh,fXh,fV,fQh] = canonizev2(fAh,fBh,fCh,fXh,fQh);
@@ -58,8 +58,8 @@ flogLh=dataLogLikelihood(Y,U,fJh,fKh,fCh,fDh,fQh,fRh,fXh(:,1),fPh(:,:,1));
 %% Identify 2: true EM
 tic
 %[Ah,Bh,Ch,Dh,Qh,Rh,Xh,Ph]=trueEM(Y,U,Xs);
-[Ah,Bh,Ch,Dh,Qh,Rh,Xh,Ph]=randomStartEM(Y,U,D1,20,'fast');
-[Ah,Bh,Ch,Dh,Qh,Rh,Xh,Ph]=trueEM(Y,U,Xh); %Refine solution
+[Ah,Bh,Ch,Dh,Qh,Rh,Xh,Ph]=randomStartEM(Y,U,D1,10,'fast');
+[Ah,Bh,Ch,Dh,Qh,Rh,Xh,Ph]=EM(Y,U,Xh); %Refine solution
 toc
 [Jh,Kh,Ch,Xh,V,Qh] = canonizev2(Ah,Bh,Ch,Xh,Qh);
 logLh=dataLogLikelihood(Y,U,Jh,Kh,Ch,Dh,Qh,Rh,Xh(:,1),Ph(:,:,1));
@@ -107,18 +107,25 @@ qq1(1).MarkerEdgeColor=p2.Color;
 %histogram(cc(:,1))
 qq1=qqplot(cc(:,1));
 qq1(1).MarkerEdgeColor=p3.Color;
+ax=gca;
+ax.Title.String='QQ plot residual PC 1';
 subplot(M+4,6,(kk+1)*6+3)
 hold on
-title('First PC of residual')
+title('Autocorr. of residual PC 1')
 [pp,cc,aa]=pca((Y-Ch*Xh-Dh*U)','Centered','off');
-plot(fftshift(xcorr(cc(:,1))))
+r=fftshift(xcorr(cc(:,1)));
+plot([0:numel(r)-1],r)
 [pp,cc,aa]=pca((Y-fCh*fXh-fDh*U)','Centered','off');
-plot(fftshift(xcorr(cc(:,1))))
+r=fftshift(xcorr(cc(:,1)));
+plot([0:numel(r)-1],r)
 [pp,cc,aa]=pca((Y-C*X-D*U)','Centered','off');
-plot(fftshift(xcorr(cc(:,1))))
+r=fftshift(xcorr(cc(:,1)));
+plot([0:numel(r)-1],r)
 axis tight
 aa=axis;
-axis([1 10 aa(3:4)])
+grid on
+xlabel('Delay (samp)')
+axis([0 10 aa(3:4)])
 
 
 [Y2,X2]=fwdSim(U,Jh,Kh,Ch,Dh,x0,[],[]);
@@ -128,9 +135,9 @@ subplot(M+4,4,4*i-2) %States
 hold on
 %Smooth versions
 set(gca,'ColorOrderIndex',1)
-p2=plot(X2(i,:),'LineWidth',2,'DisplayName','trueEM (iter)');
-p3=plot(X3(i,:),'LineWidth',2,'DisplayName','sPCA+trueEM');
-p1=plot(X(i,:),'LineWidth',2,'DisplayName','sPCA');
+p2=plot(X2(i,:),'LineWidth',2,'DisplayName',['EM (iter), \tau=' num2str(-1./log(Jh(i,i)),3)]);
+p3=plot(X3(i,:),'LineWidth',2,'DisplayName',['sPCA+EM, \tau=' num2str(-1./log(fJh(i,i)),3)]);
+p1=plot(X(i,:),'LineWidth',2,'DisplayName',['sPCA, \tau=' num2str(-1./log(A(i,i)),3)]);
 axis([0 2000 -.5 1.5])
 %Fitted versions:
 set(gca,'ColorOrderIndex',1)

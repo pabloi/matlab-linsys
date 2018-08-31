@@ -10,7 +10,7 @@ function [A,B,C,D,Q,R,x0,P0]=estimateParams(Y,U,X,P,Pt)
 %See Cheng and Sabes 2006, Ghahramani and Hinton 1996, Shumway and Stoffer 1982
 
 %Define vars:
-[yx,yu,xx,uu,xu,SP,SPt,xx_,uu_,xu_,xx1,xu1,SP_,SP__]=computeRelevantMatrices(Y,X,U,P,Pt);
+[yx,yu,xx,uu,xu,SP,SPt,xx_,uu_,xu_,xx1,xu1,SP_,S_P]=computeRelevantMatrices(Y,X,U,P,Pt);
 D1=size(xx,1);
 
 %A,B:
@@ -32,9 +32,10 @@ D=CD(:,D1+1:end);
 aux=chol(SP_); %Enforce symmetry
 Aa=A*aux';
 Nw=size(w,2);
-bux=chol(SPt'/A');
-Ab=A*bux';
-Q2=(SP__-2*(Ab*Ab')+Aa*Aa')/(Nw); %If these matrices come from kalman smoothing, they satisfy a relation that guarantees Q2 is psd. This need not be the case exactly because of the way I am enforcing symmetry for A*Spt';
+Q2=(S_P-2*(A*SPt')+Aa*Aa')/(Nw); %If these matrices come from kalman smoothing, they satisfy a relation that guarantees Q2 is psd. This need not be the case exactly because of the way I am enforcing symmetry for A*Spt';
+sQ=chol(Q2);
+Q2=sQ'*sQ;
+%According to Ghahramani and Hinton, and Cheng and Sabes: Q2 simplifies to: (SP__-A*SPt')/Nw [with the new value of A]
 %Q=(w*w')/(N-1)+Q2; %true MLE estimator. But not designed to deal with outliers, autocorrelated w
 %Note: if we dont have exact extimates of A,B, then the residuals w are not
 %iid gaussian. They will be autocorrelated AND have outliers with respect
@@ -61,9 +62,9 @@ function [x0,P0]=estimateInit(X,P,A,Q)
 x0=X(:,1); %Smoothed estimate
 P0=P(:,:,1); %Smoothed estimate, the problem with this estimate is that it is monotonically decreasing on the iteration of trueEM(). More likely it should converge to the same prior uncertainty we have for all other states.
 %A variant to not make it monotonically decreasing:
-aux=chol(P0);
-Aa=A*aux';
-P0=Q+Aa*Aa';
+%aux=chol(P0);
+%Aa=A*aux';
+%P0=Q+Aa*Aa';
 end
 
 function [yx,yu,xx,uu,xu,SP,SPt,xx_,uu_,xu_,xx1,xu1,SP_,SP__]=computeRelevantMatrices(Y,X,U,P,Pt)

@@ -38,6 +38,7 @@ sys=ss(A,B,C,zeros(size(C,1),size(B,2)),1);
 [csys,V]=canon(sys);
 J=csys.A;
 K=csys.B;
+%[V,J] = jordan(A), V\A*V=J;
 
 %Scale B at will
 %TODO: formally, we can only scale the states whose evolution depends

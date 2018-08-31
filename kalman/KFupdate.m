@@ -1,9 +1,16 @@
 function [x,P]=KFupdate(CtRinvY,CtRinvC,x,P)
 
 %tol=1e-8;
-iP=P\eye(size(P));%For some reason, this is much faster than pinv
+sP=chol(P); %To ensure symmetry
+isP=sP\eye(size(sP));
+iP=isP*isP';
+%iP=P\eye(size(P)); %For some reason, this is much faster than pinv
 iM=iP+CtRinvC; 
-P=iM\eye(size(iM));%Same as above
+%P=iM\eye(size(iM));%Same as above
+isM=chol(iM);
+sM=isM\eye(size(isM));
+P=sM*sM';
+
 %M=pinv(iM,tol); 
 %K=M*CtRinv; 
 %I_KC=M*iP;  %=I -K*C

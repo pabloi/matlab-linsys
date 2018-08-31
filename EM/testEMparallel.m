@@ -39,36 +39,14 @@ toc
 
 %% randomStartEM - parallel:
 tic
-%[Ah2,Bh2,Ch2,Dh2,Qh2,Rh2,Xh2,Ph2]=randomStartEM_par(Y,U,2,28); %Not improving speed
-%TODO: find out why. Is it that the early stopping is already so optimized
-%that we pay a larger cost for parallelization overhead + running
-%iterations with suboptimal targets (i.e. wasteful iterations) than we gain
-%from having some of the iterations run in parallel?
-%If so, unclear if scaling would hurt or improve the issue: if the inner
-%size is larger, then overhead per iteration drops, but wasteful iterations
-%increase.
-%Is there a way to update within loop? spmd + broadcast message
-%(labBroadcast when new best is reached, labProbe in each worker to see if
-%new data was broadcast and read if so)
-[Ah2,Bh2,Ch2,Dh2,Qh2,Rh2,Xh2,Ph2]=randomStartEM_parv2(Y,U,2,28);
+[Ah2,Bh2,Ch2,Dh2,Qh2,Rh2,Xh2,Ph2]=randomStartEM_par(Y,U,2,28);
 logLh2=dataLogLikelihood(Y,U,Ah2,Bh2,Ch2,Dh2,Qh2,Rh2,Xh2(:,1),Ph2(:,:,1));
 toc
 [Ah2,Bh2,Ch2,Xh2,~,Qh2] = canonizev2(Ah2,Bh2,Ch2,Xh2,Qh2);
 
 %% randomStartEM - parallel + fast
 tic
-%[Ah2,Bh2,Ch2,Dh2,Qh2,Rh2,Xh2,Ph2]=randomStartEM_par(Y,U,2,28); %Not improving speed
-%TODO: find out why. Is it that the early stopping is already so optimized
-%that we pay a larger cost for parallelization overhead + running
-%iterations with suboptimal targets (i.e. wasteful iterations) than we gain
-%from having some of the iterations run in parallel?
-%If so, unclear if scaling would hurt or improve the issue: if the inner
-%size is larger, then overhead per iteration drops, but wasteful iterations
-%increase.
-%Is there a way to update within loop? spmd + broadcast message
-%(labBroadcast when new best is reached, labProbe in each worker to see if
-%new data was broadcast and read if so)
-[Ah3,Bh3,Ch3,Dh3,Qh3,Rh3,Xh3,Ph3]=randomStartEM_parv2(Y,U,2,28,'fast');
+[Ah3,Bh3,Ch3,Dh3,Qh3,Rh3,Xh3,Ph3]=randomStartEM_par(Y,U,2,28,'fast');
 logLh3=dataLogLikelihood(Y,U,Ah3,Bh3,Ch3,Dh3,Qh3,Rh3,Xh3(:,1),Ph3(:,:,1));
 toc
 [Ah3,Bh3,Ch3,Xh3,~,Qh3] = canonizev2(Ah3,Bh3,Ch3,Xh3,Qh3);
