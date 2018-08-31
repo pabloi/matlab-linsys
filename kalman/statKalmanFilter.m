@@ -1,4 +1,4 @@
-function [X,P,Xp,Pp,rejSamples]=statKalmanFilterFast(Y,A,C,Q,R,x0,P0,B,D,U,outlierRejection,fastFlag)
+function [X,P,Xp,Pp,rejSamples]=statKalmanFilter(Y,A,C,Q,R,x0,P0,B,D,U,outlierRejection,fastFlag)
 %filterStationary implements a Kalman filter assuming
 %stationary (fixed) noise matrices and system dynamics
 %The model is: x[k+1]=A*x[k]+b+v[k], v~N(0,Q)
@@ -82,13 +82,13 @@ BU=B*U;
 %Do the true filtering for M steps
 for i=1:M
   %First, do the update given the output at this step:
-  if ~outlierRejection
-      [prevX,prevP]=KFupdate(CtRinvY(:,i),CtRinvC,prevX,prevP);
-  else
+  CiRy=CtRinvY(:,i);
+  if outlierRejection
+      %TODO: reject outliers by replacing with NaN
       warning('Outlier rejection not implemented')
-      %TODO: reject outliers here
-      %[outlierIndx]=detectOutliers(Y_D(:,i),x,P,C,R,rejectThreshold);
-     [prevX,prevP]=KFupdate(CtRinvY(:,i),CtRinvC,prevX,prevP);
+  end
+  if ~any(isnan(CiRy)) %If measurement is NaN, skip update.
+      [prevX,prevP]=KFupdate(CiRy,CtRinvC,prevX,prevP);
   end
   X(:,i)=prevX;
   P(:,:,i)=prevP;
@@ -111,8 +111,19 @@ if M<N
     KBUY=Ksteady*BU+innov;
     KA=Ksteady*A;
     %Loop for remaining steps:
+    if outlierRejection
+        %TODO: reject outliers by replacing with NaN in KBUY, this needs to
+        %be done in-loop
+       warning('Outlier rejection not implemented')
+    end
     for i=M+1:size(Y,2)
-        prevX=KA*prevX+KBUY(:,i); %Predict+Update
+        kbuy=KBUY(:,i);
+        if ~any(isnan(kbuy))
+            prevX=KA*prevX+kbuy; %Predict+Update
+        else %Reading is NaN, just update
+            prevX=A*prevX+BU(:,i);
+            warning('Skipping update for a NaN sample, but uncertainty does not get updated accordingly in fast mode. FIX.')
+        end
         X(:,i)=prevX;
     end
     %Compute Xp, Pp if requested:

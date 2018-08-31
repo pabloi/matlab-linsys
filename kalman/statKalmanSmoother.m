@@ -1,4 +1,4 @@
-function [Xs,Ps,Pt,Xf,Pf,Xp,Pp,rejSamples]=statKalmanSmootherFast(Y,A,C,Q,R,x0,P0,B,D,U,outRejFlag,fastFlag)
+function [Xs,Ps,Pt,Xf,Pf,Xp,Pp,rejSamples]=statKalmanSmoother(Y,A,C,Q,R,x0,P0,B,D,U,outRejFlag,fastFlag)
 %Implements a Kalman smoother for a stationary system
 %INPUT:
 %Y: D1xN observed data
@@ -59,7 +59,7 @@ end
 %TODO
   
 %Step 1: forward filter
-[Xf,Pf,Xp,Pp,rejSamples]=statKalmanFilterFast(Y,A,C,Q,R,x0,P0,B,D,U,outRejFlag,M);
+[Xf,Pf,Xp,Pp,rejSamples]=statKalmanFilter(Y,A,C,Q,R,x0,P0,B,D,U,outRejFlag,M);
 
 %Step 2: backward pass: (following the Rauch-Tung-Striebel implementation:
 %https://en.wikipedia.org/wiki/Kalman_filter#Fixed-interval_smoothers)

@@ -16,8 +16,8 @@ if isa(Y,'cell') %Case where input/output data corresponds to many realizations 
 else
 
     if size(X0,2)<=1 %True init state guess
-        [~,~,Xp,Pp,~]=statKalmanFilter(Y,A,C,Q,R,X0,P0,B,D,U,0);
-        %[~,~,Xp,Pp,~]=statKalmanFilterFast(Y,A,C,Q,R,X0,P0,B,D,U,[],0);
+        fastFlag=[]; %Traditional (slow) filter, set to 0 for fast filtering
+        [~,~,Xp,Pp,~]=statKalmanFilter(Y,A,C,Q,R,X0,P0,B,D,U,[],fastFlag);
     else %whole filtered priors are provided, not just t=0
         Xp=X0;
         Pp=P0;

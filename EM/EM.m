@@ -57,12 +57,12 @@ for k=1:Niter-1
     
     %E-step:
     if isa(Y,'cell') %Data is many realizations of same system
-        [X1,P1,Pt1,~,~,Xp,Pp,~]=cellfun(@(y,x0,p0,u) statKalmanSmootherFast(y,A1,C1,Q1,R1,x0,p0,B1,D1,u,[],fastFlag),Y,x01,P01,U,'UniformOutput',false);
+        [X1,P1,Pt1,~,~,Xp,Pp,~]=cellfun(@(y,x0,p0,u) statKalmanSmoother(y,A1,C1,Q1,R1,x0,p0,B1,D1,u,[],fastFlag),Y,x01,P01,U,'UniformOutput',false);
         if any(cellfun(@(x) any(imag(x(:))~=0),X1))
             error('Complex states') 
         end
     else
-        [X1,P1,Pt1,~,~,Xp,Pp,~]=statKalmanSmootherFast(Y,A1,C1,Q1,R1,x01,P01,B1,D1,U,[],fastFlag);
+        [X1,P1,Pt1,~,~,Xp,Pp,~]=statKalmanSmoother(Y,A1,C1,Q1,R1,x01,P01,B1,D1,U,[],fastFlag);
         if any(imag(X1(:))~=0)
             error('Complex states') 
         end
