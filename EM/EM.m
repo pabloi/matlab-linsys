@@ -28,7 +28,7 @@ X=Xguess;
 [A1,B1,C1,D1,Q1,R1,x01,P01,bestLogL]=initParams(Y,U,X);
 
 %Initialize log-likelihood register & current best solution:
-Niter=501;
+Niter=1001;
 logl=nan(Niter,1);
 logl(1,1)=bestLogL;
 if isa(Y,'gpuArray')

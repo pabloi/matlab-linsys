@@ -91,21 +91,26 @@ if isa(X,'cell') %Case where data is many realizations of same system
         yu=yu+yua;
     end
 else %Data is in matrix form, i.e., single realization
-    xu=X*U';
+    %xu=X*U';
     xu_=X(:,1:end-1)*U(:,1:end-1)'; %=xu - X(:,end)*U(:,end)'
-    uu=U*U';
+    %uu=U*U';
     uu_=U(:,1:end-1)*U(:,1:end-1)'; %=uu - U(:,end)*U(:,end)'
-    xx=X*X';
+    %xx=X*X';
     xx_=X(:,1:end-1)*X(:,1:end-1)'; %=xx - X(:,end)*X(:,end)'
-    SP=sum(P,3);
+    %SP=sum(P,3);
     SP_=sum(P(:,:,1:end-1),3); %=SP-P(:,:,end);
     SP__=sum(P(:,:,2:end),3); %=SP-P(:,:,1);
     SPt=sum(Pt,3);
     xu1=X(:,2:end)*U(:,1:end-1)';
     xx1=X(:,2:end)*X(:,1:end-1)';
+    %Data for C,D estimation:
     idx=~any(isnan(Y));
     yx=Y(:,idx)*X(:,idx)';
     yu=Y(:,idx)*U(:,idx)';
+    xu=X(:,idx)*U(:,idx)';
+    uu=U(:,idx)*U(:,idx)';
+    xx=X(:,idx)*X(:,idx)';
+    SP=sum(P(:,:,idx),3);
 end
 
 end
