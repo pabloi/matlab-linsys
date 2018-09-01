@@ -15,7 +15,8 @@ D1=size(xx,1);
 
 %A,B:
 O=[SP_+xx_ xu_; xu_' uu_];
-AB=[SPt+xx1 xu1]/O; %In absence of uncertainty, reduces to: [A,B]=X+/[X;U], where X+ is X one step in the future
+AB=[SPt+xx1 xu1]/O; %In absence of uncertainty, reduces to: [A,B]=X+/[X;U],
+%where X+ is X one step in the future
 A=AB(:,1:D1);
 B=AB(:,D1+1:end);
 
@@ -102,8 +103,9 @@ else %Data is in matrix form, i.e., single realization
     SPt=sum(Pt,3);
     xu1=X(:,2:end)*U(:,1:end-1)';
     xx1=X(:,2:end)*X(:,1:end-1)';
-    yx=Y*X';
-    yu=Y*U';
+    idx=~any(isnan(Y));
+    yx=Y(:,idx)*X(:,idx)';
+    yu=Y(:,idx)*U(:,idx)';
 end
 
 end
@@ -116,7 +118,9 @@ if isa(X,'cell') %Case where data is many realizations of same system
     z=cell2mat(z');
 else
     N=size(X,2);
+    idx=~any(isnan(Y));
     z=Y-C*X-D*U;
+    z=z(:,idx);
     w=X(:,2:N)-A*X(:,1:N-1)-B*U(:,1:N-1);
 end
 

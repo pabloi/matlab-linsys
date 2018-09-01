@@ -35,14 +35,14 @@ logL=dataLogLikelihood(Y,U,A,B,C,D,Q,R,Xs(:,1),Ps(:,:,1))
 
 %% Identify 1alt: trueEM starting from true solution
 tic
-[fAh,fBh,fCh,fDh,fQh,fRh,fXh,fPh]=trueEM(Y,U,Xs);
+[fAh,fBh,fCh,fDh,fQh,fRh,fXh,fPh]=EM(Y,U,Xs);
 flogLh=dataLogLikelihood(Y,U,fAh,fBh,fCh,fDh,fQh,fRh,fXh(:,1),fPh(:,:,1))
 toc
 [fAh,fBh,fCh,fXh,fV,fQh] = canonizev2(fAh,fBh,fCh,fXh,fQh);
 
 %% Identify 2: true EM
 tic
-[Ah,Bh,Ch,Dh,Qh,Rh,Xh,Ph]=trueEM(Y,U,2);
+[Ah,Bh,Ch,Dh,Qh,Rh,Xh,Ph]=EM(Y,U,2);
 logLh=dataLogLikelihood(Y,U,Ah,Bh,Ch,Dh,Qh,Rh,Xh(:,1),Ph(:,:,1))
 %[Xsh,Psh,Pth,Xfh,Pfh,Xph,Pph]=statKalmanSmoother(Y,Ah,Ch,Qh,Rh,Xh(:,1),Ph(:,:,1),Bh,Dh,U,false);
 toc
@@ -73,7 +73,7 @@ toc
 % LDS.Q=eye(size(Q));
 % LDS.R=eye(size(R));
 % LDS.x0=zeros(D1,1);
-% LDS.V0=1e8 * eye(size(A)); %Same as my smoother uses 
+% LDS.V0=1e8 * eye(size(A)); %Same as my smoother uses
 % [LDS,Lik,Xcs,Vcs] = IdentifyLDS(2,Y,U,U,LDS);
 % csLogLh=dataLogLikelihood(Y,U,LDS.A,LDS.B,LDS.C,LDS.D,LDS.Q,LDS.R,LDS.x0,LDS.V0)
 % toc

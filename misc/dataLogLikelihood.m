@@ -26,10 +26,12 @@ else
     %'Incomplete' logLikelihood: p({y}|params) [Albert and Shadmehr 2017, eq. A1.25]
     predY=C*Xp(:,1:end-1)+D*U;
     z=Y-predY; %If this values are too high, it may be convenient to just set logL=-Inf, for numerical reasons
+    idx=~any(isnan(Y));
+    z=z(:,idx);
 
     switch method
         case 'approx'
-            logLperSamplePerDim=logLapprox(z,Pp,C,R); 
+            logLperSamplePerDim=logLapprox(z,Pp,C,R);
         case 'exact'
             logLperSamplePerDim=logLexact(z,Pp,C,R);
         case 'max'
@@ -48,7 +50,7 @@ minus2ly=nan(size(z,2),1);
 for i=1:size(z,2)
     sP=chol(Pp(:,:,i));
     CsP=C*sP';
-    P=R+CsP*CsP'; 
+    P=R+CsP*CsP';
     logdetP= sum(log(eig(P)));%Should use:https://en.wikipedia.org/wiki/Matrix_determinant_lemma to cheapen computation (can exploit knowing C'*(R\C) and det(R) ahead of time to only need computing size(Pp) determinants
     eP=eig(P);
     if ~all(imag(eP)==0 & eP>0) %Sanity check, the output covariance should be positive semidef., otherwise the likelihood is not well defined
@@ -57,7 +59,7 @@ for i=1:size(z,2)
     zz=z(:,i);
     minus2ly(i)=zz'*(P\zz) +logdetP + D2*log(2*pi);
 end
-logL=-.5*(sum(minus2ly)); 
+logL=-.5*(sum(minus2ly));
 logLperSamplePerDim=logL/(N2*D2);
 end
 
@@ -66,7 +68,7 @@ function logLperSamplePerDim=logLapprox(z,Pp,C,R)
 [D,N]=size(z);
 CPpCt=C*median(Pp,3)*C'; %Mean makes no sense, changed to median
 CPpCt=(CPpCt+CPpCt')/2; %Cheap way to ensure PSD
-P=R+CPpCt; 
+P=R+CPpCt;
 eP=eig(P);
 if ~all(imag(eP)==0 & eP>0) %Sanity check, the output covariance should be positive semidef., otherwise the likelihood is not well defined
     error('Covariance matrix is not PSD, cannot compute likelihood')
@@ -75,7 +77,7 @@ logdetP= mean(log(eP)); %Should use:https://en.wikipedia.org/wiki/Matrix_determi
 S=z*z'/N;
 %logL=-.5*N2*(trace(lsqminnorm(P,S,1e-8))+logdetP+D2*log(2*pi)); %Non-gpu ready
 logLperSamplePerDim=-.5*(mean(diag(P\S))+logdetP+log(2*pi));
-%Naturally, this is maximized over positive semidef. P (for a given set of residuals z) 
+%Naturally, this is maximized over positive semidef. P (for a given set of residuals z)
 %when P=S, and then it only depends on the sample covariance of the residuals:
 %maxLperSamplePerDim = -.5*(1+mean(log(eig(S)))+log(2*pi))
 end
@@ -90,7 +92,7 @@ function logLperSamplePerDim=logLfast(z,Pp,C,R,A)
 M2=20; %Default for fast filtering: 20 samples
 M1=ceil(3*max(-1./log(abs(eig(A))))); %This many strides ensures ~convergence of gains before we assume steady-state
 M=max(M1,M2);
-M=min(M,N); %Prevent more than N, if this happens, we are not doing fast filtering    
+M=min(M,N); %Prevent more than N, if this happens, we are not doing fast filtering
 
 logLperSamplePerDim1=logLexact(z(:,1:M),Pp(:,:,1:M),C,R);
 logLperSamplePerDim2=logLapprox(z(:,M+1:N),Pp(:,:,M+1:N),C,R);
@@ -109,5 +111,5 @@ logdetS=mean(log(eig(S)));
 logLperSamplePerDim = -.5*(1+log(2*pi)+logdetS);
 %Special case: if S is isotropic (all eigenvalues are the same), then log(det(S))=D2*log(trace(S)/D2) and N2*trace(S)=norm(z,'fro')^2
 %Thus: logL = -.5*N2*D2*(1+log(norm(z,'fro')^2/N2)-log(D2)+log(2*pi))
-%logL=N2*maxLperSample; 
+%logL=N2*maxLperSample;
 end
