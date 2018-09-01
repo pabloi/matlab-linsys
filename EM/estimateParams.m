@@ -42,7 +42,10 @@ Q2=sQ'*sQ;
 %iid gaussian. They will be autocorrelated AND have outliers with respect
 %to the best-fitting multivariate normal. Thus, we benefit from doing a
 %more robust estimate, especially to avoid local minima in trueEM
-Q=robCov(w) +Q2; %Fast variant of robustcov() estimation
+Q1=(w*w')/(Nw);
+%Q1=robCov(w); %Fast variant of robustcov() estimation, may lead to decreasing logL in EM
+Q=Q1 +Q2;
+%Q=Q1+1e-10*eye(size(Q));
 
 %MLE of R:
 aux=chol(SP); %Enforce symmetry
