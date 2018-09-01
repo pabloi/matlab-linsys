@@ -25,20 +25,27 @@ NN=size(U,2);
 x0=zeros(D1,1);
 [Y,X]=fwdSim(U,A,B,C,D,x0,Q,R);
 [Y1,X1]=fwdSim(U,A,B,C,D,x0,[],[]); %Noiseless simulation, for comparison
+
+%% Best states, given true params
 [Xs,Ps]=statKalmanSmoother(Y,A,C,Q,R,[],[],B,D,U,false); %Kalman smoother estimation of states, given the true parameters (this is the best possible estimation of states)
 logL=dataLogLikelihood(Y,U,A,B,C,D,Q,R,Xs(:,1),Ps(:,:,1))
+%% Best params, given true states
+[A1,B1,C1,D1,Q1,R1,x01,P01]=estimateParams(Y,U,X(:,1:end-1),repmat(1e-8*eye(2),1,1,size(U,2)),repmat(1e-9*eye(2),1,1,size(U,2))) ;
+logL1=dataLogLikelihood(Y,U,A1,B1,C1,D1,Q1,R1,X(:,1),1e-8*eye(2))
+
 %% Identify 1alt: trueEM starting from true solution
 tic
-[Ah,Bh,Ch,Dh,Qh,Rh,Xh,Ph]=EM(Y,U,Xs);
+[Ah,Bh,Ch,Dh,Qh,Rh,Xh,Ph]=randomStartEM(Y,U,2,5);
 logLh=dataLogLikelihood(Y,U,Ah,Bh,Ch,Dh,Qh,Rh,Xh(:,1),Ph(:,:,1))
 toc
 [Ah,Bh,Ch,Xh,V,Qh] = canonizev2(Ah,Bh,Ch,Xh,Qh);
 %% Remove 5% data:
-aux=rand(1,size(Y,2))>.95;
-Y(:,aux)=NaN;
+aux=rand(1,size(Y,2))>.99;
+Y2=Y;
+Y2(:,aux)=NaN;
 %% Identify 1alt: trueEM starting from true solution
 tic
-[fAh,fBh,fCh,fDh,fQh,fRh,fXh,fPh]=EM(Y,U,Xs);
+[fAh,fBh,fCh,fDh,fQh,fRh,fXh,fPh]=randomStartEM(Y2,U,2,5);
 flogLh=dataLogLikelihood(Y,U,fAh,fBh,fCh,fDh,fQh,fRh,fXh(:,1),fPh(:,:,1))
 toc
 [fAh,fBh,fCh,fXh,fV,fQh] = canonizev2(fAh,fBh,fCh,fXh,fQh);

@@ -26,18 +26,18 @@ for i=1:Nreps
     x01=randn(nd,1);
     P01=1e5*eye(nd); %No sense in being certain about made up numbers
     A1=diag(rand(nd,1).*sign(randn(nd,1))); %WLOG
-    B1=randn(nd,size(U,1)); 
+    B1=randn(nd,size(U,1));
     C1=randn(size(Y,1),nd)/size(Y,1); %WLOG
     D1=randn(size(Y,1),1);
     Q1=(abs(randn)+1e-7)*eye(nd); %Needs to be psd
     R1=(abs(randn)+1e-7)*eye(size(Y,1)); %Needs to be psd
-    [Xguess]=statKalmanSmootherFast(Y,A1,C1,Q1,R1,x01,P01,B1,D1,U,[],0);
+    [Xguess]=statKalmanSmoother(Y,A1,C1,Q1,R1,x01,P01,B1,D1,U,[],0);
     Xguess=medfilt1(Xguess,9,[],2);
-    
+
     %Optimize:
     [Ai,Bi,Ci,Di,Qi,Ri,Xi,Pi,logl]=EM(Y,U,Xguess,bestLL,fastFlag);
     %logl=dataLogLikelihood(Y,U,Ai,Bi,Ci,Di,Qi,Ri,Xi(:,1),Pi(:,:,1));
-    
+
     %If solution improved, save and display:
     if logl>bestLL
         A=Ai; B=Bi; C=Ci; D=Di; Q=Qi; R=Ri; X=Xi; P=Pi;

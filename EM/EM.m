@@ -199,12 +199,15 @@ function X=initGuess(Y,U,D1)
 if isa(Y,'cell')
     X=cellfun(@(y,u) initGuess(y,u,D1),Y,U,'UniformOutput',false);
 else
-    D=Y/U;
+    idx=~any(isnan(Y));
+    D=Y(:,idx)/U(:,idx);
     if isa(Y,'gpuArray')
-        [pp,~,~]=pca(gather(Y-D*U),'Centered','off'); %Can this be done in the gpu?
+        [pp,~,~]=pca(gather(Y(:,idx)-D*U(:,idx)),'Centered','off'); %Can this be done in the gpu?
     else
-       [pp,~,~]=pca((Y-D*U),'Centered','off'); %Can this be done in the gpu? 
+       [pp,~,~]=pca((Y(:,idx)-D*U(:,idx)),'Centered','off'); %Can this be done in the gpu? 
     end
-    X=pp(:,1:D1)';
+    X=nan(D1,size(Y,2));
+    X(:,idx)=pp(:,1:D1)';
+    X(:,~idx)=interp1(find(idx),pp(:,1:D1),find(~idx))';
 end
 end
