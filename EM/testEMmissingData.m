@@ -35,7 +35,7 @@ logL1=dataLogLikelihood(Y,U,A1,B1,C1,D1,Q1,R1,X(:,1),1e-8*eye(2))
 
 %% Identify 1alt: trueEM starting from true solution
 tic
-[Ah,Bh,Ch,Dh,Qh,Rh,Xh,Ph]=randomStartEM(Y,U,2,5);
+[Ah,Bh,Ch,Dh,Qh,Rh,Xh,Ph]=randomStartEM(Y,U,2,10);
 logLh=dataLogLikelihood(Y,U,Ah,Bh,Ch,Dh,Qh,Rh,Xh(:,1),Ph(:,:,1))
 toc
 [Ah,Bh,Ch,Xh,V,Qh] = canonizev2(Ah,Bh,Ch,Xh,Qh);
@@ -45,7 +45,7 @@ Y2=Y;
 Y2(:,aux)=NaN;
 %% Identify 1alt: trueEM starting from true solution
 tic
-[fAh,fBh,fCh,fDh,fQh,fRh,fXh,fPh]=randomStartEM(Y2,U,2,5);
+[fAh,fBh,fCh,fDh,fQh,fRh,fXh,fPh]=randomStartEM(Y2,U,2,10);
 flogLh=dataLogLikelihood(Y,U,fAh,fBh,fCh,fDh,fQh,fRh,fXh(:,1),fPh(:,:,1))
 toc
 [fAh,fBh,fCh,fXh,fV,fQh] = canonizev2(fAh,fBh,fCh,fXh,fQh);

@@ -89,7 +89,9 @@ for k=1:Niter-1
         %fprintf(['Unstable system detected. Stopping. ' num2str(k) ' iterations.\n'])
         %break
     elseif ~improvement %This should never happen, except that our loglikelihood is approximate, so there can be some error
-        if abs(delta)>1e-6 %Do not bother reporting drops within numerical precision
+        if abs(delta)>1e-6 %Drops of about 1e-6 can be expected because we are
+          %computing an approximate logl and because of numerical precision. Report
+          %only if drops are larger than this. This value probably is sample-size dependent, so may need adjusting.
             warning(['logL decreased at iteration ' num2str(k) ', drop = ' num2str(delta)])
         end
         failCounter=failCounter+1;
@@ -157,7 +159,7 @@ end
 %%
 if fastFlag==0 %Re-enable disabled warnings
     w = warning ('on','statKFfast:unstable');
-    w = warning ('off','statKFfast:NaNsamples');
+    w = warning ('on','statKFfast:NaNsamples');
     w = warning ('on','statKSfast:unstable');
 end
 end

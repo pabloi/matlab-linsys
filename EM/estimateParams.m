@@ -94,6 +94,7 @@ if isa(X,'cell') %Case where data is many realizations of same system
         yu=yu+yua;
     end
 else %Data is in matrix form, i.e., single realization
+    %Data for A,B estimation:
     %xu=X*U';
     xu_=X(:,1:end-1)*U(:,1:end-1)'; %=xu - X(:,end)*U(:,end)'
     %uu=U*U';
@@ -106,14 +107,21 @@ else %Data is in matrix form, i.e., single realization
     SPt=sum(Pt,3);
     xu1=X(:,2:end)*U(:,1:end-1)';
     xx1=X(:,2:end)*X(:,1:end-1)';
+    %Remove data associated to NaN values:
+    if any(any(isnan(Y)))
+      idx=~any(isnan(Y));
+      Y=Y(:,idx);
+      X=X(:,idx);
+      U=U(:,idx);
+      P=P(:,:,idx);
+    end
     %Data for C,D estimation:
-    idx=~any(isnan(Y));
-    yx=Y(:,idx)*X(:,idx)';
-    yu=Y(:,idx)*U(:,idx)';
-    xu=X(:,idx)*U(:,idx)';
-    uu=U(:,idx)*U(:,idx)';
-    xx=X(:,idx)*X(:,idx)';
-    SP=sum(P(:,:,idx),3);
+    SP=sum(P,3);
+    xu=X*U';
+    uu=U*U';
+    xx=X*X';
+    yx=Y*X';
+    yu=Y*U';
 end
 
 end

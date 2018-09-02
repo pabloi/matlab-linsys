@@ -31,7 +31,7 @@ end
 if nargin<12 || isempty(fastFlag)
     M=N; %Do true filtering for all samples
 elseif any(any(isnan(Y)))
-  warning('statKFfast:NaNsamples''Requested fast KF but some samples are NaN, not using fast mode.')
+  warning('statKFfast:NaNsamples','Requested fast KF but some samples are NaN, not using fast mode.')
   M=N;
 elseif fastFlag==0
     M2=20; %Default for fast filtering: 20 samples
@@ -95,7 +95,7 @@ for i=1:M
   end
   X(:,i)=prevX;
   P(:,:,i)=prevP;
-  
+
   %Then, predict next step:
   [prevX,prevP]=KFpredict(A,Q,prevX,prevP,BU(:,i));
   Xp(:,i+1)=prevX;
