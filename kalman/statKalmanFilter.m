@@ -31,7 +31,7 @@ end
 if nargin<12 || isempty(fastFlag)
     M=N; %Do true filtering for all samples
 elseif any(any(isnan(Y)))
-  warning('statKF:NaNsamples''Requested fast KF but some samples are NaN, not using fast mode.')
+  warning('statKFfast:NaNsamples''Requested fast KF but some samples are NaN, not using fast mode.')
   M=N;
 elseif fastFlag==0
     M2=20; %Default for fast filtering: 20 samples

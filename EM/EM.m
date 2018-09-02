@@ -11,6 +11,7 @@ if nargin<5 || isempty(fastFlag)
 else
     fastFlag=0; %Disable warnings relating to unstable systems in fast estimation
     w = warning ('off','statKFfast:unstable');
+    w = warning ('off','statKFfast:NaNsamples');
     w = warning ('off','statKSfast:unstable');
 end
 
@@ -156,6 +157,7 @@ end
 %%
 if fastFlag==0 %Re-enable disabled warnings
     w = warning ('on','statKFfast:unstable');
+    w = warning ('off','statKFfast:NaNsamples');
     w = warning ('on','statKSfast:unstable');
 end
 end
