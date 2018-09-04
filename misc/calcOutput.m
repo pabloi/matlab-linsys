@@ -1,3 +1,4 @@
 function out=calcOutput(state,in,C,D,R)
-out=C*state+D*in+sqrt(R)*randn(size(C,1),1);
+  r=cholcov(R); %Allows for semidef. cov
+out=C*state+D*in+r'*randn(size(r,1),1);
 end

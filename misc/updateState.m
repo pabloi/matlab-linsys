@@ -1,3 +1,4 @@
 function newState=updateState(state,in,A,B,Q)
-newState=A*state+B*in+sqrt(Q)*randn(size(A,1),1);
+  q=cholcov(Q); %Allows for semidef. cov, not necessarily square
+newState=A*state+B*in+q'*randn(size(q,1),1);
 end
