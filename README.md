@@ -11,9 +11,13 @@ Where w_k ~ N(0,Q) and z_k ~ N(0,R), and x_k are some (hidden) latent variables.
 *Identification methods:*
 sPCA: ONLY identifies a purely deterministic, arbitrary size, LTI-SSM assuming real & different poles, and a constant (single) input. No state noise (i.e. simple least-squares fitting of data).
 
-true EM: an implementation of an Expectation-Maximization algorithm. Alternates between estimating A,B,C,D,Q,R given some guess of the latents x, and estimating x from A,B,C,D,Q,R through the (optimal) Kalman smoother.
+EM: an implementation of an Expectation-Maximization algorithm. Alternates between estimating A,B,C,D,Q,R given some guess of the latents x, and estimating x from A,B,C,D,Q,R through the (optimal) Kalman smoother. Care was taken to prevent ill-conditioned situations which easily arise on the iteration.
+Fast EM: an approximation of the true EM method, by exploiting steady-state behavior of the kalman filter/smoother
 
-fast EM: an approximation of the true EM method, by exploiting steady-state behavior of the kalman filter/smoother
+*Kalman filtering*
+Implementations of stationary Kalman filter and smoother, with emphasis on speed. Speed was achieved by simplifying the equations where possible, using efficient computations for matrix inversions, and exploiting steady-state behavior for stable filters.
+Constrained Kalman filter/smoother: this version of the filter adds a step between prediction and update. It enforces a linear constraint of the form H*x=b for the states. This allows to use additional information not captured by system dynamics or measurement equations. By linearizing constraints of the form h(x)=0, it is possible to enforce non-linear constraints too, and even time-varying ones.
+The constrained filter allows better handling of unknown dynamics (see testConstrainedKF2.m), in a sense similar to how Lagrangian mechanics deal with reactive forces that impose known links: we forgo the explicit description of the reactive force (i.e. we under/mis-specify the dynamics), and instead recover the true equations of motion/kinematics by enforcing the link we know the force must generate.
 
 *To Do*
 - Implement the extended KF, and extended Kalman Smoother.
@@ -22,7 +26,8 @@ fast EM: an approximation of the true EM method, by exploiting steady-state beha
 - Review outlier rejection scheme for KF.
 - Implement adaptive KF
 - Improve constrained KF. Workout how to prevent covariance from collapsing from repeated enforcement of constraints. Figure out how to enforce approximate constraints and non-linear constraints.
-- Figure out how to implement constrained smoothing. 
+- Figure out how to implement constrained smoothing.
+- Write a function that automatically generates constraintFunctions as needed by the constrained KF from a nonlinear function handle (that evaluates the function and its gradient).
 
 
 *Changelist*
