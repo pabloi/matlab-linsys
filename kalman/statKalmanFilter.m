@@ -7,6 +7,13 @@ function [X,P,Xp,Pp,rejSamples]=statKalmanFilter(Y,A,C,Q,R,x0,P0,B,D,U,outlierRe
 %implementations, where P0 is taken to be cov(x[0|-1]) so x[0]~N(x0,A*P0*A'+Q)
 %See for example Ghahramani and Hinton 1996
 %Fast implementation by assuming that filter's steady-state is reached after 20 steps
+%INPUTS:
+%
+%fastFlag: flag to indicate if fast smoothing should be performed. Default is no. Empty flag means no, any other value is yes.
+%OUTPUTS:
+%
+%See also: statKalmanSmoother, statKalmanFilterConstrained, KFupdate, KFpredict
+
 
 [D2,N]=size(Y);
 %Init missing params:
