@@ -5,27 +5,26 @@ B=[dT^2/2 * eye(3); dT*eye(3)]; %input represents external forces
 C=[eye(3) zeros(3)]; %We measure position only
 D=[zeros(3)]; %No feed-through term
 Q=1e-6*eye(6); %Force (impulse) measurement uncertainty
-R=1e-6*eye(3); %Position measurement uncertainty
+R=1e-4*eye(3); %Position measurement uncertainty
 
-%% Add constraints (if any(b~0) this requires augmenting the state vector to simulate):
-H=[ones(1,3) zeros(1,3);zeros(1,3) ones(1,3)]; %Constraint to impose, H*x=b;
-b=[1;0]; %Constraining to plane x+y+z=1, and vx+vy+vz=0, so particle never escapes plane
-pH=pinv(H); %Requirement is that H*pH = eye()
-G=eye(size(A))- pH*H;
-Aa=[G*A pH*b;zeros(1,size(A,2)) 1]; %Augmented A
-Ba=[G*B; zeros(1,size(B,2))]; %Augmented B
-Qb=G*Q*G';%+1e-15*eye(size(Q)); %Modified Q
-Qa=[Qb zeros(size(Qb,1),1);zeros(1,size(Qb,1)) 0]; %Augmented Q
-Ca=[C zeros(size(C,1),1)];
+%% Constrain the particle to move in a circle: x^2+y^2=1, z=1
+%Linearization: x'*x=1 -> 2*xo'*x =xo'*xo-1
+%Additional: velocity in circle: v'*x=0
+constrFun=@(x) deal([[x(1:2)'/sqrt(sum(x(1:2).^2)) zeros(1,4)];[0,0,1,0,0,0];[0,0,0,0,0,1]],[1;1;0]);
 
-%% Simulate:
-U=zeros(3,100); %.1 second of null force
-x0=[0;0;1;-1;1;0]; %Starts from (0,0,1), moving along x=-y direction
-[Y,X]=fwdSim(U,Aa,Ba,Ca,D,[x0;1],Qa,R);
-%In this very particular case (because U=0, initial conditions satisfy constraints,
-%and evolution of system also satisfies constraints) this simulationcan be done
-%without augmenting the states, and solely constraining Q (i.e. using A,B,C and Qb)
-norm(H*X(1:end-1,:)-b) %Verify state satisfies constraints
+%% Simulate: (the constraining is done by other methods)
+t=[0:7000-1]*dT;
+U=zeros(3,7000);
+Ua=[-cos(t);-sin(t);zeros(1,7000)]; %3 seconds of centripetal force, such that we get movement in a circle with v=1
+x0=[1;0;1;0;1;0]; %Starts from (0,0,1), moving along x=-y direction
+[Y,X]=fwdSim(Ua,A,B,C,D,x0,[],R);
+%Notice that in this case the constraint is not enforced as such, but rather stems from the centripetal force input.
+%This proves that constraining the Kalman filter may be a way to deal with unknown dynamics.
+%In a sense, it is similar to Lagrangian mechanics: we forget about describing the reactive forces,
+%and instead use the constraints implied by them to figure out the kinematics
+norm(sum(X(1:2,:).^2,1)-1) %Verify state satisfies constraints
+norm(X(3,:)-1) %Verify state satisfies constraints
+%figure; hold on; plot3(Y(1,:),Y(2,:),Y(3,:),'.'); plot3(X(1,:),X(2,:),X(3,:),'LineWidth',2); axis equal %Plot
 
 %% Kalman filter: (approximate params, unconstrained filter)
 P0=eye(6); %uncertain data
@@ -34,10 +33,9 @@ outlierRejection=false;
 [Xf,Pf,Xp,Pp,rejSamples]=statKalmanSmoother(Y,A,C,Q,R,x0,P0,B,D,U,outlierRejection,[]);
 
 %% Constrained filter (true params)
-constrFun=@(x) deal(H,b);
 [Xf2,Pf2,Xp,Pp,rejSamples]=statKalmanFilterConstrained(Y,A,C,Q,R,x0,P0,B,D,U,outlierRejection,constrFun);
 [Xf2,Pf2,Xp,Pp,rejSamples]=statKalmanSmootherConstrained(Y,A,C,Q,R,x0,P0,B,D,U,outlierRejection,constrFun);
-norm(H*Xf2-b) %Verify filtered state satisfies constraints
+norm(sum(Xf2(1:2,:).^2)-1) %Verify state satisfies constraints
 
 %% Plot
 figure
@@ -62,6 +60,7 @@ hW2 = get(h2,'WData');
 set(h2,'UData',scale*hU2,'VData',scale*hV2,'WData',scale*hW2)
 view(2)
 legend('Measured data','True states','Standard Kalman filter','Constrained Kalman filter')
+
 for i=1:3
   subplot(2,2,i+1)
   idx1=mod(i-1,3)+1;
