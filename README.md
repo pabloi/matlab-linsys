@@ -28,6 +28,7 @@ The constrained filter allows better handling of unknown dynamics (see testConst
 - Improve constrained KF. Workout how to prevent covariance from collapsing from repeated enforcement of constraints. Figure out how to enforce approximate constraints and non-linear constraints.
 - Figure out how to implement constrained smoothing.
 - Write a function that automatically generates constraintFunctions as needed by the constrained KF from a nonlinear function handle (that evaluates the function and its gradient).
+- Sparsify non-parametric Kalman by reducing all small weights in transition and obs matrices to 0. This can make the algorithm much more efficient.
 
 
 *Changelist*
