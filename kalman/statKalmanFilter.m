@@ -82,8 +82,9 @@ Xp(:,1)=x0;
 Pp(:,:,1)=P0;
 
 %Pre-computing for speed:
-CtRinv=C'*pinv(R,tol); %gpu-ready  %Equivalent to lsqminnorm(R,C,tol)';, not gpu ready
-CtRinvC=CtRinv*C;
+Rinv=pinv(R,tol);
+CtRinv=C'*Rinv; %gpu-ready  %Equivalent to lsqminnorm(R,C,tol)';, not gpu ready
+CtRinvC=CtRinv*C; %Should use cholcov()
 
 Y_D=Y-D*U;
 CtRinvY=CtRinv*Y_D;
@@ -93,12 +94,28 @@ BU=B*U;
 for i=1:M
   %First, do the update given the output at this step:
   CiRy=CtRinvY(:,i);
-  if outlierRejection
-      %TODO: reject outliers by replacing with NaN
-      warning('Outlier rejection not implemented')
-  end
   if ~any(isnan(CiRy)) %If measurement is NaN, skip update.
-      [prevX,prevP]=KFupdate(CiRy,CtRinvC,prevX,prevP);
+      if outlierRejection
+          %TODO: reject outliers by replacing with NaN
+          warning('Outlier rejection not implemented')
+          %zscore is computed presuming y~N(Cx,C*prevP*C'+R)
+          %For expediency, we compute:
+          ch_P=chol(prevP); %To ensure symmetry
+          ch_iP=ch_P\eye(size(ch_P));
+          iP=ch_iP*ch_iP';
+          iM=iP+CtRinvC; 
+          ch_iM=chol(iM);
+          aux=CtRinv'/ch_iM';
+          %W=C*prevP*C'+R;
+          z=z2score(Y(:,i),[],C*prevX,Rinv-aux*aux');
+          if z<th %zscore is less than the outlier threshold, doing update
+              sM=ch_iM\eye(size(ch_iM));
+              prevP=sM*sM';
+              prevX=prevP*(iP*prevX+CiRy);
+          end
+      else
+         [prevX,prevP]=KFupdate(CiRy,CtRinvC,prevX,prevP);
+      end
   end
   X(:,i)=prevX;
   P(:,:,i)=prevP;
@@ -130,7 +147,7 @@ if M<N
         kbuy=KBUY(:,i);
         if ~any(isnan(kbuy))
             prevX=KA*prevX+kbuy; %Predict+Update
-        else %Reading is NaN, just update
+        else %Reading is NaN, just update. Should never happen since data with NaNs prevents fast filtering.
             prevX=A*prevX+BU(:,i);
             warning('Skipping update for a NaN sample, but uncertainty does not get updated accordingly in fast mode. FIX.')
         end
