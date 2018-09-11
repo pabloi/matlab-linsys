@@ -6,7 +6,7 @@ function [transitionMatrix,observationMatrix] = genParamEstim(stateDistrHistory,
 %Alt implementation: less efficient but does not require large memory
 jointDistr=nan(D,D);
 for i=1:D
-  jointDistr(i,:)=stateDistrHistory(2:N,i)'*stateDistrHistory([1:N-1],D)/(N-1);
+  jointDistr(i,:)=stateDistrHistory(2:N,i)'*stateDistrHistory([1:N-1],:)/(N-1);
 end
 
 transitionMatrix=jointDistr./sum(jointDistr,1);
