@@ -1,4 +1,4 @@
-function [observationMatrix,transitionMatrix]=genEM(observationHistory,p0,O,T)
+function [observationMatrix,transitionMatrix,stateDistrHistory]=genEM(observationHistory,p0,O,T)
 
 D=numel(p0);
 [N,D1]=size(observationHistory);
@@ -16,7 +16,7 @@ end
 %Check: if observatinHistory is not an integer, discretize
 %iterate
 i=0;
-while i<1%100
+while i<2%100
   %Estep:
   [~,~, stateDistrHistory] = genKFstationaryInference(observationHistory,observationMatrix,transitionMatrix,p0);
   %Mstep:

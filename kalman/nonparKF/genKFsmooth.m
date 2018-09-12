@@ -9,6 +9,16 @@ function [smoothedStateDistr] = genKFsmooth(nextStateSmoothedDistr,currStateDist
 %OUTPUT
 %smoothedStateDistr: p(x_k|{y})
 
-tol=1e-100;
-smoothedStateDistr=currStateDistr .* sum(nextStateGivenCurrDistr .*(nextStateSmoothedDistr./(nextStatePredictedDistr+tol))',1);
+tol=1e-15;
+innov=(nextStateSmoothedDistr./(nextStatePredictedDistr+tol));
+smoothedStateDistr=currStateDistr .* (nextStateGivenCurrDistr'*innov);
+smoothedStateDistr=normalize(smoothedStateDistr);
+end
+function p=normalize(p)
+s=sum(p(:));
+if s==0
+    error('')
+else
+    p=p/s;
+end
 end

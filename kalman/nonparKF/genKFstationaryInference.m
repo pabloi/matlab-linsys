@@ -1,4 +1,4 @@
-function [pFiltered, pUpdated, pSmoothed] = genKFstationaryInference(observation,pObsGivenState,pStateGivenPrev,pStateInitial)
+function [pPredicted, pUpdated, pSmoothed] = genKFstationaryInference(observation,pObsGivenState,pStateGivenPrev,pStateInitial)
 %Inference engine for a time-series of observations given stationary
 %transition probabilities p(x_{k+1}|x_k) and observation probabilities
 %p(y_k|x_k).
@@ -16,7 +16,7 @@ function [pFiltered, pUpdated, pSmoothed] = genKFstationaryInference(observation
 
 %Define relevant sizes:
 N=length(observation);
-[M,D]=size(pObsGivenState);
+[D,M]=size(pObsGivenState); %M should equal N
 
 %Define init state if not given:
 if nargin<4
@@ -34,27 +34,32 @@ pObsGivenState=columnNormalize(pObsGivenState);
 pStateGivenPrev=columnNormalize(pStateGivenPrev);
 
 %Filter:
-pFiltered=nan(N+1,D); %We can predict up to the Nth+1 sample
-pFiltered(1,:)=p0;
-pUpdated=nan(N,D);
+pPredicted=nan(M,N+1); %We can predict up to the Nth+1 sample
+pPredicted(:,1)=p0;
+pUpdated=nan(M,N);
 for i=1:N
    %Update:
-   pUpdated(i,:) = genKFupdate(pFiltered(i,:),pObsGivenState(observation(i),:));
+   pUpdated(:,i) = genKFupdate(pPredicted(:,i),pObsGivenState(observation(i),:));
    %Predict:
-   pFiltered(i+1,:) = genKFprediction(pUpdated(i,:),pStateGivenPrev);
+   pPredicted(:,i+1) = genKFprediction(pUpdated(:,i),pStateGivenPrev);
 end
 
 if nargout>2 %Don't bother smoothing if user did not ask for it.
     %Backward pass (Smoothing)
-    pSmoothed=nan(N,D);
-    pSmoothed(N,:)=pUpdated(N,:);
+    pSmoothed=nan(M,N);
+    pSmoothed(:,N)=pUpdated(:,N);
     for i=(N-1):-1:1
-        pSmoothed(i,:) = genKFsmooth(pSmoothed(i+1,:), pUpdated(i,:), pStateGivenPrev,pFiltered(i+1,:));
+        pSmoothed(:,i) = genKFsmooth(pSmoothed(:,i+1), pUpdated(:,i), pStateGivenPrev,pPredicted(:,i+1));
     end
 end
 
 end
 
 function p=columnNormalize(p)
+    %Normalization across columns
     p=p./sum(p,1);
+end
+function p=rowNormalize(p)
+    %Normalization across columns
+    p=p./sum(p,2);
 end

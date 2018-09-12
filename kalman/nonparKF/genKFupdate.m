@@ -7,9 +7,11 @@ function [updatedStateDistr] = genKFupdate(priorStateDistr,obsGivenStateDistr)
 %OUTPUT:
 %updatedStateDistr: p(x_k|y_k) [UPDATED STATE]
 
-updatedStateDistr=normalize(obsGivenStateDistr.*priorStateDistr);
+updatedStateDistr=obsGivenStateDistr'.*priorStateDistr;
+s=sum(updatedStateDistr);
+if s==0 %This is to avoid all 0 results if observation gets a 0 likelihood for possible states. The better solution is that this never happens. Issue warning?
+    updatedStateDistr=priorStateDistr; %Equivalent to assuming a uniform obsGivenStateDistr (even if uniform but very unlikely)
+else
+    updatedStateDistr=updatedStateDistr/s;
 end
-
-function p=normalize(p)
-    p=p/sum(p(:));
 end
