@@ -49,6 +49,18 @@ else
     M=min(ceil(abs(fastFlag)),N); %If fastFlag is a number but not 0, use that as number of samples
 end
 
+%Special case: deterministic system, no filtering needed. This can also be
+%the case if Q << C'*R*C, and the system is stable
+if all(Q(:)==0)
+    [~,Xp]=fwdSim(U,A,B,C,D,x0,[],[]);
+    Ndim=size(x0,1);
+    Pp=zeros(Ndim,Ndim,N+1);
+    X=Xp(:,1:end-1);
+    P=zeros(Ndim,Ndim,N);
+    rejSamples=[];
+    return
+end
+
 %Size checks:
 %TODO
 

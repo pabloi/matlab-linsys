@@ -63,6 +63,15 @@ end
 
 %Step 2: backward pass: (following the Rauch-Tung-Striebel implementation:
 %https://en.wikipedia.org/wiki/Kalman_filter#Fixed-interval_smoothers)
+
+%Special case: deterministic system, no filtering needed. This can also be the case if Q << C'*R*C, and the system is stable
+if all(Q(:)==0)
+    Xs=Xf;
+    Ps=Pf;
+    Pt=Ps;
+    return
+end
+
 Xs=Xf;
 Ps=Pf;
 prevXs=Xf(:,end);
