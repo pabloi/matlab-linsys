@@ -129,6 +129,7 @@ for k=1:Niter-1
         breakFlag=true;
     elseif k==Niter-1
         fprintf(['max number of iterations reached. '  num2str(k) ' iterations.\n'])
+        breakFlag=true;
     end
     
     %Print some info
@@ -140,22 +141,6 @@ for k=1:Niter-1
         else %k==1 || breakFlag
             disp(['Iter = ' num2str(k) ', logL = ' num2str(l) ', % over target = ' num2str(pOverTarget)])
         end
-%         %figure(fh)
-%         %Canonical form, for plotting:
-%         [~,~,~,Xp,~,~,~] = canonizev2(A1,B1,C1,Xp,Q1,P01); 
-%         if isa(Xp,'cell')
-%             for i=1:numel(Xp)
-%                 subplot(numel(Xp),1,i)
-%                 set(gca,'ColorOrderIndex',1)
-%                 hold on
-%                 plot(Xp{i}')
-%             end
-%         else
-%             hold on
-%             set(gca,'ColorOrderIndex',1)
-%             plot(Xp')
-%             text(4*k,max(Xp(:)),num2str(l),'FontSize',7)
-%         end
     end
     if breakFlag
         break

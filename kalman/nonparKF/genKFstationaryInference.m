@@ -45,7 +45,7 @@ for i=1:N
    %Predict:
    p = genKFprediction(p,pStateGivenPrev);
    pPredicted(:,i+1) = p;
-   if mod(i,10)==0
+   if mod(i,1)==0
        p=p/sum(p); %Normalization is needed ocassionally to prevent underflow of all states
    end
 end

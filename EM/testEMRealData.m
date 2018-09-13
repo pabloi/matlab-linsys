@@ -9,31 +9,38 @@ addpath(genpath('./fun/'))
 % Some pre-proc
 B=nanmean(allDataEMG{1}(end-45:end-5,:,:)); %Baseline: last 40, exempting 5
 clear data dataSym
+subjIdx=2:16;
 for i=1:3 %B,A,P
     %Remove baseline
     data{i}=allDataEMG{i}-B;
 
     %Interpolate over NaNs
     for j=1:size(data{i},3) %each subj
-    t=1:size(data{i},1); nanidx=any(isnan(data{i}(:,:,j)),2); %Any muscle missing
-    data{i}(:,:,j)=interp1(t(~nanidx),data{i}(~nanidx,:,j),t,'linear','extrap'); %Substitute nans
+        t=1:size(data{i},1); nanidx=any(isnan(data{i}(:,:,j)),2); %Any muscle missing
+        data{i}(:,:,j)=interp1(t(~nanidx),data{i}(~nanidx,:,j),t,'linear','extrap'); %Substitute nans
     end
+    
+    %Remove subj:
+    data{i}=data{i}(:,:,subjIdx);
     
     %Compute asymmetry component
     aux=data{i}-fftshift(data{i},2);
     dataSym{i}=aux(:,1:size(aux,2)/2,:);
+    
+    
 end
 
 Y=[median(dataSym{1},3); median(dataSym{2},3);median(dataSym{3},3)]';
 U=[zeros(size(dataSym{1},1),1);ones(size(dataSym{2},1),1);zeros(size(dataSym{3},1),1);]';
 %%
-Y=medfilt1([median(dataSym{1},3); median(dataSym{2},3)],3)';
+binw=3;
+Y=[medfilt1(median(dataSym{1},3),binw,'truncate'); medfilt1(median(dataSym{2},3),binw,'truncate')]';
 U=[zeros(size(dataSym{1},1),1);ones(size(dataSym{2},1),1)]';
 %%
 % Y=medfilt1([median(data{1},3); median(data{2},3)],3)';
 % U=[zeros(size(data{1},1),1);ones(size(data{2},1),1)]';
 %% Identify 0: handcrafted sPCA
-D1=2;
+D1=3;
 [model] = sPCAv8(Y(:,51:950)',D1,[],[],[]);
 A=model.J;
 C=model.C;
@@ -43,15 +50,14 @@ D=model.D;
 aux=Y-C*X-D*U;
 R=aux*aux'/size(aux,2);
 R=R+1e-8*eye(size(R));
-Q=1e-3*eye(D1);
+Q=zeros(D1);
 [A,B,C,X,~,~] = canonizev2(A,B,C,X,Q);
 slogLh=dataLogLikelihood(Y,U,A,B,C,D,Q,R,X(:,1),Q);
 %% Assuming these are the 'real' params, find the MLE states
 [Xs,Ps,Pt,Xf,Pf,rejSamples]=statKalmanSmoother(Y,A,C,Q,R,[],[],B,D,U);
 %% Identify 1: true EM with smooth start
 tic
-[fAh,fBh,fCh,fDh,fQh,fRh,fXh,fPh]=EM(Y,U,Xs);
-%[fAh,fBh,fCh,fDh,fQh,fRh,fXh,fPh]=randomStartEM(Y,U,D1,10,'fast');
+[fAh,fBh,fCh,fDh,fQh,fRh,fXh,fPh]=EM(Y,U,Xs); %Slow/true EM
 toc
 [fJh,fKh,fCh,fXh,fV,fQh] = canonizev2(fAh,fBh,fCh,fXh,fQh);
 flogLh=dataLogLikelihood(Y,U,fJh,fKh,fCh,fDh,fQh,fRh,fXh(:,1),fPh(:,:,1));
@@ -59,7 +65,6 @@ flogLh=dataLogLikelihood(Y,U,fJh,fKh,fCh,fDh,fQh,fRh,fXh(:,1),fPh(:,:,1));
 tic
 %[Ah,Bh,Ch,Dh,Qh,Rh,Xh,Ph]=trueEM(Y,U,Xs);
 [Ah,Bh,Ch,Dh,Qh,Rh,Xh,Ph]=randomStartEM(Y,U,D1,10,'fast');
-[Ah,Bh,Ch,Dh,Qh,Rh,Xh,Ph]=EM(Y,U,Xh); %Refine solution
 toc
 [Jh,Kh,Ch,Xh,V,Qh] = canonizev2(Ah,Bh,Ch,Xh,Qh);
 logLh=dataLogLikelihood(Y,U,Jh,Kh,Ch,Dh,Qh,Rh,Xh(:,1),Ph(:,:,1));
