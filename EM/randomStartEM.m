@@ -1,4 +1,4 @@
-function [A,B,C,D,Q,R,X,P]=randomStartEM(Y,U,nd,Nreps,method)
+function [A,B,C,D,Q,R,X,P,bestLL]=randomStartEM(Y,U,nd,Nreps,method)
 if nargin<4 || isempty(Nreps)
     Nreps=20;
 end
@@ -8,8 +8,8 @@ end %TODO: if method is given, check that it is 'true' or 'fast'
 
 %First iter:
 fprintf(['Starting rep 0... ']);
-[A,B,C,D,Q,R,X,P]=EM(Y,U,nd,[],0); %FastEM
-bestLL=dataLogLikelihood(Y,U,A,B,C,D,Q,R,X(:,1),P(:,:,1));
+Niter=500;
+[A,B,C,D,Q,R,X,P,bestLL]=EM(Y,U,nd,[],0,[],Niter); %FastEM
 N=size(Y,2);
 
 switch method
@@ -35,7 +35,7 @@ for i=1:Nreps
     Xguess=medfilt1(Xguess,9,[],2);
 
     %Optimize:
-    [Ai,Bi,Ci,Di,Qi,Ri,Xi,Pi,logl]=EM(Y,U,Xguess,bestLL,fastFlag);
+    [Ai,Bi,Ci,Di,Qi,Ri,Xi,Pi,logl]=EM(Y,U,Xguess,bestLL,fastFlag,[],Niter);
     %logl=dataLogLikelihood(Y,U,Ai,Bi,Ci,Di,Qi,Ri,Xi(:,1),Pi(:,:,1));
 
     %If solution improved, save and display:
@@ -46,4 +46,10 @@ for i=1:Nreps
     end
 end
 disp(['End. Best logL=' num2str(bestLL)]);
+
+[Ai,Bi,Ci,Di,Qi,Ri,Xi,Pi,bestLL1]=EM(Y,U,X,bestLL,[],[],200); %Refine solution, sometimes works
+if bestLL1>bestLL
+    A=Ai; B=Bi; C=Ci; D=Di; Q=Qi; R=Ri; X=Xi; P=Pi; bestLL=bestLL1;
+end
+    
 end

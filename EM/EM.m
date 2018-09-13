@@ -1,4 +1,4 @@
-function [A,B,C,D,Q,R,X,P,bestLogL]=EM(Y,U,Xguess,targetLogL,fastFlag)
+function [A,B,C,D,Q,R,X,P,bestLogL]=EM(Y,U,Xguess,targetLogL,fastFlag,robustFlag,Niter)
 %A true EM implementation to do LTI-SSM identification
 %INPUT:
 %Y is D2 x N
@@ -13,6 +13,9 @@ else
     w = warning ('off','statKFfast:unstable');
     w = warning ('off','statKFfast:NaNsamples');
     w = warning ('off','statKSfast:unstable');
+end
+if nargin<6 || isempty(robustFlag)
+    robustFlag=false;
 end
 
 %% ------------Init stuff:-------------------------------------------
@@ -29,13 +32,18 @@ X=Xguess;
 [A1,B1,C1,D1,Q1,R1,x01,P01,bestLogL]=initParams(Y,U,X);
 
 %Initialize log-likelihood register & current best solution:
-Niter=1001;
+if nargin<7 || isempty(Niter)
+    Niter=10001;
+end
 logl=nan(Niter,1);
 logl(1,1)=bestLogL;
 if isa(Y,'gpuArray')
     logl=nan(Niter,1,'gpuArray');
 end
 A=A1; B=B1; C=C1; D=D1; Q=Q1; R=R1; x0=x01; P0=P01; P=repmat(P0,1,1,size(X,2));
+
+%Q1=zeros(size(Q));
+%logl(1)=dataLogLikelihood(Y,U,A1,B1,C1,D1,Q1,R1,x0,P0,'approx');
 
 %Initialize target logL:
 if nargin<4 || isempty(targetLogL)
@@ -112,10 +120,10 @@ for k=1:Niter-1
     end
 
     %Check if we should stop early (to avoid wasting time):
-    if k>1 && (belowTarget && (targetRelImprovement10)<2e-1) %Breaking if improvement less than 20% of distance to targetLogL, as this probably means we are not getting a solution better than the given target
+    if k>1 && (belowTarget && (targetRelImprovement10)<5e-2) %Breaking if improvement less than 5% of distance to targetLogL, as this probably means we are not getting a solution better than the given target
        fprintf(['unlikely to reach target value. ' num2str(k) ' iterations.\n'])
        breakFlag=true; 
-    elseif k>1 && (relImprovementLast10)<1e-7 %Considering the system stalled if relative improvement on logl is <1e-7
+    elseif k>1 && (relImprovementLast10)<1e-9 %Considering the system stalled if relative improvement on logl is <1e-9
         fprintf(['increase is within tolerance (local max). '  num2str(k) ' iterations.\n'])
         %disp(['LogL as % of target:' num2str(round(l*100000/targetLogL)/1000)])
         breakFlag=true;
