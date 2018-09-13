@@ -12,13 +12,9 @@ function [smoothedStateDistr] = genKFsmooth(nextStateSmoothedDistr,currStateDist
 tol=1e-15;
 innov=(nextStateSmoothedDistr./(nextStatePredictedDistr+tol));
 smoothedStateDistr=currStateDistr .* (nextStateGivenCurrDistr'*innov);
-smoothedStateDistr=normalize(smoothedStateDistr);
-end
-function p=normalize(p)
-s=sum(p(:));
+s=sum(smoothedStateDistr);
 if s==0
-    error('')
-else
-    p=p/s;
+    error('Inconsistent successive states during smoothing. Impossible update.')
 end
+smoothedStateDistr=smoothedStateDistr/s; %Unnecessary if we only care about MAP
 end

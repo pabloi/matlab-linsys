@@ -10,8 +10,7 @@ function [updatedStateDistr] = genKFupdate(priorStateDistr,obsGivenStateDistr)
 updatedStateDistr=obsGivenStateDistr'.*priorStateDistr;
 s=sum(updatedStateDistr);
 if s==0 %This is to avoid all 0 results if observation gets a 0 likelihood for possible states. The better solution is that this never happens. Issue warning?
-    updatedStateDistr=priorStateDistr; %Equivalent to assuming a uniform obsGivenStateDistr (even if uniform but very unlikely)
-else
-    updatedStateDistr=updatedStateDistr/s;
+    error('Obsevation has p=0 for all states with p>0. Impossible update. Winging it.')
 end
+%updatedStateDistr=updatedStateDistr/s; %Unnecessary if we only care about MAP
 end

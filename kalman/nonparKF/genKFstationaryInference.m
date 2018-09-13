@@ -20,7 +20,7 @@ N=length(observation);
 
 %Define init state if not given:
 if nargin<4
-    p0= ones(1,D)/D;%Uniform
+    p0= ones(D,1)/D;%Uniform
 else
     p0=pStateInitial;
 end
@@ -34,22 +34,30 @@ pObsGivenState=columnNormalize(pObsGivenState);
 pStateGivenPrev=columnNormalize(pStateGivenPrev);
 
 %Filter:
-pPredicted=nan(M,N+1); %We can predict up to the Nth+1 sample
-pPredicted(:,1)=p0;
-pUpdated=nan(M,N);
+pPredicted=nan(M,N+1); %We can predict up to the Nth+1 sample, should sparsify
+p=p0;
+pPredicted(:,1)=p;
+pUpdated=nan(M,N); %Should sparsify
 for i=1:N
    %Update:
-   pUpdated(:,i) = genKFupdate(pPredicted(:,i),pObsGivenState(observation(i),:));
+   p = genKFupdate(p,pObsGivenState(observation(i),:));
+   pUpdated(:,i) = p;
    %Predict:
-   pPredicted(:,i+1) = genKFprediction(pUpdated(:,i),pStateGivenPrev);
+   p = genKFprediction(p,pStateGivenPrev);
+   pPredicted(:,i+1) = p;
+   if mod(i,10)==0
+       p=p/sum(p); %Normalization is needed ocassionally to prevent underflow of all states
+   end
 end
 
 if nargout>2 %Don't bother smoothing if user did not ask for it.
     %Backward pass (Smoothing)
-    pSmoothed=nan(M,N);
-    pSmoothed(:,N)=pUpdated(:,N);
+    pSmoothed=nan(M,N); %Should sparsify
+    p=pUpdated(:,N);
+    pSmoothed(:,N)=p;
     for i=(N-1):-1:1
-        pSmoothed(:,i) = genKFsmooth(pSmoothed(:,i+1), pUpdated(:,i), pStateGivenPrev,pPredicted(:,i+1));
+        p = genKFsmooth(p, pUpdated(:,i), pStateGivenPrev,pPredicted(:,i+1));
+        pSmoothed(:,i) = p;
     end
 end
 
@@ -58,8 +66,4 @@ end
 function p=columnNormalize(p)
     %Normalization across columns
     p=p./sum(p,1);
-end
-function p=rowNormalize(p)
-    %Normalization across columns
-    p=p./sum(p,2);
 end
