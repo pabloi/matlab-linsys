@@ -14,11 +14,28 @@ function [X,P,Xp,Pp,rejSamples]=statKalmanFilter(Y,A,C,Q,R,x0,P0,B,D,U,outlierRe
 %
 %See also: statKalmanSmoother, statKalmanFilterConstrained, KFupdate, KFpredict
 
+%TODO: check relative size of R,P and use the more efficient kalman update
+%for each case. Will need to check if P is invertible, which will generally
+%be the case if Q is invertible. If not, probably need to do the
+%conventional update too.
+
+%For the filter to be well-defined, it appears necessary that the quantity C'*inv(R+C*P*C')*y
+%be well defined, for all observations y (with some reasonable definition of inv()).
+%However, it is easy to prove [PROOF?] that only C'*inv(R+C*P*C')*z needs to be
+%defined, where z=C*pinv(C)*y (that is, the projection of the observations
+%onto the span of C, which is always well-defined). Thus, this can be
+%simplified to requiring C'*inv(R+C*P*C') to be well-defined. Notice this 
+%does not require inv(R+C*P*C') to be well defined, although that is sufficient.
+% This is always the case if R is invertible, because R,P are psd matrices.
+% There may exist situations where this is well defined even if R and
+% R+C*P*C' are not invertible.
+
 
 [D2,N]=size(Y);
+D1=size(A,1);
 %Init missing params:
 if nargin<6 || isempty(x0)
-  x0=zeros(size(A,1),1); %Column vector
+  x0=zeros(D1,1); %Column vector
 end
 if nargin<7 || isempty(P0)
   P0=1e8 * eye(size(A));
@@ -51,15 +68,15 @@ end
 
 %Special case: deterministic system, no filtering needed. This can also be
 %the case if Q << C'*R*C, and the system is stable
-if all(Q(:)==0)
-    [~,Xp]=fwdSim(U,A,B,C,D,x0,[],[]);
-    Ndim=size(x0,1);
-    Pp=zeros(Ndim,Ndim,N+1);
-    X=Xp(:,1:end-1);
-    P=zeros(Ndim,Ndim,N);
-    rejSamples=[];
-    return
-end
+% if all(Q(:)==0)
+%     [~,Xp]=fwdSim(U,A,B,C,D,x0,[],[]);
+%     Ndim=size(x0,1);
+%     Pp=zeros(Ndim,Ndim,N+1);
+%     X=Xp(:,1:end-1);
+%     P=zeros(Ndim,Ndim,N);
+%     rejSamples=[];
+%     return
+% end
 
 %Size checks:
 %TODO
@@ -73,16 +90,16 @@ end
 
 %Init arrays:
 if isa(Y,'gpuArray') %For code to work on gpu
-    Xp=nan(size(A,1),N+1,'gpuArray');
-    X=nan(size(A,1),N,'gpuArray');
-    Pp=nan(size(A,1),size(A,1),N+1,'gpuArray');
-    P=nan(size(A,1),size(A,1),N,'gpuArray');
+    Xp=nan(D1,N+1,'gpuArray');
+    X=nan(D1,N,'gpuArray');
+    Pp=nan(D1,D1,N+1,'gpuArray');
+    P=nan(D1,D1,N,'gpuArray');
     rejSamples=zeros(D2,N,'gpuArray');
 else
-    Xp=nan(size(A,1),N+1);
-    X=nan(size(A,1),N);
-    Pp=nan(size(A,1),size(A,1),N+1);
-    P=nan(size(A,1),size(A,1),N);
+    Xp=nan(D1,N+1);
+    X=nan(D1,N);
+    Pp=nan(D1,D1,N+1);
+    P=nan(D1,D1,N);
     rejSamples=zeros(D2,N);
 end
 
@@ -94,6 +111,8 @@ Xp(:,1)=x0;
 Pp(:,:,1)=P0;
 
 %Pre-computing for speed:
+%TODO: this needs to be done only if D2>D1, otherwise it is cheaper to do
+%the standard Kalman update
 Rinv=pinv(R,tol);
 CtRinv=C'*Rinv; %gpu-ready  %Equivalent to lsqminnorm(R,C,tol)';, not gpu ready
 CtRinvC=CtRinv*C; %Should use cholcov()
@@ -108,11 +127,13 @@ for i=1:M
   CiRy=CtRinvY(:,i);
   if ~any(isnan(CiRy)) %If measurement is NaN, skip update.
       if outlierRejection
+          %TODO: remove or reduce this section by calling to KFupdateAlt()
+          %directly
           %TODO: reject outliers by replacing with NaN
           warning('Outlier rejection not implemented')
           %zscore is computed presuming y~N(Cx,C*prevP*C'+R)
           %For expediency, we compute:
-          ch_P=chol(prevP); %To ensure symmetry
+          ch_P=cholc(prevP); %To ensure symmetry
           ch_iP=ch_P\eye(size(ch_P));
           iP=ch_iP*ch_iP';
           iM=iP+CtRinvC; 
@@ -126,7 +147,7 @@ for i=1:M
               prevX=prevP*(iP*prevX+CiRy);
           end
       else
-         [prevX,prevP]=KFupdate(CiRy,CtRinvC,prevX,prevP);
+         [prevX,prevP]=KFupdateAlt(CiRy,CtRinvC,prevX,prevP);
       end
   end
   X(:,i)=prevX;
@@ -142,7 +163,7 @@ end
 if M<N
     %Steady-state matrices:
     Psteady=prevP; %Steady-state predicted uncertainty matrix
-    iPsteady=prevP\eye(size(prevP));%For some reason, this is much faster than pinv
+    iPsteady=prevP\eye(size(prevP));
     Ksteady=(iPsteady+CtRinvC)\iPsteady;
     innov=(iPsteady+CtRinvC)\CtRinvY;
     P(:,:,M+1:end)=repmat(P(:,:,M),1,1,size(Y,2)-M);

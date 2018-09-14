@@ -20,16 +20,20 @@ Constrained Kalman filter/smoother: this version of the filter adds a step betwe
 The constrained filter allows better handling of unknown dynamics (see testConstrainedKF2.m), in a sense similar to how Lagrangian mechanics deal with reactive forces that impose known links: we forgo the explicit description of the reactive force (i.e. we under/mis-specify the dynamics), and instead recover the true equations of motion/kinematics by enforcing the link we know the force must generate.
 
 *To Do*
+- Improve KF/KS efficiency by storing cholesky decomposition of uncertainty matrices to avoid recomputing them.
+- Implement 'standard' Kalman update step.
+- Change Stationary Kalman Filter to do the most covenient update step depending on whether size(R) or size(P) is larger.
+- Clean up the outlier rejection part in stationary KF.
+- Make sure KF/KS run appropriately when Q=0 and P->0, this is, when there is (almost) no state uncertainty. In this case the update step should be trivial.
+- See if we can use EM to reproduce sPCA behavior (this is, identify the best linsys constraining to Q=0)
+- Implement my own cholcov() function: should be as fast as chol() when the matrix is PD, and triangular when it is not [cholcov() satisifies neither of these].
 - Implement the extended KF, and extended Kalman Smoother.
 - Implement the implicit extended KF.
 - Implement the augmented KF.
-- Review outlier rejection scheme for KF.
 - Implement adaptive KF
 - Improve constrained KF. Workout how to prevent covariance from collapsing from repeated enforcement of constraints. Figure out how to enforce approximate constraints and non-linear constraints.
 - Figure out how to implement constrained smoothing.
 - Write a function that automatically generates constraintFunctions as needed by the constrained KF from a nonlinear function handle (that evaluates the function and its gradient).
-- Sparsify non-parametric Kalman by reducing all small weights in transition and obs matrices to 0. This can make the algorithm much more efficient.
-
 
 *Changelist*
 v1: added EM based algorithms
