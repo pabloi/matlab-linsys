@@ -127,26 +127,12 @@ for i=1:M
   CiRy=CtRinvY(:,i);
   if ~any(isnan(CiRy)) %If measurement is NaN, skip update.
       if outlierRejection
-          %TODO: remove or reduce this section by calling to KFupdateAlt()
-          %directly
-          %TODO: reject outliers by replacing with NaN
-          warning('Outlier rejection not implemented')
-          %zscore is computed presuming y~N(Cx,C*prevP*C'+R)
-          %For expediency, we compute:
-          ch_P=cholc(prevP); %To ensure symmetry
-          ch_iP=ch_P\eye(size(ch_P));
-          iP=ch_iP*ch_iP';
-          iM=iP+CtRinvC; 
-          ch_iM=chol(iM);
-          aux=CtRinv'/ch_iM';
-          %W=C*prevP*C'+R;
-          z=z2score(Y(:,i),[],C*prevX,Rinv-aux*aux');
+          [prevXt,prevPt,z]=KFupdateAlt(CiRy,CtRinvC,prevX,prevP);
           if z<th %zscore is less than the outlier threshold, doing update
-              sM=ch_iM\eye(size(ch_iM));
-              prevP=sM*sM';
-              prevX=prevP*(iP*prevX+CiRy);
+              prevP=prevPt;
+              prevX=prevXt;
           end
-      else
+      else %This is here because it is more efficient to not compute the z-score if we dont need it
          [prevX,prevP]=KFupdateAlt(CiRy,CtRinvC,prevX,prevP);
       end
   end

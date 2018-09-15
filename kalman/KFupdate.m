@@ -1,28 +1,17 @@
-function [x,P]=KFupdate(CtRinvY,CtRinvC,x,P)
+function [x,P,z]=KFupdate(C,R,y,x,P)
 
-%tol=1e-8;
-sP=chol(P); %To ensure symmetry
-isP=sP\eye(size(sP));
-iP=isP*isP';
-%iP=P\eye(size(P)); %For some reason, this is much faster than pinv
-iM=iP+CtRinvC; 
-%P=iM\eye(size(iM));%Same as above
-isM=chol(iM);
-sM=isM\eye(size(isM));
-P=sM*sM';
+S=R+C*P*C';
+cS=chol(S);
+icS=cS\eye(size(S));
+%K=P*C'/S;%=pinv(pinv(P)+CtRinvC);
+CicS=C'*icS;
+PCicS=P*CicS;
+P=P-PCicS*PCicS';%=P-P*C'/S*C*P;%=P-K*C*P;
+x=x+PCicS*icS'*(y-C*x);%=x+K*(y-C*x);
 
-%If we wanted to check sanity of the update, by evaluating if the
-%innovation (of the state) is within reason given the prior expectations:
-%z=z2score(CtRinvY,iM*P*CtRinvC,CtRinvC*x);
-
-%M=pinv(iM,tol); 
-%K=M*CtRinv; 
-%I_KC=M*iP;  %=I -K*C
-%x=M*(iP*x+CtRinv*y_d); 
-%P=M;%(I_KC)*P; 
-
-%Do update of state:
-x=P*(iP*x+CtRinvY); 
-
-
+if nargout>2
+    %If we wanted to check sanity of the update, by evaluating if the
+    %innovation (of the state) is within reason given the prior expectations:
+    z=z2score(y,[],C*x,icS');
+end
 end
