@@ -37,15 +37,14 @@ if nargin<11 || isempty(outRejFlag)
   outRejFlag=0;
 end
 if nargin<12 || isempty(fastFlag)
-    fastFlag=[];
-    M=N; %Do true filtering for all samples
+    M=N-1; %Do true filtering for all samples
 elseif fastFlag==0
     M2=20; %Default for fast filtering: 20 samples
     M1=ceil(3*max(-1./log(abs(eig(A))))); %This many strides ensures ~convergence of gains before we assume steady-state
     M=max(M1,M2);
-    M=min(M,N); %Prevent more than N, if this happens, we are not doing fast filtering
+    M=min(M,N-1); %Prevent more than N-1, if this happens, we are not doing fast filtering
 else
-    M=min(ceil(abs(fastFlag)),N); %If fastFlag is a number but not 0, use that as number of samples
+    M=min(ceil(abs(fastFlag)),N-1); %If fastFlag is a number but not 0, use that as number of samples
 end
 
 if M<N && any(abs(eig(A))>1)
@@ -65,26 +64,61 @@ end
 %https://en.wikipedia.org/wiki/Kalman_filter#Fixed-interval_smoothers)
 
 %Special case: deterministic system, no filtering needed. This can also be the case if Q << C'*R*C, and the system is stable
-if all(Q(:)==0)
-    Xs=Xf;
-    Ps=Pf;
-    Pt=Ps;
-    return
-end
+% if all(Q(:)==0)
+%     Xs=Xf;
+%     Ps=Pf;
+%     Pt=Ps;
+%     return
+% end
 
+D1=size(A,1);
+
+%Initialize last sample:
 Xs=Xf;
 Ps=Pf;
-prevXs=Xf(:,end);
-prevPs=Pf(:,:,end);
-D1=size(A,1);
-if isa(Xs,'gpuArray') %For code to work on gpu
-    Pt=nan(D1,D1,size(Y,2)-1,'gpuArray'); %Transition covariance matrix
-else
-    Pt=nan(D1,D1,size(Y,2)-1); %Transition covariance matrix
-end
+prevXs=Xf(:,N);
+prevPs=Pf(:,:,N);
+pf=prevPs; %Previous posterior estimate of covariance at this time step
+pp=Pp(:,:,N+1); %Covariance of next step based on post estimate of this step
+AP=A*pf;
+H=AP'/pp; %Faster, although worse conditioned than: newK=lsqminnorm(pp,AP,1e-8)'
+newPt=prevPs*H'; %This should be such that A*newPt' is hermitian
+sPs=chol(prevPs); %Ensure symmetry:
+Hps=H*sPs';
+sPr=chol(H*AP); %newK*AP= ((pf'*A')/(A*pf*A'+Q))*A*pf
+newPs=Hps*Hps' + pf -sPr'*sPr;  %Would it be more precise/efficient to compute the sum of the last two terms as inv(inv(pf) +A'*inv(Q)*A) ?
+  
 
+if isa(Xs,'gpuArray') %For code to work on gpu
+    Pt=nan(D1,D1,N-1,'gpuArray'); %Transition covariance matrix
+else
+    Pt=nan(D1,D1,N-1); %Transition covariance matrix
+end
+ 
+%Fast smoothing for last N-M samples
+if (M+1)<N %Assume steady-state: 
+    if any(abs(eig(H))>1)
+        error('Unstable smoothing')
+    end
+    aux=Xf-H*Xp(:,2:end); %Precompute for speed
+    for i=N-1:-1:M+1
+        %xp=Xp(:,i+1);
+        %xf=Xf(:,i);
+        %prevXs=xf + newK*prevXs-newK*xp;
+        prevXs=aux(:,i) + H*prevXs;
+        Xs(:,i)=prevXs;
+    end
+    %Compute covariances if requested:
+    if nargout>2
+        Ps(:,:,M+1:N)=repmat(newPs,1,1,N-M);
+    end
+    if nargout>3
+        Pt(:,:,M+1:N)=repmat(newPt,1,1,N-M);
+    end
+end
+    
 %Do true smoothing for first M samples:
-for i=(N-1):-1:(N-M+1)
+for i=M:-1:1
   %First, get estimates from forward pass:
   xf=Xf(:,i); %Previous posterior estimate of covariance at this step
   pf=Pf(:,:,i); %Previous posterior estimate of covariance at this time step
@@ -95,18 +129,18 @@ for i=(N-1):-1:(N-M+1)
   %First, compute gain:
   AP=A*pf;
   %pp=AP*A'+Q; %Could compute pp instead of accessing it, unclear which is faster
-  newK=AP'/pp; %Faster, although worse conditioned than: newK=lsqminnorm(pp,AP,1e-8)'
+  H=AP'/pp; %Faster, although worse conditioned than: newK=lsqminnorm(pp,AP,1e-8)'
 
   %Improved (smoothed) state estimate
-  newPt=prevPs*newK'; %This should be such that A*newPt' is hermitian
+  newPt=prevPs*H'; %This should be such that A*newPt' is hermitian
   %newPs=pf+newK*(newPt-AP); %=newK*prevPs'*newK' + pf -pf'*(A'/pp)*A*pf =  newK*prevPs'*newK' + pf -((pf'*A')/(A*pf*A'+Q))*A*pf = newK*prevPs'*newK' + inv(inv(pf) +A'*inv(Q)*A) =
   sPs=chol(prevPs); %Ensure symmetry:
-  Kps=newK*sPs';
-  sPr=chol(newK*AP); %newK*AP= ((pf'*A')/(A*pf*A'+Q))*A*pf
-  newPs=Kps*Kps' + pf -sPr'*sPr;  %Would it be more precise/efficient to compute the sum of the last two terms as inv(inv(pf) +A'*inv(Q)*A) ?
+  Hps=H*sPs';
+  sPr=chol(H*AP); %newK*AP= ((pf'*A')/(A*pf*A'+Q))*A*pf
+  newPs=Hps*Hps' + pf -sPr'*sPr;  %Would it be more precise/efficient to compute the sum of the last two terms as inv(inv(pf) +A'*inv(Q)*A) ?
 
   %xp=A*xf+B*U(:,i); %Could compute instead of acccesing it, unclear which is faster
-  prevXs=xf + newK*(prevXs-xp);
+  prevXs=xf + H*(prevXs-xp);
 
   Xs(:,i)=prevXs;
   Pt(:,:,i)=newPt;
@@ -114,27 +148,6 @@ for i=(N-1):-1:(N-M+1)
   %Improved (smoothed) covariance estimate
   prevPs=newPs;
   Ps(:,:,i)=prevPs;
-end
-
-if M<N %From now on, assume steady-state:
-    if any(abs(eig(newK))>1)
-        error('Unstable smoothing')
-    end
-    aux=Xf-newK*Xp(:,2:end); %Precompute for speed
-    for i=(N-M):-1:1
-        %xp=Xp(:,i+1);
-        %xf=Xf(:,i);
-        %prevXs=xf + newK*prevXs-newK*xp;
-        prevXs=aux(:,i) + newK*prevXs;
-        Xs(:,i)=prevXs;
-    end
-    %Compute covariances if requested:
-    if nargout>2
-        Ps(:,:,1:(size(Y,2)-M))=repmat(newPs,1,1,(size(Y,2)-M));
-    end
-    if nargout>3
-        Pt(:,:,1:(size(Y,2)-M))=repmat(newPt,1,1,(size(Y,2)-M));
-    end
 end
 
 end
