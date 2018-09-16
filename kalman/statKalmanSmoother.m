@@ -81,12 +81,14 @@ prevPs=Pf(:,:,N);
 pf=prevPs; %Previous posterior estimate of covariance at this time step
 pp=Pp(:,:,N+1); %Covariance of next step based on post estimate of this step
 AP=A*pf;
-H=AP'/pp; %Faster, although worse conditioned than: newK=lsqminnorm(pp,AP,1e-8)'
+iP=pinv(pp,1e-8);
+isP=mycholcov(iP)';
+H=AP'*iP;
 newPt=prevPs*H'; %This should be such that A*newPt' is hermitian
-sPs=chol(prevPs); %Ensure symmetry:
+sPs=mycholcov(prevPs); %Ensure symmetry
 Hps=H*sPs';
-sPr=chol(H*AP); %newK*AP= ((pf'*A')/(A*pf*A'+Q))*A*pf
-newPs=Hps*Hps' + pf -sPr'*sPr;  %Would it be more precise/efficient to compute the sum of the last two terms as inv(inv(pf) +A'*inv(Q)*A) ?
+sPr=isP'*AP;%Pr=AP'/pp*AP
+prevPs=Hps*Hps' + pf -sPr'*sPr;  %Would it be more precise/efficient to compute the sum of the last two terms as inv(inv(pf) +A'*inv(Q)*A) ?
   
 
 if isa(Xs,'gpuArray') %For code to work on gpu
@@ -102,15 +104,13 @@ if (M+1)<N %Assume steady-state:
     end
     aux=Xf-H*Xp(:,2:end); %Precompute for speed
     for i=N-1:-1:M+1
-        %xp=Xp(:,i+1);
-        %xf=Xf(:,i);
-        %prevXs=xf + newK*prevXs-newK*xp;
+        %prevXs=Xf(:,i) + newK*(prevXs-Xp(:,i+1));
         prevXs=aux(:,i) + H*prevXs;
         Xs(:,i)=prevXs;
     end
     %Compute covariances if requested:
     if nargout>2
-        Ps(:,:,M+1:N)=repmat(newPs,1,1,N-M);
+        Ps(:,:,M+1:N)=repmat(prevPs,1,1,N-M);
     end
     if nargout>3
         Pt(:,:,M+1:N)=repmat(newPt,1,1,N-M);
@@ -124,29 +124,28 @@ for i=M:-1:1
   pf=Pf(:,:,i); %Previous posterior estimate of covariance at this time step
   xp=Xp(:,i+1); %Prediction of next step based on post estimate of this step
   pp=Pp(:,:,i+1); %Covariance of next step based on post estimate of this step
+  %pp=AP*A'+Q; %Could compute pp instead of accessing it, unclear which is faster
+  %xp=A*xf+B*U(:,i); %Could compute instead of acccesing it, unclear which is faster
 
   %Backward pass:
   %First, compute gain:
   AP=A*pf;
-  %pp=AP*A'+Q; %Could compute pp instead of accessing it, unclear which is faster
-  H=AP'/pp; %Faster, although worse conditioned than: newK=lsqminnorm(pp,AP,1e-8)'
+  iP=pinv(pp,1e-8);
+  isP=mycholcov(iP)';
+  H=AP'*iP; %H=AP'/pp; %Faster, although worse conditioned, matters a lot when smoothing
 
   %Improved (smoothed) state estimate
   newPt=prevPs*H'; %This should be such that A*newPt' is hermitian
   %newPs=pf+newK*(newPt-AP); %=newK*prevPs'*newK' + pf -pf'*(A'/pp)*A*pf =  newK*prevPs'*newK' + pf -((pf'*A')/(A*pf*A'+Q))*A*pf = newK*prevPs'*newK' + inv(inv(pf) +A'*inv(Q)*A) =
-  sPs=chol(prevPs); %Ensure symmetry:
+  sPs=mycholcov(prevPs); %Ensure symmetry:
   Hps=H*sPs';
-  sPr=chol(H*AP); %newK*AP= ((pf'*A')/(A*pf*A'+Q))*A*pf
-  newPs=Hps*Hps' + pf -sPr'*sPr;  %Would it be more precise/efficient to compute the sum of the last two terms as inv(inv(pf) +A'*inv(Q)*A) ?
-
-  %xp=A*xf+B*U(:,i); %Could compute instead of acccesing it, unclear which is faster
+  sPr=isP'*AP;%Pr=AP'/pp*AP
+  prevPs=Hps*Hps' + pf -sPr'*sPr;  %Would it be more precise/efficient to compute the sum of the last two terms as inv(inv(pf) +A'*inv(Q)*A) ?
   prevXs=xf + H*(prevXs-xp);
 
+  %Store estimates:
   Xs(:,i)=prevXs;
   Pt(:,:,i)=newPt;
-
-  %Improved (smoothed) covariance estimate
-  prevPs=newPs;
   Ps(:,:,i)=prevPs;
 end
 

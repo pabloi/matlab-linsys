@@ -9,10 +9,10 @@ A=jordan(A); %Using A in its jordan canonical form so we can compare identified 
 %B=3*randn(D1,1);
 %B=B./sign(B); %Forcing all elements of B to be >0, WLOG
 B=(eye(size(A))-A)*ones(size(A,1),1); %WLOG, arbitrary scaling
-U=[zeros(300,1);ones(N,1);zeros(N/2,1)]'; %Step input and then removed
+U=[zeros(500,1);ones(N,1);zeros(N/2,1)]'; %Step input and then removed
 C=randn(D2,D1);
 D=randn(D2,1);
-Q=eye(D1)*.0005;
+Q=zeros(D1);
 R=eye(D2)*.01;
 
 %% Simulate
@@ -25,7 +25,7 @@ x0=zeros(D1,1);
 %% Do kalman smoothing with true params
 tic
 fastFlag=0;
-[Xsf,Psf,Ptf,Xff,Pff,Xpf,Ppf]=statKalmanSmoother(Y,A,C,Q,R,[],[],B,D,U,false,fastFlag); %Kalman smoother estimation of states, given the true parameters (this is the best possible estimation of states)
+[Xsf,Psf,~,Xff,Pff]=statKalmanSmoother(Y,A,C,Q,R,[],[],B,D,U,false,fastFlag); %Kalman smoother estimation of states, given the true parameters (this is the best possible estimation of states)
 tf=toc;
 tic
 fastFlag=[];
