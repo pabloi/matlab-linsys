@@ -2,7 +2,7 @@ function [x,P,K,z]=KFupdate(C,R,y,x,P)
 
 S=R+C*P*C';
 cS=chol(S);
-icS=cS\eye(size(S));
+icS=eye(size(S))/cS;
 %K=P*C'/S;%=pinv(pinv(P)+CtRinvC);
 CicS=C'*icS;
 PCicS=P*CicS;

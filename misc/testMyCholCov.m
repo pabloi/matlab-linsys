@@ -1,10 +1,10 @@
 %% Case 1: full rank:
 M=6;
-Nreps=1e4;
+Nreps=1e5;
 Q=randn(M);
 P=Q'*Q;
 disp('chol')
-tic; for i=1:Nreps; L0=chol(P); end; toc;
+tic; for i=1:Nreps; [L0]=chol(P); end; toc;
 disp('cholcov')
 tic; for i=1:Nreps; L1=cholcov(P); end; toc;
 disp('mycholcov')
@@ -21,9 +21,10 @@ P=Q'*Q;
 disp('chol')
 tic; for i=1:Nreps; try [L0]=chol(P); catch; end; end; toc; %Can't do w/o try
 disp('cholcov')
-tic; for i=1:Nreps; L1=cholcov(P); end; toc;
+tic; for i=1:10*Nreps; L1=cholcov(P); end; toc;
 disp('mycholcov')
-tic; for i=1:Nreps; L2=mycholcov(P); end; toc;
+tic; for i=1:10*Nreps; L2=mycholcov(P); end; toc;
+
 norm(P-L0'*L0,'fro')
 norm(P-L1'*L1,'fro')
 norm(P-L2'*L2,'fro')
