@@ -1,5 +1,5 @@
-function [A,B,C,D,Q,R,X,P,bestLogL]=EM(Y,U,Xguess,targetLogL,fastFlag,robustFlag,Niter)
-%A true EM implementation to do LTI-SSM identification
+function [A,B,C,D,Q,R,X,P,bestLogL]=EM_Q0(Y,U,Xguess,targetLogL,fastFlag,robustFlag,Niter)
+%A true EM implementation to do LTI-SSM identification, imposing Q=0
 %INPUT:
 %Y is D2 x N
 %U is D3 x N
@@ -33,7 +33,7 @@ X=Xguess;
 
 %Initialize log-likelihood register & current best solution:
 if nargin<7 || isempty(Niter)
-    Niter=10001;
+    Niter=101;
 end
 logl=nan(Niter,1);
 logl(1,1)=bestLogL;
@@ -42,8 +42,8 @@ if isa(Y,'gpuArray')
 end
 A=A1; B=B1; C=C1; D=D1; Q=Q1; R=R1; x0=x01; P0=P01; P=repmat(P0,1,1,size(X,2));
 
-%Q1=zeros(size(Q));
-%logl(1)=dataLogLikelihood(Y,U,A1,B1,C1,D1,Q1,R1,x0,P0,'approx');
+Q1=zeros(size(Q));
+logl(1)=dataLogLikelihood(Y,U,A1,B1,C1,D1,Q1,R1,x0,P0,'approx');
 
 %Initialize target logL:
 if nargin<4 || isempty(targetLogL)
@@ -82,7 +82,7 @@ for k=1:Niter-1
     l=dataLogLikelihood(Y,U,A1,B1,C1,D1,Q1,R1,Xp,Pp,'approx'); %Passing the Kalman-filtered states and uncertainty makes the computation more efficient
     logl(k+1)=l;
     delta=l-logl(k,1);
-    improvement=delta>=0;
+    improvement=delta>0;
     targetRelImprovement10=(l-logl(max(k-10,1),1))/(targetLogL-l);
     belowTarget=l<targetLogL;
     relImprovementLast10=1-logl(max(k-10,1),1)/l; %Assessing the relative improvement on logl over the last 10 iterations (or less if there aren't as many)
@@ -114,7 +114,7 @@ for k=1:Niter-1
             %If everything went well and these parameters are the best ever: 
             %replace parameters  (notice the algorithm may continue even if 
             %the logl dropped, but in that case we do not save the parameters)
-            A=A1; B=B1; C=C1; D=D1; Q=Q1; R=R1; x0=x01; P0=P01; X=X1; P=P1; Pt=Pt1;
+            A=A1; B=B1; C=C1; D=D1; Q=Q1; R=R1; x0=x01; P0=P01; X=X1; P=P1; %Pt=Pt1;
             bestLogL=l;
         end
     end
@@ -135,7 +135,7 @@ for k=1:Niter-1
     %Print some info
     if mod(k,50)==0 || breakFlag %Print info
         pOverTarget=100*(l/targetLogL-1);
-        if k>50 && ~breakFlag
+        if k>50 & ~breakFlag
             lastChange=l-logl(k-49,1);
             disp(['Iter = ' num2str(k) ', \Delta = ' num2str(lastChange) ', % over target = ' num2str(pOverTarget)])
         else %k==1 || breakFlag
@@ -146,7 +146,7 @@ for k=1:Niter-1
         break
     end
     %M-step:
-    [A1,B1,C1,D1,Q1,R1,x01,P01]=estimateParams(Y,U,X1,P1,Pt1);
+    [A1,B1,C1,D1,~,R1,x01,P01]=estimateParams(Y,U,X1,P1,Pt1);
 end
 
 %%
@@ -179,7 +179,7 @@ end
     %Make sure scaling is appropriate:
     [A1,B1,C1,x01,~,Q1,P01] = canonizev2(A1,B1,C1,x01,Q1,P01); 
     %Compute logL:
-    logL=dataLogLikelihood(Y,U,A1,B1,C1,D1,Q1,R1,x01(:,1),P01(:,:,1),'approx');
+    logL=dataLogLikelihood(Y,U,A1,B1,C1,D1,Q1,R1,x01,P01,'approx');
 end
 
 function [P,Pt]=initCov(X)
@@ -188,7 +188,7 @@ function [P,Pt]=initCov(X)
     dX=diff(X');
     Px=(dX'*dX)/N; 
     P=repmat(Px,1,1,N);
-    %Px1=(dX(2:end,:)'*dX(1:end-1,:));
+    Px1=(dX(2:end,:)'*dX(1:end-1,:));
     Pt=repmat(zeros(size(Px)),1,1,N);
 end
 

@@ -13,28 +13,35 @@ function [A,B,C,D,Q,R,x0,P0]=estimateParams(Y,U,X,P,Pt)
 [yx,yu,xx,uu,xu,SP,SPt,xx_,uu_,xu_,xx1,xu1,SP_,S_P]=computeRelevantMatrices(Y,X,U,P,Pt);
 D1=size(xx,1);
 
-%A,B:
+%Estimate x0,P0:
+if isa(X,'cell')
+    [x0,P0]=cellfun(@(x,p) estimateInit(x,p),X,P,'UniformOutput',false);
+else
+    [x0,P0]=estimateInit(X,P);
+end
+
+%Estimate A,B:
 O=[SP_+xx_ xu_; xu_' uu_];
 AB=[SPt+xx1 xu1]/O; %In absence of uncertainty, reduces to: [A,B]=X+/[X;U],
 %where X+ is X one step in the future
 A=AB(:,1:D1);
 B=AB(:,D1+1:end);
 
-%C,D:
+%Estimate C,D:
 O=[SP+xx xu; xu' uu];
 CD=[yx,yu]/O; %Notice that in absence of uncertainty in states, this reduces to [C,D]=Y/[X;U]
 C=CD(:,1:D1);
 D=CD(:,D1+1:end);
 
-%Q,R: %Adaptation of Shumway and Stoffer 1982: (there B=D=0 and C is fixed), but consistent with Ghahramani and Hinton 1996, and Cheng and Sabes 2006
+%Estimate Q,R: %Adaptation of Shumway and Stoffer 1982: (there B=D=0 and C is fixed), but consistent with Ghahramani and Hinton 1996, and Cheng and Sabes 2006
 [w,z]=computeResiduals(Y,U,X,A,B,C,D);
 
 % MLE estimator of Q, under the given assumptions:
-aux=chol(SP_); %Enforce symmetry
+aux=mycholcov(SP_); %Enforce symmetry
 Aa=A*aux';
 Nw=size(w,2);
 Q2=(S_P-2*(A*SPt')+Aa*Aa')/(Nw); %If these matrices come from kalman smoothing, they satisfy a relation that guarantees Q2 is psd. This need not be the case exactly because of the way I am enforcing symmetry for A*Spt';
-sQ=chol(Q2);
+sQ=mycholcov(Q2);
 Q2=sQ'*sQ;
 %According to Ghahramani and Hinton, and Cheng and Sabes: Q2 simplifies to: (SP__-A*SPt')/Nw [with the new value of A]
 %Q=(w*w')/(N-1)+Q2; %true MLE estimator. But not designed to deal with outliers, autocorrelated w
@@ -48,18 +55,25 @@ Q=Q1 +Q2;
 %Q=Q1+1e-10*eye(size(Q));
 
 %MLE of R:
-aux=chol(SP); %Enforce symmetry
+aux=mycholcov(SP); %Enforce symmetry
 Ca=C*aux';
 Nz=size(z,2);
-R=(z*z'+Ca*Ca')/Nz;
+R1=(z*z')/Nz;
+R2=(Ca*Ca')/Nz;
+R=R1+R2;
+l1=dataLogLikelihood(Y,U,A,B,C,D,Q,R1,x0,P0,'approx');
+l2=dataLogLikelihood(Y,U,A,B,C,D,Q,R,x0,P0,'approx'); %This requires a Kalman filter pass to evaluate
+%l1=dataLogLikelihood(Y,U,A,B,C,D,Q,R1,[X, zeros(size(X,1),1)],cat(3,P,zeros(size(X,1),size(X,1),1)),'approx');
+%l2=dataLogLikelihood(Y,U,A,B,C,D,Q,R,[X, zeros(size(X,1),1)],cat(3,P,zeros(size(X,1),size(X,1),1)),'approx');
+if l1>l2 %For some reason I do not understand, R does not always maximize the log-L, sometimes R1 is better. 
+    %This should not happen, as Shumway & Stoffer 1982, Ghahramani and
+    %Hinton 1996, and Cheng and Sabes 2006 all argue that this is the MLE
+    %of R.
+    R=R1;
+end
 R=R+1e-15*eye(size(R)); %Avoid numerical issues
 
-%x0,P0:
-if isa(X,'cell')
-    [x0,P0]=cellfun(@(x,p) estimateInit(x,p,A,Q),X,P,'UniformOutput',false);
-else
-    [x0,P0]=estimateInit(X,P,A,Q);
-end
+
 end
 
 function [x0,P0]=estimateInit(X,P,A,Q)

@@ -130,8 +130,17 @@ if D2>D1
     %Even if we assume P invertible, that still requires R to be invertible for all vectors orthogonal to the span of C at least)
     J=C'/cR';
     icR=eye(size(R))/cR;
-    Rinv=icR*icR'; %is =pinv(R,tol); better? tol=1e-8;
-    
+    Rinv=icR*icR'; 
+    %tol=1e-8;
+    %Rinv =pinv(R,tol); works for non-invertible R, although the results are not quite what we'd expect. 
+    %If pinv() is used, we effectively eliminate the projection of Y_D onto
+    %the nulll space of R, although that is not what the standard Kalman
+    %filter would do. Perhaps the optimal behavior then would be to
+    %decompose the update into two parts: the R null component, which has a
+    %Kalman gain of K=PC'/(CPC') [which characterizes a well-defined filter
+    %as long as the null space of R is contained within the span of C], and
+    %the R-potent component, which has the standard Kalman gain, and where
+    %Rinv is well-defined.
     %Redefine observations and obs equation to the dim reduced form:
     R=J*J';
     Y_D=C'*Rinv*Y_D;
