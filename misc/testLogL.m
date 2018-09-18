@@ -4,7 +4,6 @@
 addpath(genpath('../EM/')) %Adding the matlab-sysID toolbox to path, just in case
 addpath(genpath('../kalman/'))
 addpath(genpath('../aux/'))
-addpath(genpath('../sim/'))
 addpath(genpath('../../robustCov/'))
 %% Create model:
 D1=2;
@@ -32,26 +31,26 @@ x0=zeros(D1,1);
 %% Compare likelihood estimates:
 %% Exact
 tic 
-logLexact=dataLogLikelihood(Y,U,A,B,C,D,Q,R,Xp(:,1),10000*Pp(:,:,1),'exact')
+logLexact=dataLogLikelihood(Y,U,A,B,C,D,Q,R,Xp(:,1),Pp(:,:,1),'exact')
 toc
 
 %% Approx
 tic 
-logLapp=dataLogLikelihood(Y,U,A,B,C,D,Q,R,Xp(:,1),10000*Pp(:,:,1),'approx')
+logLapp=dataLogLikelihood(Y,U,A,B,C,D,Q,R,Xp(:,1),Pp(:,:,1),'approx')
 toc
 
 %% Fast
 tic 
-logLfast=dataLogLikelihood(Y,U,A,B,C,D,Q,R,Xp(:,1),10000*Pp(:,:,1),'fast')
+logLfast=dataLogLikelihood(Y,U,A,B,C,D,Q,R,Xp(:,1),Pp(:,:,1),'fast')
 toc
 
 %% Max
 tic 
-logLmax=dataLogLikelihood(Y,U,A,B,C,D,Q,R,Xp(:,1),10000*Pp(:,:,1),'max')
+logLmax=dataLogLikelihood(Y,U,A,B,C,D,Q,R,Xp(:,1),Pp(:,:,1),'max')
 toc
 %%
 tic
-[A1,B1,C1,D1,Q1,R1,X1,P1]=trueEM(Y,U,2,[],1);
+[A1,B1,C1,D1,Q1,R1,X1,P1]=EM(Y,U,2,[],1);
 toc
 [Xs1,Ps1,~,~,~,Xp1,Pp1]=statKalmanSmoother(Y,A1,C1,Q1,R1,[],[],B1,D1,U,false); %
 tic 

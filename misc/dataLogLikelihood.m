@@ -48,13 +48,16 @@ function logLperSamplePerDim=logLexact(z,Pp,C,R)
 %Exact way: (very slow)
 minus2ly=nan(size(z,2),1);
 for i=1:size(z,2)
-    sP=chol(Pp(:,:,i));
+    sP=mycholcov(Pp(:,:,i));
     CsP=C*sP';
     P=R+CsP*CsP';
-    logdetP= sum(log(eig(P)));%Should use:https://en.wikipedia.org/wiki/Matrix_determinant_lemma to cheapen computation (can exploit knowing C'*(R\C) and det(R) ahead of time to only need computing size(Pp) determinants
-    eP=eig(P);
-    if ~all(imag(eP)==0 & eP>0) %Sanity check, the output covariance should be positive semidef., otherwise the likelihood is not well defined
-        error('Covariance matrix is not PSD, cannot compute likelihood')
+    [cP,r]=chol(P); %This has to be PD strictly
+    logdetP= 2*sum(log(diag(cP)));
+    %logdetP= sum(log(eig(P)));%Should use:https://en.wikipedia.org/wiki/Matrix_determinant_lemma to cheapen computation (can exploit knowing C'*(R\C) and det(R) ahead of time to only need computing size(Pp) determinants
+    %eP=eig(P);
+    %if ~all(imag(eP)==0 & eP>0) %Sanity check, the output covariance should be positive semidef., otherwise the likelihood is not well defined
+    if r~=0
+        error('Covariance matrix is not PD, cannot compute likelihood')
     end
     zz=z(:,i);
     minus2ly(i)=zz'*(P\zz) +logdetP + D2*log(2*pi);
@@ -66,14 +69,21 @@ end
 function logLperSamplePerDim=logLapprox(z,Pp,C,R)
 %Faster, approximate way:
 [D,N]=size(z);
-CPpCt=C*median(Pp,3)*C'; %Mean makes no sense, changed to median
-CPpCt=(CPpCt+CPpCt')/2; %Cheap way to ensure PSD
+mPP=median(Pp,3);
+cPP=mycholcov(mPP);
+CcPP=C*cPP;
+%CPpCt=C*median(Pp,3)*C'; %Mean makes no sense, changed to median
+%CPpCt=(CPpCt+CPpCt')/2; %Cheap way to ensure PSD
+CPpCt=CcPP*CcPP';
 P=R+CPpCt;
-eP=eig(P);
-if ~all(imag(eP)==0 & eP>0) %Sanity check, the output covariance should be positive semidef., otherwise the likelihood is not well defined
-    error('Covariance matrix is not PSD, cannot compute likelihood')
+[cP,r]=chol(P); %This has to be PD strictly
+%eP=eig(P);
+%if ~all(imag(eP)==0 & eP>0) %Sanity check, the output covariance should be positive semidef., otherwise the likelihood is not well defined
+if r~=0
+    error('Covariance matrix is not PD, cannot compute likelihood')
 end
-logdetP= mean(log(eP)); %Should use:https://en.wikipedia.org/wiki/Matrix_determinant_lemma to cheapen computation (can exploit knowing C'*(R\C) and det(R) ahead of time to only need computing size(Pp) determinants
+%logdetP= mean(log(eP)); %Should use:https://en.wikipedia.org/wiki/Matrix_determinant_lemma to cheapen computation (can exploit knowing C'*(R\C) and det(R) ahead of time to only need computing size(Pp) determinants
+logdetP= 2*mean(log(diag(cP)));
 S=z*z'/N;
 %logL=-.5*N2*(trace(lsqminnorm(P,S,1e-8))+logdetP+D2*log(2*pi)); %Non-gpu ready
 logLperSamplePerDim=-.5*(mean(diag(P\S))+logdetP+log(2*pi));
