@@ -33,7 +33,7 @@ X=Xguess;
 
 %Initialize log-likelihood register & current best solution:
 if nargin<7 || isempty(Niter)
-    Niter=10001;
+    Niter=301;
 end
 logl=nan(Niter,1);
 logl(1,1)=bestLogL;

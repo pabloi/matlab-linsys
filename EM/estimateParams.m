@@ -33,7 +33,7 @@ D=CD(:,D1+1:end);
 aux=chol(SP_); %Enforce symmetry
 Aa=A*aux';
 Nw=size(w,2);
-Q2=(S_P-2*(A*SPt')+Aa*Aa')/(Nw); %If these matrices come from kalman smoothing, they satisfy a relation that guarantees Q2 is psd. This need not be the case exactly because of the way I am enforcing symmetry for A*Spt';
+Q2=(S_P-(A*SPt'+SPt*A')+Aa*Aa')/(Nw); %If these matrices come from kalman smoothing, they satisfy a relation that guarantees Q2 is psd. This need not be the case exactly because of the way I am enforcing symmetry for A*Spt';
 sQ=chol(Q2);
 Q2=sQ'*sQ;
 %According to Ghahramani and Hinton, and Cheng and Sabes: Q2 simplifies to: (SP__-A*SPt')/Nw [with the new value of A]

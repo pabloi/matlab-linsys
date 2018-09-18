@@ -5,7 +5,7 @@ addpath(genpath('../aux/'))
 addpath(genpath('../sim/'))
 %% Create model:
 D1=2;
-D2=180;
+D2=2;
 N=1000;
 A=randn(D1);
 A=[.97,0;0,.995];

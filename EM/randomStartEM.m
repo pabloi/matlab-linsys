@@ -8,7 +8,7 @@ end %TODO: if method is given, check that it is 'true' or 'fast'
 
 %First iter:
 fprintf(['Starting rep 0... ']);
-Niter=500;
+Niter=301;
 [A,B,C,D,Q,R,X,P,bestLL]=EM(Y,U,nd,[],0,[],Niter); %FastEM
 N=size(Y,2);
 
