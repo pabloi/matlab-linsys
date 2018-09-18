@@ -3,7 +3,9 @@ function [cInvA,cA,invA]=pinvchol(A)
 %using its chol decomposition, as given by mycholcov(). 
 
 [cA,r]=mycholcov(A);
+%cA(abs(cA)<eps)=0; %Sometimes chol() manages to compute the Chol decomposition of practically null matrices
 cInvA=mldivide(cA(1:r,:),eye(r));
+%cInvA=pinv(cA(1:r,:));
 % opts.UT = true;
 % opts.TRANSA =false;
 % n=size(U,1);

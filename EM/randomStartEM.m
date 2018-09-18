@@ -7,7 +7,7 @@ if nargin<5 || isempty(method)
 end %TODO: if method is given, check that it is 'true' or 'fast'
 
 %First iter:
-fprintf(['Starting rep 0... ']);
+fprintf(['\n Starting rep 0... \n']);
 Niter=500;
 [A,B,C,D,Q,R,X,P,bestLL]=EM(Y,U,nd,[],0,[],Niter); %FastEM
 N=size(Y,2);
@@ -20,7 +20,7 @@ switch method
 end
 
 for i=1:Nreps
-    fprintf(['Starting rep ' num2str(i) '. Best logL so far=' num2str(bestLL) '... ']);
+    fprintf(['\n Starting rep ' num2str(i) '. Best logL so far=' num2str(bestLL) '... \n']);
 
     %Initialize starting point:
     x01=randn(nd,1);
@@ -45,11 +45,12 @@ for i=1:Nreps
         disp(['Success, best logL=' num2str(bestLL)])
     end
 end
-disp(['End. Best logL=' num2str(bestLL)]);
 
+disp(['Refining solution...']);
 [Ai,Bi,Ci,Di,Qi,Ri,Xi,Pi,bestLL1]=EM(Y,U,X,bestLL,[],[],200); %Refine solution, sometimes works
 if bestLL1>bestLL
     A=Ai; B=Bi; C=Ci; D=Di; Q=Qi; R=Ri; X=Xi; P=Pi; bestLL=bestLL1;
 end
-    
+ 
+disp(['End. Best logL=' num2str(bestLL)]);
 end
