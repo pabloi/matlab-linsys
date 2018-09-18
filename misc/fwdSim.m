@@ -13,8 +13,10 @@ end
 if nargin<8 || isempty(R)
    R=zeros(size(C,1)); 
 end
+q=mycholcov(Q);
+r=mycholcov(R);
 for k=1:N
-  out(:,k)=calcOutput(state(:,k),in(:,k),C,D,R);
-  state(:,k+1)=updateState(state(:,k),in(:,k),A,B,Q);
+  out(:,k)=calcOutput(state(:,k),in(:,k),C,D,[],r);
+  state(:,k+1)=updateState(state(:,k),in(:,k),A,B,[],q);
 end
 end
