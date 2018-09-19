@@ -67,7 +67,10 @@ else
 %which causes large state updates when those 'outliers' are observed, leading 
 %to large state residuals w, which leads to large Q and so on.
 %It also breaks the non-decreasing logL guarantee of EM, and slightly
-%slower than the classical update.
+%slower than the classical update: 10ms per call on my current setup, which
+%is 100+% the time of the whole estimateParams(). However, improved
+%parameter estimation may lead to faster overall EM() running time if the
+%fastFlag is enabled.
     Q1=robCov(w); %Fast variant of robustcov() estimation
 end
 Q=Q1 +Q2;

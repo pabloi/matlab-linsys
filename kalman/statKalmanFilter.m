@@ -127,23 +127,30 @@ BU=B*U;
 %observations never fall on the null-space of R.
 if D2>D1
 %Pre-computing for speed: 
-Rinv=pinv(R,1e-8); 
-CtRinv=C'*Rinv; %gpu-ready  %Equivalent to lsqminnorm(R,C,tol)';, not gpu ready 
-CtRinvC=CtRinv*C; %Should use cholcov() 
-CtRinvY=CtRinv*Y_D; 
 
-%Alt:
-%     cR=chol(R);% mycholcov(R); could do if R is semidefinite, but in general semidefinite R is unworkable, as R+C*P*C' needs to be invertible. 
-%     %Even if we assume P invertible, that still requires R to be invertible for all vectors orthogonal to the span of C at least)
-%     J=C'/cR';
-%     icR=eye(size(R))/cR;
-%     Rinv=icR*icR'; %is =pinv(R,tol); better? tol=1e-8;
-%     %Rinv=pinv(R,1e-8);
-%     
-%     %Redefine observations and obs equation to the dim reduced form:
-%     R=J*J';
-%     Y_D=C'*Rinv*Y_D;
-%     C=R;
+%First, invert R:
+%Opt 1:
+ [icR]=pinvchol(R); %This works if R is semidefinite, but in general 
+%semidefinite R is unworkable, as R+C*P*C' needs to be invertible. 
+%Even assuming P invertible at each update, it still requires R to be 
+%invertible for all vectors orthogonal to the span of C at least)
+
+%Opt 2:
+% Rinv=pinv(R,1e-8);
+% icR=mycholcov(Rinv)';
+
+%Second, reduce the dimensionality problem:
+J=C'*icR; %Cholesky-like decomp of C'*inv(R)*C
+%Opt 1: %This will call on KFupdateAlt() for updates
+% CtRinv=J*icR';
+% CtRinvC=J*J';
+% CtRinvY=CtRinv*Y_D;
+
+%Opt 2: %This will NOT call on KFupdateAlt, and will use KFupdate()
+R=J*J';
+Y_D=J*icR'*Y_D;
+C=R;
+D2=D1;
 end
 
 %Do the true filtering for M steps
@@ -156,7 +163,7 @@ for i=1:M
               prevP=prevPt;    prevX=prevXt;
           end
       else %This is here because it is more efficient to not compute the z-score if we dont need it
-          if D2>D1
+          if D2>D1 %This never happens if Opt 2 was used to reduce the problem 
               [prevX,prevP]=KFupdateAlt(CtRinvY(:,i),CtRinvC,prevX,prevP);
               K=prevP*CtRinv;
           else
