@@ -195,16 +195,13 @@ end
 end
 
 function [P,Pt]=initCov(X)
-    [D,N]=size(X);
+    [~,N]=size(X);
     %Initialize covariance to plausible values:
-    %dX=diff(X');
-    %Px=(dX'*dX)/(sqrt(2)*N); 
-    Px=cov(X');
+    dX=diff(X');
+    Px=(dX'*dX)/N; 
     P=repmat(Px,1,1,N);
     %Px1=(dX(2:end,:)'*dX(1:end-1,:));
-    mX=mean(X,2);
-    Pt=(X(:,2:end)-mX)*(X(:,1:end-1)-mX)';
-    Pt=repmat(1e-9*Pt,1,1,N);
+    Pt=repmat(.2*diag(diag(Px)),1,1,N);
 end
 
 function X=initGuess(Y,U,D1)
