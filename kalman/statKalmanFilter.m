@@ -178,23 +178,24 @@ end
 if M<N 
     %Steady-state matrices:
     Psteady=P(:,:,M); %Steady-state UPDATED uncertainty matrix
+    prevX=X(:,M);
     Ksteady=K; %Steady-state Kalman gain
     Gsteady=eye(size(Ksteady,1))-Ksteady*C; %I-K*C,
     
     %Pre-compute matrices to reduce computing time:
-    GBU_KY=Gsteady*BU+Ksteady*Y_D;
+    GBU_KY=Gsteady*BU(:,M:N-1)+Ksteady*Y_D(:,M+1:N); %The off-ordering is because we are doing predict (which depends on U(:,i-1)) and update (which depends on Y(:,i)
     GA=Gsteady*A;
     
-    %Assign all prediction uncertainty matrices:
-    P(:,:,M+1:end)=repmat(P(:,:,M),1,1,size(Y,2)-M);
+    %Assign all UPDATED uncertainty matrices:
+    P(:,:,M+1:end)=repmat(P(:,:,M),1,1,N-M);
     
     %Loop for remaining steps to compute x:
     if outlierRejection
         %TODO: reject outliers by replacing with NaN in KBUY, this needs to be done in-loop
        warning('Outlier rejection not implemented')
     end
-    for i=M+1:size(Y,2)
-        gbu_ky=GBU_KY(:,i);
+    for i=M+1:N
+        gbu_ky=GBU_KY(:,i-M);
         if ~any(isnan(gbu_ky))
             prevX=GA*prevX+gbu_ky; %Predict+Update, in that order.
             %TODO: evaluate if this is good: because we dont compute y-C*X first 
