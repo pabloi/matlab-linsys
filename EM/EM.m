@@ -55,6 +55,7 @@ end
 failCounter=0;
 breakFlag=false;
 %fh=figure;
+disp(['Iter = 1, target logL = ' num2str(targetLogL)])
 for k=1:Niter-1
 	%E-step: compute the expectation of latent variables given current parameter estimates
     %Note this is an approximation of true E-step in E-M algorithm. The
@@ -143,7 +144,7 @@ for k=1:Niter-1
         pOverTarget=100*(l/targetLogL-1);
         if k>=step && ~breakFlag
             lastChange=l-logl(k+1-step,1);
-            disp(['Iter = ' num2str(k) ', \Delta = ' num2str(lastChange) ', % over target = ' num2str(pOverTarget)])
+            disp(['Iter = ' num2str(k) ', \Delta logL = ' num2str(lastChange) ', % over target = ' num2str(pOverTarget)])
         else %k==1 || breakFlag
             l=bestLogL;
             pOverTarget=100*(l/targetLogL-1);

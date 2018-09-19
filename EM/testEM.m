@@ -122,8 +122,8 @@ hold on
 %Smooth versions
 set(gca,'ColorOrderIndex',1)
 p1=plot(X1(i,:),'LineWidth',2,'DisplayName','Actual');
-p2=plot(X2(i,:),'LineWidth',2,'DisplayName','trueEM');
-p3=plot(X3(i,:),'LineWidth',2,'DisplayName','trueEM-trueStart');
+p2=plot(X2(i,:),'LineWidth',2,'DisplayName','EM (iterated)');
+p3=plot(X3(i,:),'LineWidth',2,'DisplayName',['EM (1 start, robust=' num2str(robustFlag) ')']);
 axis([0 2000 -.5 1.5])
 %Fitted versions:
 set(gca,'ColorOrderIndex',1)
