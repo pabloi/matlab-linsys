@@ -29,7 +29,7 @@ logL=dataLogLikelihood(Y,U,A,B,C,D,Q,R,Xs(:,1),Ps(:,:,1));
 
 %% Identify 2: true EM
 tic
-[Ah,Bh,Ch,Dh,Qh,Rh,Xh,Ph]=EM(Y,U,X(:,1:end-1)); %True-start values
+[Ah,Bh,Ch,Dh,Qh,Rh,Xh,Ph]=EM(Y,U,2);%X(:,1:end-1)); %True-start values
 logLh=dataLogLikelihood(Y,U,Ah,Bh,Ch,Dh,Qh,Rh,Xh(:,1),Ph(:,:,1));
 %[Xsh,Psh,Pth,Xfh,Pfh,Xph,Pph]=statKalmanSmoother(Y,Ah,Ch,Qh,Rh,Xh(:,1),Ph(:,:,1),Bh,Dh,U,false);
 toc

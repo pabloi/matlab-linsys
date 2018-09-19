@@ -120,10 +120,10 @@ for k=1:Niter-1
     end
 
     %Check if we should stop early (to avoid wasting time):
-    if k>1 && (belowTarget && (targetRelImprovement10)<5e-2) %Breaking if improvement less than 5% of distance to targetLogL, as this probably means we are not getting a solution better than the given target
+    if k>10 && (belowTarget && (targetRelImprovement10)<5e-2) %Breaking if improvement less than 5% of distance to targetLogL, as this probably means we are not getting a solution better than the given target
        fprintf(['unlikely to reach target value. ' num2str(k) ' iterations.\n'])
        breakFlag=true; 
-    elseif k>1 && (relImprovementLast10)<1e-9 %Considering the system stalled if relative improvement on logl is <1e-9
+    elseif k>10 && (relImprovementLast10)<1e-9 %Considering the system stalled if relative improvement on logl is <1e-9
         fprintf(['increase is within tolerance (local max). '  num2str(k) ' iterations.\n'])
         %disp(['LogL as % of target:' num2str(round(l*100000/targetLogL)/1000)])
         breakFlag=true;
@@ -133,9 +133,9 @@ for k=1:Niter-1
     end
     
     %Print some info
-    if mod(k,50)==0 || breakFlag %Print info
+    if mod(k,1)==0 || breakFlag %Print info
         pOverTarget=100*(l/targetLogL-1);
-        if k>50 & ~breakFlag
+        if k>50 && ~breakFlag
             lastChange=l-logl(k-49,1);
             disp(['Iter = ' num2str(k) ', \Delta = ' num2str(lastChange) ', % over target = ' num2str(pOverTarget)])
         else %k==1 || breakFlag

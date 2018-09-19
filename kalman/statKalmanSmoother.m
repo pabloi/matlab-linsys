@@ -130,8 +130,9 @@ for i=M:-1:1
   %Backward pass:
   %First, compute gain:
   AP=A*pf;
-  iP=pinv(pp,1e-8);
-  isP=mycholcov(iP)';
+  %iP=pinv(pp,1e-8);
+  %isP=mycholcov(iP)';
+  [isP,~,iP]=pinvchol(pp);
   H=AP'*iP; %H=AP'/pp; %Faster, although worse conditioned, matters a lot when smoothing
 
   %Improved (smoothed) state estimate
