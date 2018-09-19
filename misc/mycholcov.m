@@ -1,7 +1,11 @@
 function [L,r]=mycholcov(A)
 %A Cholesky-like decomposition that accepts semidefinite matrices, and
-%always returns a triangular matrix, unlike Matlab's cholcov()
-%See also: cholcov, testMyCholCov
+%always returns a triangular matrix, unlike Matlab's cholcov().
+%For under-rank matrices, this returns a rectangular factor of size rxn,
+%where r is the rank of the matrix, and n is the size of A. This allows for
+%fast computation of pseudo-inverse with backlash, something that can't
+%happen if the matrix has all-0 rows.
+%See also: cholcov, testMyCholCov, pinvchol
 
 r=size(A,1);
 [L,p]=chol(A);
@@ -24,9 +28,10 @@ if p~=0 %Not positive definite, need to complete
         end 
         %L=L1(1:r,:); 
         %L=L1; %Equivalent to above, but faster.
-        L=triu(L1); %Slower assignment, but taking tril() ensures triangularity
+        %L=triu(L1); %Slower assignment, but taking tril() ensures triangularity
+        L=triu(L1(1:r,:));
     else
-        L=zeros(r);
+        L=zeros(0,r);
         r=0;
     end    
 end

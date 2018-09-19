@@ -2,19 +2,25 @@ function [x,P,z]=KFupdateAlt(CtRinvY,CtRinvC,x,P)
 %A faster Kalman update step when size(R)>size(P). Requires invertible P.
 %To do: is there an equivalent fast version when P is not invertible?
 
-%sP=chol(P); %Since P needs to be invertible, this exists
-sP=mycholcov(P);
-I=eye(size(P));
-isP=I/sP; %This returns the pseudo-inv if sP is under-rank
-iP=isP*isP';
-iM=iP+CtRinvC; 
-isM=chol(iM);
-sM=I/isM;
-M=sM*sM'; %K=M*CtRinv
-%PCM=P*CtRinvC*sM;
-%P=P-P*CtRinvC*P + PCM*PCM'; %P=M if P is invertible
-%P=P*(I-iP+iP*M*iP);
-P=M;
+%sP=chol(P); 
+
+if trace(P)~=0 %If all-zero covariance, nothing to do.
+    %Short version:
+    %[isP,sP,iP]=invcov(P);
+    %[iM,isM,P]=invcov(iP+CtRinvC);
+    sP=mycholcov(P);
+    I=eye(size(P));
+    isP=I/sP; %This returns the pseudo-inv if sP is under-rank
+    iP=isP*isP';
+    iM=iP+CtRinvC;
+    isM=chol(iM);  %Since P needs to be invertible, this exists
+    sM=I/isM;
+    M=sM*sM'; %K=M*CtRinv
+    %PCM=P*CtRinvC*sM;
+    %P=P-P*CtRinvC*P + PCM*PCM'; %P=M if P is invertible
+    %P=P*(I-iP+iP*M*iP);
+    P=M;
+end
 
 %Do update of state:
 %x=P*(iP*x+CtRinvY); 

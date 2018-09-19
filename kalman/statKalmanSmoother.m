@@ -80,7 +80,6 @@ prevPs=Pf(:,:,N);
 prevXs=Xf(:,N);
 Ps(:,:,N)=prevPs;
 Xs(:,N)=prevXs;
-cPs=mycholcov(prevPs);
 
 if isa(Xs,'gpuArray') %For code to work on gpu
     Pt=nan(D1,D1,N-1,'gpuArray'); %Transition covariance matrix
@@ -101,7 +100,7 @@ for i=N-1:-1:1%N-M
   %xp=A*xf+B*U(:,i); %Could compute instead of acccesing it, unclear which is faster
 
   %Backward pass:
-  [cPs,prevXs,newPt]=backStep(pp,pf,cPs,xp,xf,prevXs,A);
+  [prevPs,prevXs,newPt]=backStep(pp,pf,prevPs,xp,xf,prevXs,A);
 
   %Store estimates:
   Xs(:,i)=prevXs;
@@ -153,11 +152,11 @@ end
 
 end
 
-function [cPs,prevXs,newPt]=backStep(pp,pf,cPs,xp,xf,prevXs,A)
+function [prevPs,prevXs,newPt]=backStep(pp,pf,ps,xp,xf,prevXs,A)
   %Backward pass:
   %First, compute gain:
   AP=A*pf;
-  [icP,cP]=pinvchol(pp);
+  [icP,~]=pinvchol(pp);
   H=(AP'*icP)*icP'; %H=AP'/pp; %Faster, although worse conditioned, matters a lot when smoothing
   %iP=pinv(pp,1e-12); %pinv is the way to go if we are doing fast mode, as this is only computed once
   %icP=mycholcov(iP)';
@@ -165,14 +164,14 @@ function [cPs,prevXs,newPt]=backStep(pp,pf,cPs,xp,xf,prevXs,A)
   %H=AP'*pinv(pp);
 
   %Compute relevant covariances
-  newPt=(cPs'*cPs)*H'; %This should be such that A*newPt' is hermitian
+  newPt=ps*H'; %This should be such that A*newPt' is hermitian
   %Hps=H*mycholcov(prevPs)'; %Ensure symmetry
   %Hcpp=cP*H';%=icP'*AP; %Pr=pf'*A'*inv(pp)*A*pf = pf'*A'*inv(pp)*pp*inv(pp)*A*pf = H*pp*H'
-  %Hext=H*(mycholcov(pp-prevPs)');
-  Hext=H*(cP-cPs);
+  Hext=H*(mycholcov(pp-ps)');
   
   %Updates: Improved (smoothed) state estimate
   prevPs=pf-Hext*Hext'; %=pf + Hps*Hps' - Hcpp'*Hcpp;  %Would it be more precise/efficient to compute the sum of the last two terms as inv(inv(pf) +A'*inv(Q)*A) ?
   cPs=mycholcov(prevPs); %Ensure PSD
+  prevPs=cPs'*cPs;
   prevXs=xf + H*(prevXs-xp);
 end
