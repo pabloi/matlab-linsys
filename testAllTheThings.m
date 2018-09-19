@@ -1,0 +1,16 @@
+%%
+testCanonize
+testLogL
+testMyCholCov
+testEM
+testEM_Q0
+testEMfast
+testEMmissingData
+testEMRealData
+testRandomStartEM
+testKFupdate
+testStationaryFastMode
+testStationarySmoother
+testStationarySmoother_Q0
+testConstrainedKF
+testConstrainedKF2
