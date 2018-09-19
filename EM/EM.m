@@ -83,29 +83,31 @@ for k=1:Niter-1
     logl(k+1)=l;
     delta=l-logl(k,1);
     improvement=delta>=0;
-    targetRelImprovement10=(l-logl(max(k-10,1),1))/(targetLogL-l);
-    belowTarget=l<targetLogL;
-    relImprovementLast10=1-logl(max(k-10,1),1)/l; %Assessing the relative improvement on logl over the last 10 iterations (or less if there aren't as many)
+    targetRelImprovement50=(l-logl(max(k-50,1),1))/(targetLogL-l);
+    belowTarget=max(l,bestLogL)<targetLogL;
+    relImprovementLast50=1-logl(max(k-50,1),1)/l; %Assessing the relative improvement on logl over the last 10 iterations (or less if there aren't as many)
     
     %Check for failure conditions:
     if imag(l)~=0 %This does not happen
-        fprintf(['Complex logL, probably ill-conditioned matrices involved. Stopping after ' num2str(k) ' iterations.\n'])
+        msg='Complex logL, probably ill-conditioned matrices involved. Stopping.';
+        %fprintf(['Complex logL, probably ill-conditioned matrices involved. Stopping after ' num2str(k) ' iterations.\n'])
         breakFlag=true;
     elseif any(abs(eig(A1))>1)
         %No need to break for unstable systems, usually they converge to a
         %stable system or lack of improvement in logl makes the iteration stop
         %fprintf(['Unstable system detected. Stopping. ' num2str(k) ' iterations.\n'])
+        warning('EM:unstableSys','Unstable system detected');
         %break
     elseif ~improvement %This should never happen, except that our loglikelihood is approximate, so there can be some error
         if abs(delta)>1e-6 %Drops of about 1e-6 can be expected because we are
           %computing an approximate logl and because of numerical precision. Report
           %only if drops are larger than this. This value probably is sample-size dependent, so may need adjusting.
-            warning(['logL decreased at iteration ' num2str(k) ', drop = ' num2str(delta)])
+          % warning('EM:logLdrop',['logL decreased at iteration ' num2str(k) ', drop = ' num2str(delta)])
         end
         failCounter=failCounter+1;
         %TO DO: figure out why logl sometimes drops a lot on iter 1.
         if failCounter>9
-            fprintf(['Dropped 10 times w/o besting the fit. ' num2str(k) ' iterations.\n'])
+            %fprintf(['Dropped 10 times w/o besting the fit. ' num2str(k) ' iterations.\n'])
             %breakFlag=true;
         end
     else %There was improvement
@@ -120,29 +122,35 @@ for k=1:Niter-1
     end
 
     %Check if we should stop early (to avoid wasting time):
-    if k>10 && (belowTarget && (targetRelImprovement10)<5e-2) %Breaking if improvement less than 5% of distance to targetLogL, as this probably means we are not getting a solution better than the given target
-       fprintf(['unlikely to reach target value. ' num2str(k) ' iterations.\n'])
+    if k>50 && (belowTarget && (targetRelImprovement50)<5e-2) %Breaking if improvement less than 5% of distance to targetLogL, as this probably means we are not getting a solution better than the given target
+       msg='Unlikely to reach target value. Stopping.';
+        %fprintf([ num2str(k) ' iterations.\n'])
        breakFlag=true; 
-    elseif k>10 && (relImprovementLast10)<1e-9 %Considering the system stalled if relative improvement on logl is <1e-9
-        fprintf(['increase is within tolerance (local max). '  num2str(k) ' iterations.\n'])
+    elseif k>50 && (relImprovementLast50)<1e-9 %Considering the system stalled if relative improvement on logl is <1e-9
+        msg='Increase is within tolerance (local max). Stopping.';
+        %fprintf(['increase is within tolerance (local max). '  num2str(k) ' iterations.\n'])
         %disp(['LogL as % of target:' num2str(round(l*100000/targetLogL)/1000)])
         breakFlag=true;
     elseif k==Niter-1
-        fprintf(['max number of iterations reached. '  num2str(k) ' iterations.\n'])
+        %fprintf(['max number of iterations reached. '  num2str(k) ' iterations.\n'])
+        msg='Max number of iterations reached. Stopping.';
         breakFlag=true;
     end
     
     %Print some info
-    step=1;
+    step=50;
     if mod(k,step)==0 || breakFlag %Print info
         pOverTarget=100*(l/targetLogL-1);
-        if k>50 && ~breakFlag
-            lastChange=l-logl(k-step,1);
+        if k>=step && ~breakFlag
+            lastChange=l-logl(k+1-step,1);
             disp(['Iter = ' num2str(k) ', \Delta = ' num2str(lastChange) ', % over target = ' num2str(pOverTarget)])
         else %k==1 || breakFlag
             l=bestLogL;
             pOverTarget=100*(l/targetLogL-1);
             disp(['Iter = ' num2str(k) ', logL = ' num2str(l) ', % over target = ' num2str(pOverTarget)])
+            if breakFlag
+            fprintf([msg ' \n'])
+            end
         end
     end
     if breakFlag
@@ -150,6 +158,7 @@ for k=1:Niter-1
     end
     %M-step:
     [A1,B1,C1,D1,Q1,R1,x01,P01]=estimateParams(Y,U,X1,P1,Pt1);
+    %[A1,B1,C1,x01,~,Q1,P01] = canonizev2(A1,B1,C1,x01,Q1,P01);
 end
 
 %%

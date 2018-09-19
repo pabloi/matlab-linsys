@@ -1,9 +1,10 @@
 function [x,P,K,z]=KFupdate(C,R,y,x,P)
 
-S=R+C*P*C';
-%cS=chol(S);
-%icS=eye(size(S))/cS;
-[icS,cS]=pinvchol(S);
+cP=mycholcov(P);
+CcP=C*cP';
+cS=chol(R+CcP*CcP'); %This should always be PD, so chol() should work
+icS=eye(size(R))/cS;
+%[icS,cS]=pinvchol(R+CcP*CcP');
 %K=P*C'/S;%=pinv(pinv(P)+CtRinvC);
 CicS=C'*icS;
 PCicS=P*CicS;
