@@ -1,4 +1,4 @@
-function [A,B,C,D,Q,R,x0,P0]=estimateParams(Y,U,X,P,Pt)
+function [A,B,C,D,Q,R,x0,P0]=estimateParams(Y,U,X,P,Pt,robustFlag)
 %M-step of EM estimation for LTI-SSM
 %INPUT:
 %Y = output of the system, D2 x N
@@ -9,6 +9,10 @@ function [A,B,C,D,Q,R,x0,P0]=estimateParams(Y,U,X,P,Pt)
 %evaluated at k+1|k
 %See Cheng and Sabes 2006, Ghahramani and Hinton 1996, Shumway and Stoffer 1982
 
+%
+if nargin<6 || isempty(robustFlag)
+    robustFlag=false;
+end
 %Define vars:
 [yx,yu,xx,uu,xu,SP,SPt,xx_,uu_,xu_,xx1,xu1,SP_,S_P]=computeRelevantMatrices(Y,X,U,P,Pt);
 D1=size(xx,1);
@@ -43,19 +47,29 @@ Nw=size(w,2);
 APt=A*SPt';
 Q2=(S_P-(APt+APt')+Aa*Aa')/(Nw);
 %Q2=(S_P-A*SPt')/Nw; %This is equivalent to the expression above if these 
-%matrices come from kalman smoothing, but requires enforcing PSD because of
-%numerical errors. 
+%matrices come from kalman smoothing.
 sQ=mycholcov(Q2);
-Q2=sQ'*sQ;
+Q2=sQ'*sQ; %Enforcing psd, unclear if necessary
 %See Ghahramani and Hinton, and Cheng and Sabes
 
-Q1=(w*w')/(Nw); %Covariance of EXPECTED residuals given the data and params
+if ~robustFlag
+    Q1=(w*w')/(Nw); 
+%Covariance of EXPECTED residuals given the data and params
 %not designed to deal with outliers, autocorrelated w
 %Note: if we dont have exact extimates of A,B, then the residuals w are not
 %iid gaussian. They will be autocorrelated AND have outliers with respect
 %to the best-fitting multivariate normal. Thus, we benefit from doing a
 %more robust estimate, especially to avoid local minima in trueEM
-%Q1=robCov(w); %Fast variant of robustcov() estimation, may lead to decreasing logL in EM
+else
+%Robust estimation manages to avoid the failure mode where Q is overestimated 
+%because of the presence of 'outlier' observations (which may or may not be
+%true outliers), which in turn causes predicted states to be very uncertain, 
+%which causes large state updates when those 'outliers' are observed, leading 
+%to large state residuals w, which leads to large Q and so on.
+%It also breaks the non-decreasing logL guarantee of EM, and slightly
+%slower than the classical update.
+    Q1=robCov(w); %Fast variant of robustcov() estimation
+end
 Q=Q1 +Q2;
 
 %MLE of R:
@@ -79,13 +93,13 @@ P0=P(:,:,1); %Smoothed estimate, the problem with this estimate is that it is mo
 %P0=Q+Aa*Aa';
 end
 
-function [yx,yu,xx,uu,xu,SP,SPt,xx_,uu_,xu_,xx1,xu1,SP_,SP__]=computeRelevantMatrices(Y,X,U,P,Pt)
+function [yx,yu,xx,uu,xu,SP,SPt,xx_,uu_,xu_,xx1,xu1,SP_,S_P]=computeRelevantMatrices(Y,X,U,P,Pt)
 %Notice all outputs are DxD matrices, where D=size(X,1);
 
 if isa(X,'cell') %Case where data is many realizations of same system
-    [yx,yu,xx,uu,xu,SP,SPt,xx_,uu_,xu_,xx1,xu1,SP_,SP__]=computeRelevantMatrices(Y{1},X{1},U{1},P{1},Pt{1});
+    [yx,yu,xx,uu,xu,SP,SPt,xx_,uu_,xu_,xx1,xu1,SP_,S_P]=computeRelevantMatrices(Y{1},X{1},U{1},P{1},Pt{1});
     for i=2:numel(X)
-        [yxa,yua,xxa,uua,xua,SPa,SPta,xx_a,uu_a,xu_a,xx1a,xu1a,SP_a,SP__a]=computeRelevantMatrices(Y{i},X{i},U{i},P{i},Pt{i});
+        [yxa,yua,xxa,uua,xua,SPa,SPta,xx_a,uu_a,xu_a,xx1a,xu1a,SP_a,S_Pa]=computeRelevantMatrices(Y{i},X{i},U{i},P{i},Pt{i});
         xx=xx+xxa;
         xu=xu+xua;
         uu=uu+uua;
@@ -96,7 +110,7 @@ if isa(X,'cell') %Case where data is many realizations of same system
         xu1=xu1+xu1a;
         SP=SP+SPa;
         SP_=SP_+SP_a;
-        SP__=SP__+SP__a;
+        S_P=S_P+S_Pa;
         SPt=SPt+SPta;
         yx=yx+yxa;
         yu=yu+yua;
@@ -111,7 +125,7 @@ else %Data is in matrix form, i.e., single realization
     xx_=X(:,1:end-1)*X(:,1:end-1)'; %=xx - X(:,end)*X(:,end)'
     %SP=sum(P,3);
     SP_=sum(P(:,:,1:end-1),3); %=SP-P(:,:,end);
-    SP__=sum(P(:,:,2:end),3); %=SP-P(:,:,1);
+    S_P=sum(P(:,:,2:end),3); %=SP-P(:,:,1);
     SPt=sum(Pt,3);
     xu1=X(:,2:end)*U(:,1:end-1)';
     xx1=X(:,2:end)*X(:,1:end-1)';

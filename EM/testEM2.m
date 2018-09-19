@@ -26,31 +26,24 @@ x0=zeros(D1,1);
 [Y1,X1]=fwdSim(U,A,B,C,D,x0,[],[]); %Noiseless simulation, for comparison
 [Xs,Ps]=statKalmanSmoother(Y,A,C,Q,R,[],[],B,D,U,false); %Kalman smoother estimation of states, given the true parameters (this is the best possible estimation of states)
 logL=dataLogLikelihood(Y,U,A,B,C,D,Q,R,Xs(:,1),Ps(:,:,1))
-%% Identify 1: fast EM (does not really work, unless the problem is easy)
+%% Identify 1alt: trueEM starting from true solution
+% fastFlag=0;
 % tic
-% [fAh,fBh,fCh,fDh,fQh,fRh,fXh,fPh]=fastEM(Y,U,2);
+% [fAh,fBh,fCh,fDh,fQh,fRh,fXh,fPh]=EM(Y,U,Xs,[],fastFlag);
 % flogLh=dataLogLikelihood(Y,U,fAh,fBh,fCh,fDh,fQh,fRh,fXh(:,1),fPh(:,:,1))
 % toc
 % [fAh,fBh,fCh,fXh,fV,fQh] = canonizev2(fAh,fBh,fCh,fXh,fQh);
-
-%% Identify 1alt: trueEM starting from true solution
+%% Identify 1alt: trueEM starting from non-true solution
+fastFlag=0;
+robustFlag=true;
 tic
-[fAh,fBh,fCh,fDh,fQh,fRh,fXh,fPh]=EM(Y,U,Xs);
+[fAh,fBh,fCh,fDh,fQh,fRh,fXh,fPh]=EM(Y,U,D1,[],fastFlag,robustFlag);
 flogLh=dataLogLikelihood(Y,U,fAh,fBh,fCh,fDh,fQh,fRh,fXh(:,1),fPh(:,:,1))
 toc
 [fAh,fBh,fCh,fXh,fV,fQh] = canonizev2(fAh,fBh,fCh,fXh,fQh);
-
-%% Identify 2: true EM
-tic
-[Ah,Bh,Ch,Dh,Qh,Rh,Xh,Ph]=EM(Y,U,2);
-logLh=dataLogLikelihood(Y,U,Ah,Bh,Ch,Dh,Qh,Rh,Xh(:,1),Ph(:,:,1))
-%[Xsh,Psh,Pth,Xfh,Pfh,Xph,Pph]=statKalmanSmoother(Y,Ah,Ch,Qh,Rh,Xh(:,1),Ph(:,:,1),Bh,Dh,U,false);
-toc
-[Ah,Bh,Ch,Xh,V,Qh] = canonizev2(Ah,Bh,Ch,Xh,Qh);
-[Xsh,Psh,Pth,Xfh,Pfh,Xph,Pph]=statKalmanSmoother(Y,Ah,Ch,Qh,Rh,Xh(:,1),Ph(:,:,1),Bh,Dh,U,false);
 %%
 tic
-[Ah1,Bh1,Ch1,Dh1,Qh1,Rh1,Xh1,Ph1]=randomStartEM(Y,U,2,5);
+[Ah1,Bh1,Ch1,Dh1,Qh1,Rh1,Xh1,Ph1]=randomStartEM(Y,U,2,5,'fast');
 logLh1=dataLogLikelihood(Y,U,Ah1,Bh1,Ch1,Dh1,Qh1,Rh1,Xh1(:,1),Ph1(:,:,1))
 toc
 [Ah1,Bh1,Ch1,Xh1,~,Qh1] = canonizev2(Ah1,Bh1,Ch1,Xh1,Qh1);
