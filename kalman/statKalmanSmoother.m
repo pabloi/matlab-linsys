@@ -87,17 +87,23 @@ else
     Pt=nan(D1,D1,N-1); %Transition covariance matrix
 end
  
-%TODO: it should be normal smoothing for M samples, fast smoothing for
-%N-2*M and then normal again for M.
-%Do true smoothing for last M samples:
-for i=N-1:-1:1%N-M
+%Separate samples into fast and normal filtering intervals:
+M1=M;
+M2=M;
+Nfast=N-1-(M1+M2);
+if Nfast<0 %No fast filtering at all
+    M1=N-1;
+    M2=0;
+    Nfast=0;
+end
+
+%Do true smoothing for last M1 samples:
+for i=N-1:-1:N-M1
   %First, get estimates from forward pass:
   xf=Xf(:,i); %Previous posterior estimate of covariance at this step
   pf=Pf(:,:,i); %Previous posterior estimate of covariance at this time step
   xp=Xp(:,i+1); %Prediction of next step based on post estimate of this step
   pp=Pp(:,:,i+1); %Covariance of next step based on post estimate of this step
-  %pp=AP*A'+Q; %Could compute pp instead of accessing it, unclear which is faster
-  %xp=A*xf+B*U(:,i); %Could compute instead of acccesing it, unclear which is faster
 
   %Backward pass:
   [prevPs,prevXs,newPt]=backStep(pp,pf,prevPs,xp,xf,prevXs,A);
@@ -108,65 +114,54 @@ for i=N-1:-1:1%N-M
   Ps(:,:,i)=prevPs;
 end
 
-% %Fast smoothing for last N-M samples
-% if (2*M+1)<N %Assume steady-state: 
+%Fast smoothing for the middle (N-2*M) samples
+if Nfast>0 %Assume steady-state: 
+    [icP,~]=pinvchol(pp);
+    H=(pf*(A'*icP))*icP'; %TODO: check for stabilty efficiently
 %     if any(abs(eig(H))>1)
 %         warning('statKS:unstableSmooth','Unstable smoothing, skipping the backward pass.')
 %         H=zeros(size(H));
 %     end
-%     aux=Xf-H*Xp(:,2:end); %Precompute for speed
-%     for i=(N-M-1):-1:(M+1)
-%         %prevXs=Xf(:,i) + newK*(prevXs-Xp(:,i+1));
-%         prevXs=aux(:,i) + H*prevXs;
-%         Xs(:,i)=prevXs;
-%     end
-%     %Compute covariances if requested:
-%     if nargout>2
-%         Ps(:,:,M+1:N)=repmat(prevPs,1,1,N-M);
-%     end
-%     if nargout>3
-%         Pt(:,:,M+1:N)=repmat(newPt,1,1,N-M);
-%     end
-% end
-%     
-% %Do true smoothing for first M samples:
-% if (N-M)>1
-% for i=M:-1:1
-%   %First, get estimates from forward pass:
-%   xf=Xf(:,i); %Previous posterior estimate of covariance at this step
-%   pf=Pf(:,:,i); %Previous posterior estimate of covariance at this time step
-%   xp=Xp(:,i+1); %Prediction of next step based on post estimate of this step
-%   pp=Pp(:,:,i+1); %Covariance of next step based on post estimate of this step
-%   %pp=AP*A'+Q; %Could compute pp instead of accessing it, unclear which is faster
-%   %xp=A*xf+B*U(:,i); %Could compute instead of acccesing it, unclear which is faster
-% 
-%   %Backward pass:
-%   [cPs,prevXs,newPt]=backStep(pp,pf,cPs,xp,xf,prevXs,A);
-% 
-%   %Store estimates:
-%   Xs(:,i)=prevXs;
-%   Pt(:,:,i)=newPt;
-%   Ps(:,:,i)=prevPs;
-% end
-% end
+    aux=Xf-H*Xp(:,2:end); %Precompute for speed
+    for i=(N-M1-1):-1:(M2+1)
+        prevXs=aux(:,i) + H*prevXs; %=Xf(:,i) + H*(prevXs-Xp(:,i+1));
+        Xs(:,i)=prevXs;
+    end
+    %Compute covariances if requested:
+    if nargout>2
+        Ps(:,:,M2+1:N-M1-1)=repmat(prevPs,1,1,Nfast);
+    end
+    if nargout>3
+        Pt(:,:,M2+1:N-M1-1)=repmat(newPt,1,1,Nfast);
+    end
+end
+
+%Do true smoothing for first M2 samples:
+for i=M2:-1:1
+  %First, get estimates from forward pass:
+  xf=Xf(:,i); %Previous posterior estimate of covariance at this step
+  pf=Pf(:,:,i); %Previous posterior estimate of covariance at this time step
+  xp=Xp(:,i+1); %Prediction of next step based on post estimate of this step
+  pp=Pp(:,:,i+1); %Covariance of next step based on post estimate of this step
+
+  %Backward pass:
+  [prevPs,prevXs,newPt]=backStep(pp,pf,prevPs,xp,xf,prevXs,A);
+
+  %Store estimates:
+  Xs(:,i)=prevXs;
+  Pt(:,:,i)=newPt;
+  Ps(:,:,i)=prevPs;
+end
 
 end
 
 function [prevPs,prevXs,newPt]=backStep(pp,pf,ps,xp,xf,prevXs,A)
-  %Backward pass:
   %First, compute gain:
-  AP=A*pf;
   [icP,~]=pinvchol(pp);
-  H=(AP'*icP)*icP'; %H=AP'/pp; %Faster, although worse conditioned, matters a lot when smoothing
-  %iP=pinv(pp,1e-12); %pinv is the way to go if we are doing fast mode, as this is only computed once
-  %icP=mycholcov(iP)';
-  %H=(AP'*icP)*icP';
-  %H=AP'*pinv(pp);
+  H=(pf*(A'*icP))*icP'; %H=AP'/pp; %Faster, although worse conditioned, matters a lot when smoothing
 
   %Compute relevant covariances
   newPt=ps*H'; %This should be such that A*newPt' is hermitian
-  %Hps=H*mycholcov(prevPs)'; %Ensure symmetry
-  %Hcpp=cP*H';%=icP'*AP; %Pr=pf'*A'*inv(pp)*A*pf = pf'*A'*inv(pp)*pp*inv(pp)*A*pf = H*pp*H'
   Hext=H*(mycholcov(pp-ps)');
   
   %Updates: Improved (smoothed) state estimate

@@ -97,9 +97,9 @@ plot(cc(:,kk)'*(Ch_*Xh_+Dh_*U),'LineWidth',1)
 plot(cc(:,kk)'*(fCh*fXh+fDh*U),'LineWidth',1)
 plot(cc(:,kk)'*(Y),'k','LineWidth',1)
 set(gca,'ColorOrderIndex',1)
-aux=sqrt(sum((cc(:,kk)'*(Y-C*X(:,1:end-1)-D*U)).^2));
-aux1=sqrt(sum((cc(:,kk)'*(Y-Ch_*Xh_-Dh_*U)).^2));
-aux2=sqrt(sum((cc(:,kk)'*(Y-fCh*fXh-fDh*U)).^2));
+aux=sqrt(mean((cc(:,kk)'*(Y-C*X(:,1:end-1)-D*U)).^2));
+aux1=sqrt(mean((cc(:,kk)'*(Y-Ch_*Xh_-Dh_*U)).^2));
+aux2=sqrt(mean((cc(:,kk)'*(Y-fCh*fXh-fDh*U)).^2));
 bar([1900],mean([aux]),'EdgeColor','none','BarWidth',100)
 bar([2000],mean([aux1]),'EdgeColor','none','BarWidth',100)
 bar([2100],mean([aux2]),'EdgeColor','none','BarWidth',100)

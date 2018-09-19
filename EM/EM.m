@@ -122,7 +122,7 @@ for k=1:Niter-1
     end
 
     %Check if we should stop early (to avoid wasting time):
-    if k>50 && (belowTarget && (targetRelImprovement50)<5e-2) %Breaking if improvement less than 5% of distance to targetLogL, as this probably means we are not getting a solution better than the given target
+    if k>50 && (belowTarget && (targetRelImprovement50)<2e-1) %Breaking if improvement less than 20% of distance to targetLogL, as this probably means we are not getting a solution better than the given target
        msg='Unlikely to reach target value. Stopping.';
         %fprintf([ num2str(k) ' iterations.\n'])
        breakFlag=true; 
