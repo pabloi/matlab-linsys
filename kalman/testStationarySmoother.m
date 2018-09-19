@@ -64,9 +64,15 @@ for i=1:2
     plot(Xf(i,:)-X(i,1:end-1),'DisplayName','Filtered')
     plot(Xcs(i,:)-X(i,1:end-1),'DisplayName','CS2006')
         set(gca,'ColorOrderIndex',1)
-    bar(1900+400*i,sqrt(mean((X(i,1:end-1)-Xs(i,:)).^2)),'BarWidth',100,'EdgeColor','None')
-    bar(2000+400*i,sqrt(mean((X(i,1:end-1)-Xf(i,:)).^2)),'BarWidth',100,'EdgeColor','None')
-    bar(2100+400*i,sqrt(mean((X(i,1:end-1)-Xcs(i,:)).^2)),'BarWidth',100,'EdgeColor','None')
+        aux=sqrt(mean((X(i,1:end-1)-Xs(i,:)).^2));
+    b1=bar(1900+400*i,aux,'BarWidth',100,'EdgeColor','None');
+    text(1850+400*i,1.2*aux,num2str(aux,3),'Color',b1.FaceColor)
+    aux=sqrt(mean((X(i,1:end-1)-Xf(i,:)).^2));
+    b1=bar(2000+400*i,aux,'BarWidth',100,'EdgeColor','None');
+    text(1950+400*i,1.4*aux,num2str(aux,3),'Color',b1.FaceColor)
+    aux=sqrt(mean((X(i,1:end-1)-Xcs(i,:)).^2));
+    b1=bar(2100+400*i,aux,'BarWidth',100,'EdgeColor','None');
+    text(2050+400*i,1.2*aux,num2str(aux,3),'Color',b1.FaceColor)
     grid on
 end
 title('Residuals')
