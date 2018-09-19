@@ -51,14 +51,14 @@ if M<N && any(abs(eig(A))>1)
     %If the system is unstable, there is no guarantee that the kalman gain
     %converges, and the fast filtering will lead to divergence of estimates
     warning('statKFfast:unstable','Doing steady-state (fast) filtering on an unstable system. States will diverge. Doing traditional filtering instead.')
-    M=N;
+    M=N-1;
 end
 
 %Size checks:
 %TODO
 
 %Step 1: forward filter
-[Xf,Pf,Xp,Pp,rejSamples]=statKalmanFilter(Y,A,C,Q,R,x0,P0,B,D,U,outRejFlag,M);
+[Xf,Pf,Xp,Pp,rejSamples]=statKalmanFilter(Y,A,C,Q,R,x0,P0,B,D,U,outRejFlag,M+1);
 
 %Step 2: backward pass: (following the Rauch-Tung-Striebel implementation:
 %https://en.wikipedia.org/wiki/Kalman_filter#Fixed-interval_smoothers)
@@ -74,22 +74,13 @@ end
 D1=size(A,1);
 
 %Initialize last sample:
-Xs=Xf;
-Ps=Pf;
-prevXs=Xf(:,N);
+Xs=nan(size(Xf));
+Ps=nan(size(Pf));
 prevPs=Pf(:,:,N);
-pf=prevPs; %Previous posterior estimate of covariance at this time step
-pp=Pp(:,:,N+1); %Covariance of next step based on post estimate of this step
-AP=A*pf;
-iP=pinv(pp,1e-8);
-isP=mycholcov(iP)';
-H=AP'*iP;
-newPt=prevPs*H'; %This should be such that A*newPt' is hermitian
-sPs=mycholcov(prevPs); %Ensure symmetry
-Hps=H*sPs';
-sPr=isP'*AP;%Pr=AP'/pp*AP
-prevPs=Hps*Hps' + pf -sPr'*sPr;  %Would it be more precise/efficient to compute the sum of the last two terms as inv(inv(pf) +A'*inv(Q)*A) ?
-  
+prevXs=Xf(:,N);
+Ps(:,:,N)=prevPs;
+Xs(:,N)=prevXs;
+cPs=mycholcov(prevPs);
 
 if isa(Xs,'gpuArray') %For code to work on gpu
     Pt=nan(D1,D1,N-1,'gpuArray'); %Transition covariance matrix
@@ -97,28 +88,10 @@ else
     Pt=nan(D1,D1,N-1); %Transition covariance matrix
 end
  
-%Fast smoothing for last N-M samples
-if (M+1)<N %Assume steady-state: 
-    if any(abs(eig(H))>1)
-        error('Unstable smoothing')
-    end
-    aux=Xf-H*Xp(:,2:end); %Precompute for speed
-    for i=N-1:-1:M+1
-        %prevXs=Xf(:,i) + newK*(prevXs-Xp(:,i+1));
-        prevXs=aux(:,i) + H*prevXs;
-        Xs(:,i)=prevXs;
-    end
-    %Compute covariances if requested:
-    if nargout>2
-        Ps(:,:,M+1:N)=repmat(prevPs,1,1,N-M);
-    end
-    if nargout>3
-        Pt(:,:,M+1:N)=repmat(newPt,1,1,N-M);
-    end
-end
-    
-%Do true smoothing for first M samples:
-for i=M:-1:1
+%TODO: it should be normal smoothing for M samples, fast smoothing for
+%N-2*M and then normal again for M.
+%Do true smoothing for last M samples:
+for i=N-1:-1:1%N-M
   %First, get estimates from forward pass:
   xf=Xf(:,i); %Previous posterior estimate of covariance at this step
   pf=Pf(:,:,i); %Previous posterior estimate of covariance at this time step
@@ -128,21 +101,7 @@ for i=M:-1:1
   %xp=A*xf+B*U(:,i); %Could compute instead of acccesing it, unclear which is faster
 
   %Backward pass:
-  %First, compute gain:
-  AP=A*pf;
-  %iP=pinv(pp,1e-8);
-  %isP=mycholcov(iP)';
-  [isP,~,iP]=pinvchol(pp);
-  H=AP'*iP; %H=AP'/pp; %Faster, although worse conditioned, matters a lot when smoothing
-
-  %Improved (smoothed) state estimate
-  newPt=prevPs*H'; %This should be such that A*newPt' is hermitian
-  %newPs=pf+newK*(newPt-AP); %=newK*prevPs'*newK' + pf -pf'*(A'/pp)*A*pf =  newK*prevPs'*newK' + pf -((pf'*A')/(A*pf*A'+Q))*A*pf = newK*prevPs'*newK' + inv(inv(pf) +A'*inv(Q)*A) =
-  sPs=mycholcov(prevPs); %Ensure symmetry:
-  Hps=H*sPs';
-  sPr=isP'*AP;%Pr=AP'/pp*AP
-  prevPs=Hps*Hps' + pf -sPr'*sPr;  %Would it be more precise/efficient to compute the sum of the last two terms as inv(inv(pf) +A'*inv(Q)*A) ?
-  prevXs=xf + H*(prevXs-xp);
+  [cPs,prevXs,newPt]=backStep(pp,pf,cPs,xp,xf,prevXs,A);
 
   %Store estimates:
   Xs(:,i)=prevXs;
@@ -150,4 +109,70 @@ for i=M:-1:1
   Ps(:,:,i)=prevPs;
 end
 
+% %Fast smoothing for last N-M samples
+% if (2*M+1)<N %Assume steady-state: 
+%     if any(abs(eig(H))>1)
+%         warning('statKS:unstableSmooth','Unstable smoothing, skipping the backward pass.')
+%         H=zeros(size(H));
+%     end
+%     aux=Xf-H*Xp(:,2:end); %Precompute for speed
+%     for i=(N-M-1):-1:(M+1)
+%         %prevXs=Xf(:,i) + newK*(prevXs-Xp(:,i+1));
+%         prevXs=aux(:,i) + H*prevXs;
+%         Xs(:,i)=prevXs;
+%     end
+%     %Compute covariances if requested:
+%     if nargout>2
+%         Ps(:,:,M+1:N)=repmat(prevPs,1,1,N-M);
+%     end
+%     if nargout>3
+%         Pt(:,:,M+1:N)=repmat(newPt,1,1,N-M);
+%     end
+% end
+%     
+% %Do true smoothing for first M samples:
+% if (N-M)>1
+% for i=M:-1:1
+%   %First, get estimates from forward pass:
+%   xf=Xf(:,i); %Previous posterior estimate of covariance at this step
+%   pf=Pf(:,:,i); %Previous posterior estimate of covariance at this time step
+%   xp=Xp(:,i+1); %Prediction of next step based on post estimate of this step
+%   pp=Pp(:,:,i+1); %Covariance of next step based on post estimate of this step
+%   %pp=AP*A'+Q; %Could compute pp instead of accessing it, unclear which is faster
+%   %xp=A*xf+B*U(:,i); %Could compute instead of acccesing it, unclear which is faster
+% 
+%   %Backward pass:
+%   [cPs,prevXs,newPt]=backStep(pp,pf,cPs,xp,xf,prevXs,A);
+% 
+%   %Store estimates:
+%   Xs(:,i)=prevXs;
+%   Pt(:,:,i)=newPt;
+%   Ps(:,:,i)=prevPs;
+% end
+% end
+
+end
+
+function [cPs,prevXs,newPt]=backStep(pp,pf,cPs,xp,xf,prevXs,A)
+  %Backward pass:
+  %First, compute gain:
+  AP=A*pf;
+  [icP,cP]=pinvchol(pp);
+  H=(AP'*icP)*icP'; %H=AP'/pp; %Faster, although worse conditioned, matters a lot when smoothing
+  %iP=pinv(pp,1e-12); %pinv is the way to go if we are doing fast mode, as this is only computed once
+  %icP=mycholcov(iP)';
+  %H=(AP'*icP)*icP';
+  %H=AP'*pinv(pp);
+
+  %Compute relevant covariances
+  newPt=(cPs'*cPs)*H'; %This should be such that A*newPt' is hermitian
+  %Hps=H*mycholcov(prevPs)'; %Ensure symmetry
+  %Hcpp=cP*H';%=icP'*AP; %Pr=pf'*A'*inv(pp)*A*pf = pf'*A'*inv(pp)*pp*inv(pp)*A*pf = H*pp*H'
+  %Hext=H*(mycholcov(pp-prevPs)');
+  Hext=H*(cP-cPs);
+  
+  %Updates: Improved (smoothed) state estimate
+  prevPs=pf-Hext*Hext'; %=pf + Hps*Hps' - Hcpp'*Hcpp;  %Would it be more precise/efficient to compute the sum of the last two terms as inv(inv(pf) +A'*inv(Q)*A) ?
+  cPs=mycholcov(prevPs); %Ensure PSD
+  prevXs=xf + H*(prevXs-xp);
 end
