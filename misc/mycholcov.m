@@ -1,12 +1,23 @@
 function L=mycholcov(A)
 %A Cholesky-like decomposition that accepts semidefinite matrices, and
 %always returns a triangular matrix, unlike Matlab's cholcov()
-%Copied from: https://arxiv.org/pdf/0804.4809.pdf
-    % Full rank Cholesky factorization of A 
-dA=diag(A); tol= min(dA(dA>0))*1e-9; 
+
+[L,p]=chol(A);
+if p~=0 %Not positive definite
+    L=cholcov(A);
+    %if numel(L)==0
+    %    L=zeros(0,size(A,1)); %Matlab's cholcov sometimes returns an 0x0 matrix, even if A was positive definite
+    %end
+end
+return
+
+
+%% Copied from: https://arxiv.org/pdf/0804.4809.pdf:
+tol= min(abs(diag(A)))*1e-9; 
 n=size(A,1);
 L=zeros(n); 
 r=0; 
+
 for k=1:n 
     r=r+1; 
     L(k:n,r)=A(k:n,k)-L(k:n,1:(r-1))*L(k,1:(r-1))'; 

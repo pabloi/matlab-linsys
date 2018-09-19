@@ -9,7 +9,7 @@ if nargin<5 || isempty(b)
   b=0;
 end
 x=A*x+b;
-aux=chol(P); %To ensure symmetry
+aux=mycholcov(P); %To ensure symmetry
 Aa=A*aux';
 P=Aa*Aa'+Q;
 end
