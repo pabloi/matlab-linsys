@@ -2,6 +2,7 @@
 addpath(genpath('../aux/')) 
 addpath(genpath('../kalman/')) 
 addpath(genpath('../data/'))
+addpath(genpath('../sPCA/'))
 addpath(genpath('../../robustCov/')) 
 %% Load real data:
 load ../data/dynamicsData.mat
@@ -40,7 +41,7 @@ U=[zeros(size(dataSym{1},1),1);ones(size(dataSym{2},1),1)]';
 % Y=medfilt1([median(data{1},3); median(data{2},3)],3)';
 % U=[zeros(size(data{1},1),1);ones(size(data{2},1),1)]';
 %% Identify 0: handcrafted sPCA
-D1=3;
+D1=2;
 [model] = sPCAv8(Y(:,51:950)',D1,[],[],[]);
 A=model.J;
 C=model.C;
@@ -64,7 +65,7 @@ flogLh=dataLogLikelihood(Y,U,fJh,fKh,fCh,fDh,fQh,fRh,fXh(:,1),fPh(:,:,1));
 %% Identify 2: true EM
 tic
 %[Ah,Bh,Ch,Dh,Qh,Rh,Xh,Ph]=trueEM(Y,U,Xs);
-[Ah,Bh,Ch,Dh,Qh,Rh,Xh,Ph]=randomStartEM(Y,U,D1,10,'fast');
+[Ah,Bh,Ch,Dh,Qh,Rh,Xh,Ph]=randomStartEM(Y,U,D1,10,[]);
 toc
 [Jh,Kh,Ch,Xh,V,Qh] = canonizev2(Ah,Bh,Ch,Xh,Qh);
 logLh=dataLogLikelihood(Y,U,Jh,Kh,Ch,Dh,Qh,Rh,Xh(:,1),Ph(:,:,1));
