@@ -61,16 +61,16 @@ Nz=size(z,2);
 R1=(z*z')/Nz;
 R2=(Ca*Ca')/Nz;
 R=R1+R2;
-l1=dataLogLikelihood(Y,U,A,B,C,D,Q,R1,x0,P0,'approx');
-l2=dataLogLikelihood(Y,U,A,B,C,D,Q,R,x0,P0,'approx'); %This requires a Kalman filter pass to evaluate
-%l1=dataLogLikelihood(Y,U,A,B,C,D,Q,R1,[X, zeros(size(X,1),1)],cat(3,P,zeros(size(X,1),size(X,1),1)),'approx');
-%l2=dataLogLikelihood(Y,U,A,B,C,D,Q,R,[X, zeros(size(X,1),1)],cat(3,P,zeros(size(X,1),size(X,1),1)),'approx');
-if l1>l2 %For some reason I do not understand, R does not always maximize the log-L, sometimes R1 is better. 
-    %This should not happen, as Shumway & Stoffer 1982, Ghahramani and
-    %Hinton 1996, and Cheng and Sabes 2006 all argue that this is the MLE
-    %of R.
-    R=R1;
-end
+% l1=dataLogLikelihood(Y,U,A,B,C,D,Q,R1,x0,P0,'approx');
+% l2=dataLogLikelihood(Y,U,A,B,C,D,Q,R,x0,P0,'approx'); %This requires a Kalman filter pass to evaluate
+% %l1=dataLogLikelihood(Y,U,A,B,C,D,Q,R1,[X, zeros(size(X,1),1)],cat(3,P,zeros(size(X,1),size(X,1),1)),'approx');
+% %l2=dataLogLikelihood(Y,U,A,B,C,D,Q,R,[X, zeros(size(X,1),1)],cat(3,P,zeros(size(X,1),size(X,1),1)),'approx');
+% if l1>l2 %For some reason I do not understand, R does not always maximize the log-L, sometimes R1 is better. 
+%     %This should not happen, as Shumway & Stoffer 1982, Ghahramani and
+%     %Hinton 1996, and Cheng and Sabes 2006 all argue that this is the MLE
+%     %of R.
+%     R=R1;
+% end
 R=R+1e-15*eye(size(R)); %Avoid numerical issues
 
 
