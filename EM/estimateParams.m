@@ -71,7 +71,7 @@ else
 %is 100+% the time of the whole estimateParams(). However, improved
 %parameter estimation may lead to faster overall EM() running time if the
 %fastFlag is enabled.
-    Q1=robCov(w); %Fast variant of robustcov() estimation
+    [Q1]=robCov(w,95); %Fast variant of robustcov() estimation
 end
 Q=Q1 +Q2;
 
@@ -79,11 +79,12 @@ Q=Q1 +Q2;
 aux=mycholcov(SP); %Enforce symmetry
 Ca=C*aux';
 Nz=size(z,2);
-if ~robustFlag
+%if ~robustFlag
     R1=(z*z')/Nz;
-else
-    R1=robCov(z);
-end
+%else
+%    R1=robCov(z,95); %Estimating R robustly leads to instabilities and bad
+%    local maxima
+%end
 R2=(Ca*Ca')/Nz;
 R=R1+R2;
 %R=(z*Y')/Nz; %Equivalent to above, but does not enforce symmetry

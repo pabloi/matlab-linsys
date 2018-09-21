@@ -40,11 +40,12 @@ U=[zeros(size(dataSym{1},1),1);ones(size(dataSym{2},1),1);zeros(size(dataSym{3},
 Y=[median(dataSym{1},3); median(dataSym{2},3)]';
 U=[zeros(size(dataSym{1},1),1);ones(size(dataSym{2},1),1)]';
 %% Median-filtered B, A
-binw=3;
-Y=[medfilt1(median(dataSym{1},3),binw,'truncate'); medfilt1(median(dataSym{2},3),binw,'truncate')]';
-U=[zeros(size(dataSym{1},1),1);ones(size(dataSym{2},1),1)]';
-%% Identify 0: handcrafted sPCA
+% binw=3;
+% Y=[medfilt1(median(dataSym{1},3),binw,'truncate'); medfilt1(median(dataSym{2},3),binw,'truncate')]';
+% U=[zeros(size(dataSym{1},1),1);ones(size(dataSym{2},1),1)]';
+%%
 D1=2;
+%% Identify 0: handcrafted sPCA
 tic
 model{1}= sPCAv8(Y(:,51:950)',D1,[],[],[]);
 model{1}.runtime=toc;
@@ -60,7 +61,8 @@ model{1}=autodeal(J,B,C,D,X,Q,R,logL);
 model{1}.name='sPCA';
 %% Identify 1: true EM with smooth start
 tic
-[fAh,fBh,fCh,D,fQh,R,fXh,fPh]=EM(Y,U,model{1}.X); %Slow/true EM
+opts.Niter=1000;
+[fAh,fBh,fCh,D,fQh,R,fXh,fPh]=EM(Y,U,model{1}.X,opts); %Slow/true EM
 logL=dataLogLikelihood(Y,U,fAh,fBh,fCh,D,fQh,R,fXh(:,1),fPh(:,:,1));
 model{2}.runtime=toc
 [J,B,C,X,~,Q,P] = canonizev2(fAh,fBh,fCh,fXh,fQh,fPh);
@@ -79,6 +81,7 @@ model{3}.name='EM (iterated,fast)';
 %% Identify 3: robust EM 
 tic
 opts.robustFlag=true;
+opts.Niter=1000;
 [fAh,fBh,fCh,D,fQh,R,fXh,fPh]=EM(Y,U,D1,opts); %Slow/true EM
 logL=dataLogLikelihood(Y,U,fAh,fBh,fCh,D,fQh,R,fXh(:,1),fPh(:,:,1));
 model{4}.runtime=toc

@@ -55,14 +55,19 @@ for k=1:Niter-1
     %logl(k,2)=dataLogLikelihood(Y,U,A,B,C,D,Q,R,X);
 	%M-step: find parameters A,B,C,D,Q,R that maximize likelihood of data
     
+    %if k>20
+    %    robFlag=robustFlag;
+    %else
+       robFlag=false;
+    %end
     %E-step:
     if isa(Y,'cell') %Data is many realizations of same system
-        [X1,P1,Pt1,~,~,Xp,Pp,rejSamples]=cellfun(@(y,x0,p0,u) statKalmanSmoother(y,A1,C1,Q1,R1,x0,p0,B1,D1,u,[],fastFlag),Y,x01,P01,U,'UniformOutput',false);
+        [X1,P1,Pt1,~,~,Xp,Pp,rejSamples]=cellfun(@(y,x0,p0,u) statKalmanSmoother(y,A1,C1,Q1,R1,x0,p0,B1,D1,u,robFlag,fastFlag),Y,x01,P01,U,'UniformOutput',false);
         if any(cellfun(@(x) any(imag(x(:))~=0),X1))
             error('Complex states') 
         end
     else
-        [X1,P1,Pt1,~,~,Xp,Pp,rejSamples]=statKalmanSmoother(Y,A1,C1,Q1,R1,x01,P01,B1,D1,U,[],fastFlag);
+        [X1,P1,Pt1,~,~,Xp,Pp,rejSamples]=statKalmanSmoother(Y,A1,C1,Q1,R1,x01,P01,B1,D1,U,robFlag,fastFlag);
         if any(imag(X1(:))~=0)
             error('Complex states') 
         end
@@ -71,8 +76,9 @@ for k=1:Niter-1
     
     %Check improvements:
     Y2=Y;
-    Y2(:,rejSamples)=NaN;
+    Y2(:,rejSamples)=NaN; %Computing logL without rejected samples
     %sum(rejSamples)
+    %find(rejSamples)
     l=dataLogLikelihood(Y2,U,A1,B1,C1,D1,Q1,R1,Xp,Pp,'approx'); %Passing the Kalman-filtered states and uncertainty makes the computation more efficient
     logl(k+1)=l;
     delta=l-logl(k,1);
@@ -90,7 +96,7 @@ for k=1:Niter-1
         %No need to break for unstable systems, usually they converge to a
         %stable system or lack of improvement in logl makes the iteration stop
         %fprintf(['Unstable system detected. Stopping. ' num2str(k) ' iterations.\n'])
-        warning('EM:unstableSys','Unstable system detected');
+        %warning('EM:unstableSys','Unstable system detected');
         %break
     elseif ~improvement %This should never happen, except that our loglikelihood is approximate, so there can be some error
         if abs(delta)>1e-6 %Drops of about 1e-6 can be expected because we are
@@ -98,15 +104,8 @@ for k=1:Niter-1
           %only if drops are larger than this. This value probably is sample-size dependent, so may need adjusting.
           % warning('EM:logLdrop',['logL decreased at iteration ' num2str(k) ', drop = ' num2str(delta)])
         end
-        failCounter=failCounter+1;
-        %TO DO: figure out why logl sometimes drops a lot on iter 1.
-        if failCounter>9
-            %fprintf(['Dropped 10 times w/o besting the fit. ' num2str(k) ' iterations.\n'])
-            %breakFlag=true;
-        end
     else %There was improvement
         if l>=bestLogL
-            failCounter=0;
             %If everything went well and these parameters are the best ever: 
             %replace parameters  (notice the algorithm may continue even if 
             %the logl dropped, but in that case we do not save the parameters)
@@ -116,11 +115,11 @@ for k=1:Niter-1
     end
 
     %Check if we should stop early (to avoid wasting time):
-    if k>50 && (belowTarget && (targetRelImprovement50)<targetTol) %Breaking if improvement less than tol of distance to targetLogL
+    if k>50 && (belowTarget && (targetRelImprovement50)<targetTol) && ~robustFlag%Breaking if improvement less than tol of distance to targetLogL
        msg='Unlikely to reach target value. Stopping.';
         %fprintf([ num2str(k) ' iterations.\n'])
        breakFlag=true; 
-    elseif k>50 && (relImprovementLast50)<convergenceTol %Considering the system stalled if relative improvement on logl is <tol
+    elseif k>50 && (relImprovementLast50)<convergenceTol && ~robustFlag %Considering the system stalled if relative improvement on logl is <tol
         msg='Increase is within tolerance (local max). Stopping.';
         %fprintf(['increase is within tolerance (local max). '  num2str(k) ' iterations.\n'])
         %disp(['LogL as % of target:' num2str(round(l*100000/targetLogL)/1000)])
@@ -138,6 +137,7 @@ for k=1:Niter-1
         if k>=step && ~breakFlag
             lastChange=l-logl(k+1-step,1);
             disp(['Iter = ' num2str(k) ', \Delta logL = ' num2str(lastChange) ', % over target = ' num2str(pOverTarget)])
+            %sum(rejSamples)
         else %k==1 || breakFlag
             l=bestLogL;
             pOverTarget=100*(l/targetLogL-1);
@@ -147,7 +147,7 @@ for k=1:Niter-1
             end
         end
     end
-    if breakFlag
+    if breakFlag && ~robustFlag
         break
     end
     %M-step:
