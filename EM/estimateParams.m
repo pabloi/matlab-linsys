@@ -1,4 +1,4 @@
-function [A,B,C,D,Q,R,x0,P0]=estimateParams(Y,U,X,P,Pt,robustFlag)
+function [A,B,C,D,Q,R,x0,P0]=estimateParams(Y,U,X,P,Pt,opts)
 %M-step of EM estimation for LTI-SSM
 %INPUT:
 %Y = output of the system, D2 x N
@@ -10,19 +10,10 @@ function [A,B,C,D,Q,R,x0,P0]=estimateParams(Y,U,X,P,Pt,robustFlag)
 %See Cheng and Sabes 2006, Ghahramani and Hinton 1996, Shumway and Stoffer 1982
 
 %
-if nargin<6 || isempty(robustFlag)
-    robustFlag=false;
-end
+[opts] = processEMopts(opts);
 %Define vars:
-[yx,yu,xx,uu,xu,SP,SPt,xx_,uu_,xu_,xx1,xu1,SP_,S_P]=computeRelevantMatrices(Y,X,U,P,Pt);
+[yx,yu,xx,uu,xu,SP,SPt,xx_,uu_,xu_,xx1,xu1,SP_,S_P]=computeRelevantMatrices(Y,X,U,P,Pt,opts.robustFlag);
 D1=size(xx,1);
-
-%Estimate x0,P0:
-if isa(X,'cell')
-    [x0,P0]=cellfun(@(x,p) estimateInit(x,p),X,P,'UniformOutput',false);
-else
-    [x0,P0]=estimateInit(X,P);
-end
 
 %Estimate A,B:
 O=[SP_+xx_ xu_; xu_' uu_];
@@ -52,7 +43,7 @@ sQ=mycholcov(Q2);
 Q2=sQ'*sQ; %Enforcing psd, unclear if necessary
 %See Ghahramani and Hinton, and Cheng and Sabes
 
-if ~robustFlag
+if ~opts.robustFlag
     Q1=(w*w')/(Nw); 
 %Covariance of EXPECTED residuals given the data and params
 %not designed to deal with outliers, autocorrelated w
@@ -72,6 +63,7 @@ else
 %parameter estimation may lead to faster overall EM() running time if the
 %fastFlag is enabled.
     [Q1]=robCov(w,95); %Fast variant of robustcov() estimation
+    %Q1=squeeze(median(w.*reshape(w',1,size(w,2),size(w,1)),2));
 end
 Q=Q1 +Q2;
 
@@ -88,9 +80,20 @@ Nz=size(z,2);
 R2=(Ca*Ca')/Nz;
 R=R1+R2;
 %R=(z*Y')/Nz; %Equivalent to above, but does not enforce symmetry
+if opts.sphericalR
+    nR=size(R,1);
+    R=eye(nR)*trace(R)/nR;
+end
 R=R+1e-15*eye(size(R)); %Avoid numerical issues
 
+%Estimate x0,P0:
+if isa(X,'cell')
+    [x0,P0]=cellfun(@(x,p) estimateInit(x,p,A,Q),X,P,'UniformOutput',false);
+else
+    [x0,P0]=estimateInit(X,P,A,Q);
+end
 
+[A,B,C,x0,~,Q,P0] = canonizev2(A,B,C,x0,Q,P0);
 end
 
 function [x0,P0]=estimateInit(X,P,A,Q)
@@ -98,10 +101,10 @@ x0=X(:,1); %Smoothed estimate
 P0=P(:,:,1); %Smoothed estimate, the problem with this estimate is that it is monotonically decreasing on the iteration of trueEM(). More likely it should converge to the same prior uncertainty we have for all other states.
 %A variant to not make it monotonically decreasing:
 %Aa=A*aux';
-%P0=Q+Aa*Aa';
+P0=Q;%+Aa*Aa';
 end
 
-function [yx,yu,xx,uu,xu,SP,SPt,xx_,uu_,xu_,xx1,xu1,SP_,S_P]=computeRelevantMatrices(Y,X,U,P,Pt)
+function [yx,yu,xx,uu,xu,SP,SPt,xx_,uu_,xu_,xx1,xu1,SP_,S_P]=computeRelevantMatrices(Y,X,U,P,Pt,robustFlag)
 %Notice all outputs are DxD matrices, where D=size(X,1);
 
 if isa(X,'cell') %Case where data is many realizations of same system
@@ -124,34 +127,68 @@ if isa(X,'cell') %Case where data is many realizations of same system
         yu=yu+yua;
     end
 else %Data is in matrix form, i.e., single realization
-    %Data for A,B estimation:
-    %xu=X*U';
-    xu_=X(:,1:end-1)*U(:,1:end-1)'; %=xu - X(:,end)*U(:,end)'
-    %uu=U*U';
-    uu_=U(:,1:end-1)*U(:,1:end-1)'; %=uu - U(:,end)*U(:,end)'
-    %xx=X*X';
-    xx_=X(:,1:end-1)*X(:,1:end-1)'; %=xx - X(:,end)*X(:,end)'
-    %SP=sum(P,3);
-    SP_=sum(P(:,:,1:end-1),3); %=SP-P(:,:,end);
-    S_P=sum(P(:,:,2:end),3); %=SP-P(:,:,1);
-    SPt=sum(Pt,3);
-    xu1=X(:,2:end)*U(:,1:end-1)';
-    xx1=X(:,2:end)*X(:,1:end-1)';
-    %Remove data associated to NaN values:
-    if any(any(isnan(Y)))
-      idx=~any(isnan(Y));
-      Y=Y(:,idx);
-      X=X(:,idx);
-      U=U(:,idx);
-      P=P(:,:,idx);
-    end
-    %Data for C,D estimation:
-    SP=sum(P,3);
-    xu=X*U';
-    uu=U*U';
-    xx=X*X';
-    yx=Y*X';
-    yu=Y*U';
+%    if ~robustFlag
+        %Data for A,B estimation:
+        %xu=X*U';
+        xu_=X(:,1:end-1)*U(:,1:end-1)'; %=xu - X(:,end)*U(:,end)'
+        %uu=U*U';
+        uu_=U(:,1:end-1)*U(:,1:end-1)'; %=uu - U(:,end)*U(:,end)'
+        %xx=X*X';
+        xx_=X(:,1:end-1)*X(:,1:end-1)'; %=xx - X(:,end)*X(:,end)'
+        %SP=sum(P,3);
+        SP_=sum(P(:,:,1:end-1),3); %=SP-P(:,:,end);
+        S_P=sum(P(:,:,2:end),3); %=SP-P(:,:,1);
+        SPt=sum(Pt,3);
+        xu1=X(:,2:end)*U(:,1:end-1)';
+        xx1=X(:,2:end)*X(:,1:end-1)';
+        %Remove data associated to NaN values:
+        if any(any(isnan(Y)))
+          idx=~any(isnan(Y));
+          Y=Y(:,idx);
+          X=X(:,idx);
+          U=U(:,idx);
+          P=P(:,:,idx);
+        end
+        %Data for C,D estimation:
+        SP=sum(P,3);
+        xu=X*U';
+        uu=U*U';
+        xx=X*X';
+        yx=Y*X';
+        yu=Y*U';
+%     else
+%         fun=@(x,y) squeeze(median(x,y));
+%         N=size(X,2);
+%         U2=reshape(U',[1,N,size(U,1)]);
+%         X2=reshape(X',[1,N,size(X,1)]);
+%         %Data for A,B estimation:
+%         xu_=(N-1)*fun(X(:,1:end-1).*U2(1,1:end-1,:),2);
+%         uu_=(N-1)*fun(U(:,1:end-1).*U2(1,1:end-1),2);
+%         xx_=(N-1)*fun(X(:,1:end-1).*X2(1,1:end-1,:),2);
+%         SP_=(N-1)*fun(P(:,:,1:end-1),3); %=SP-P(:,:,end);
+%         S_P=(N-1)*fun(P(:,:,2:end),3); %=SP-P(:,:,1);
+%         SPt=(N-1)*fun(Pt,3);
+%         xu1=(N-1)*fun(X(:,2:end).*U2(1,1:end-1,:),2);
+%         xx1=(N-1)*fun(X(:,2:end).*X2(1,1:end-1,:),2);
+%         %Remove data associated to NaN values:
+%         if any(any(isnan(Y)))
+%           idx=~any(isnan(Y));
+%           Y=Y(:,idx);
+%           X=X(:,idx);
+%           U=U(:,idx);
+%           P=P(:,:,idx);
+%         end
+%         N=size(X,2);
+%         U2=reshape(U',[1,N,size(U,1)]);
+%         X2=reshape(X',[1,N,size(X,1)]);
+%         %Data for C,D estimation:
+%         SP=N*fun(P,3);
+%         xu=N*fun(X.*U2,2);
+%         uu=N*fun(U.*U2,2);
+%         xx=N*fun(X.*X2,2);
+%         yu=N*fun(Y.*U2,2);
+%         yx=N*fun(Y.*X2,2);
+%     end
 end
 
 end

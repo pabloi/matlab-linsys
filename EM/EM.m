@@ -9,7 +9,7 @@ function [A,B,C,D,Q,R,X,P,bestLogL]=EM(Y,U,Xguess,opts)
 if nargin<4
     opts=[];
 end
-[Niter,robustFlag,fastFlag,convergenceTol,targetTol,targetLogL] = processEMopts(opts);
+[opts] = processEMopts(opts);
 warning ('off','statKFfast:unstable');
 warning ('off','statKFfast:NaNsamples');
 warning ('off','statKSfast:unstable');
@@ -25,10 +25,11 @@ end
 X=Xguess;
 
 % Init params:
-[A1,B1,C1,D1,Q1,R1,x01,P01,bestLogL]=initParams(Y,U,X);
+[A1,B1,C1,D1,Q1,R1,x01,P01,bestLogL]=initParams(Y,U,X,opts);
+[A1,B1,C1,x01,~,Q1,P01] = canonizev2(A1,B1,C1,x01,Q1,P01);
 
 %Initialize log-likelihood register & current best solution:
-logl=nan(Niter,1);
+logl=nan(opts.Niter,1);
 logl(1,1)=bestLogL;
 if isa(Y,'gpuArray')
     logl=nan(Niter,1,'gpuArray');
@@ -36,17 +37,15 @@ end
 A=A1; B=B1; C=C1; D=D1; Q=Q1; R=R1; x0=x01; P0=P01; P=repmat(P0,1,1,size(X,2));
 
 %Initialize target logL:
-if isempty(targetLogL)
-    targetLogL=logl(1);
+if isempty(opts.targetLogL)
+    opts.targetLogL=logl(1);
 end
 
 
 %% ----------------Now, do E-M-----------------------------------------
-failCounter=0;
 breakFlag=false;
-%fh=figure;
-disp(['Iter = 1, target logL = ' num2str(targetLogL)])
-for k=1:Niter-1
+disp(['Iter = 1, target logL = ' num2str(opts.targetLogL)])
+for k=1:opts.Niter-1
 	%E-step: compute the expectation of latent variables given current parameter estimates
     %Note this is an approximation of true E-step in E-M algorithm. The
     %E-step requires to compute the expectation of the likelihood of the data under the
@@ -56,18 +55,18 @@ for k=1:Niter-1
 	%M-step: find parameters A,B,C,D,Q,R that maximize likelihood of data
     
     %if k>20
-    %    robFlag=robustFlag;
+    %    robFlag=opts.robustFlag;
     %else
        robFlag=false;
     %end
     %E-step:
     if isa(Y,'cell') %Data is many realizations of same system
-        [X1,P1,Pt1,~,~,Xp,Pp,rejSamples]=cellfun(@(y,x0,p0,u) statKalmanSmoother(y,A1,C1,Q1,R1,x0,p0,B1,D1,u,robFlag,fastFlag),Y,x01,P01,U,'UniformOutput',false);
+        [X1,P1,Pt1,~,~,Xp,Pp,rejSamples]=cellfun(@(y,x0,p0,u) statKalmanSmoother(y,A1,C1,Q1,R1,x0,p0,B1,D1,u,robFlag,opts.fastFlag),Y,x01,P01,U,'UniformOutput',false);
         if any(cellfun(@(x) any(imag(x(:))~=0),X1))
             error('Complex states') 
         end
     else
-        [X1,P1,Pt1,~,~,Xp,Pp,rejSamples]=statKalmanSmoother(Y,A1,C1,Q1,R1,x01,P01,B1,D1,U,robFlag,fastFlag);
+        [X1,P1,Pt1,~,~,Xp,Pp,rejSamples]=statKalmanSmoother(Y,A1,C1,Q1,R1,x01,P01,B1,D1,U,robFlag,opts.fastFlag);
         if any(imag(X1(:))~=0)
             error('Complex states') 
         end
@@ -76,15 +75,15 @@ for k=1:Niter-1
     
     %Check improvements:
     Y2=Y;
-    Y2(:,rejSamples)=NaN; %Computing logL without rejected samples
+    %Y2(:,rejSamples)=NaN; %Computing logL without rejected samples
     %sum(rejSamples)
     %find(rejSamples)
     l=dataLogLikelihood(Y2,U,A1,B1,C1,D1,Q1,R1,Xp,Pp,'approx'); %Passing the Kalman-filtered states and uncertainty makes the computation more efficient
     logl(k+1)=l;
     delta=l-logl(k,1);
     improvement=delta>=0;
-    targetRelImprovement50=(l-logl(max(k-50,1),1))/(targetLogL-l);
-    belowTarget=max(l,bestLogL)<targetLogL;
+    targetRelImprovement50=(l-logl(max(k-50,1),1))/(opts.targetLogL-l);
+    belowTarget=max(l,bestLogL)<opts.targetLogL;
     relImprovementLast50=1-logl(max(k-50,1),1)/l; %Assessing the relative improvement on logl over the last 10 iterations (or less if there aren't as many)
     
     %Check for failure conditions:
@@ -115,16 +114,16 @@ for k=1:Niter-1
     end
 
     %Check if we should stop early (to avoid wasting time):
-    if k>50 && (belowTarget && (targetRelImprovement50)<targetTol) && ~robustFlag%Breaking if improvement less than tol of distance to targetLogL
+    if k>50 && (belowTarget && (targetRelImprovement50)<opts.targetTol) && ~opts.robustFlag%Breaking if improvement less than tol of distance to targetLogL
        msg='Unlikely to reach target value. Stopping.';
         %fprintf([ num2str(k) ' iterations.\n'])
        breakFlag=true; 
-    elseif k>50 && (relImprovementLast50)<convergenceTol && ~robustFlag %Considering the system stalled if relative improvement on logl is <tol
+    elseif k>50 && (relImprovementLast50)<opts.convergenceTol && ~opts.robustFlag %Considering the system stalled if relative improvement on logl is <tol
         msg='Increase is within tolerance (local max). Stopping.';
         %fprintf(['increase is within tolerance (local max). '  num2str(k) ' iterations.\n'])
         %disp(['LogL as % of target:' num2str(round(l*100000/targetLogL)/1000)])
         breakFlag=true;
-    elseif k==Niter-1
+    elseif k==opts.Niter-1
         %fprintf(['max number of iterations reached. '  num2str(k) ' iterations.\n'])
         msg='Max number of iterations reached. Stopping.';
         breakFlag=true;
@@ -133,37 +132,37 @@ for k=1:Niter-1
     %Print some info
     step=50;
     if mod(k,step)==0 || breakFlag %Print info
-        pOverTarget=100*(l/targetLogL-1);
+        pOverTarget=100*(l/opts.targetLogL-1);
         if k>=step && ~breakFlag
             lastChange=l-logl(k+1-step,1);
             disp(['Iter = ' num2str(k) ', \Delta logL = ' num2str(lastChange) ', % over target = ' num2str(pOverTarget)])
             %sum(rejSamples)
         else %k==1 || breakFlag
             l=bestLogL;
-            pOverTarget=100*(l/targetLogL-1);
+            pOverTarget=100*(l/opts.targetLogL-1);
             disp(['Iter = ' num2str(k) ', logL = ' num2str(l) ', % over target = ' num2str(pOverTarget)])
             if breakFlag
             fprintf([msg ' \n'])
             end
         end
     end
-    if breakFlag && ~robustFlag
+    if breakFlag && ~opts.robustFlag
         break
     end
     %M-step:
-    [A1,B1,C1,D1,Q1,R1,x01,P01]=estimateParams(Y,U,X1,P1,Pt1,robustFlag);
+    [A1,B1,C1,D1,Q1,R1,x01,P01]=estimateParams(Y,U,X1,P1,Pt1,opts);
     %[A1,B1,C1,x01,~,Q1,P01] = canonizev2(A1,B1,C1,x01,Q1,P01);
 end
 
 %%
-if fastFlag==0 %Re-enable disabled warnings
+if opts.fastFlag==0 %Re-enable disabled warnings
     warning ('on','statKFfast:unstable');
     warning ('on','statKFfast:NaNsamples');
     warning ('on','statKSfast:unstable');
 end
 end
 
-function [A1,B1,C1,D1,Q1,R1,x01,P01,logL]=initParams(Y,U,X)
+function [A1,B1,C1,D1,Q1,R1,x01,P01,logL]=initParams(Y,U,X,opts)
 
 if isa(Y,'cell')
     [P,Pt]=cellfun(@initCov,X,'UniformOutput',false);
@@ -181,9 +180,9 @@ else
 end
 
     %Initialize guesses of A,B,C,D,Q,R
-    [A1,B1,C1,D1,Q1,R1,x01,P01]=estimateParams(Y,U,X,P,Pt);
+    [A1,B1,C1,D1,Q1,R1,x01,P01]=estimateParams(Y,U,X,P,Pt,opts);
     %Make sure scaling is appropriate:
-    [A1,B1,C1,x01,~,Q1,P01] = canonizev2(A1,B1,C1,x01,Q1,P01); 
+    %[A1,B1,C1,x01,~,Q1,P01] = canonizev2(A1,B1,C1,x01,Q1,P01); 
     %Compute logL:
     logL=dataLogLikelihood(Y,U,A1,B1,C1,D1,Q1,R1,x01(:,1),P01(:,:,1),'approx');
 end

@@ -155,7 +155,7 @@ end
 
 %Do the true filtering for M steps
 rejSamples=false(N,1);
-rejThreshold=chi2inv(.999,D2);
+rejThreshold=chi2inv(.99,D2);
 for i=1:M
   %First, do the update given the output at this step:
   y=Y_D(:,i);

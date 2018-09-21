@@ -40,11 +40,10 @@ U=[zeros(size(dataSym{1},1),1);ones(size(dataSym{2},1),1);zeros(size(dataSym{3},
 Y=[median(dataSym{1},3); median(dataSym{2},3)]';
 U=[zeros(size(dataSym{1},1),1);ones(size(dataSym{2},1),1)]';
 %% Median-filtered B, A
-% binw=3;
-% Y=[medfilt1(median(dataSym{1},3),binw,'truncate'); medfilt1(median(dataSym{2},3),binw,'truncate')]';
-% U=[zeros(size(dataSym{1},1),1);ones(size(dataSym{2},1),1)]';
+ binw=3;
+ Y2=[medfilt1(median(dataSym{1},3),binw,'truncate'); medfilt1(median(dataSym{2},3),binw,'truncate')]';
 %%
-D1=2;
+D1=3;
 %% Identify 0: handcrafted sPCA
 tic
 model{1}= sPCAv8(Y(:,51:950)',D1,[],[],[]);
@@ -61,7 +60,7 @@ model{1}=autodeal(J,B,C,D,X,Q,R,logL);
 model{1}.name='sPCA';
 %% Identify 1: true EM with smooth start
 tic
-opts.Niter=1000;
+opts.Niter=500;
 [fAh,fBh,fCh,D,fQh,R,fXh,fPh]=EM(Y,U,model{1}.X,opts); %Slow/true EM
 logL=dataLogLikelihood(Y,U,fAh,fBh,fCh,D,fQh,R,fXh(:,1),fPh(:,:,1));
 model{2}.runtime=toc
@@ -69,25 +68,34 @@ model{2}.runtime=toc
 model{2}=autodeal(J,B,C,D,X,Q,R,P,logL);
 model{2}.name='EM (smooth start)';
 %% Identify 2: true EM
+% tic
+% %[Ah,Bh,Ch,Dh,Qh,Rh,Xh,Ph]=trueEM(Y,U,Xs);
+% opts.fastFlag=0;
+% [Ah,Bh,Ch,D,Qh,R,Xh,Ph]=randomStartEM(Y,U,D1,10,opts);
+% logL=dataLogLikelihood(Y,U,Ah,Bh,Ch,D,Qh,R,Xh(:,1),Ph(:,:,1));
+% model{3}.runtime=toc
+% [J,B,C,X,~,Q,P] = canonizev2(Ah,Bh,Ch,Xh,Qh,Ph);
+% model{3}=autodeal(J,B,C,D,X,Q,R,P,logL);
+% model{3}.name='EM (iterated,fast)';
+%% Identify 2: true EM with smooth start, median filtered data
 tic
-%[Ah,Bh,Ch,Dh,Qh,Rh,Xh,Ph]=trueEM(Y,U,Xs);
-opts.fastFlag=0;
-[Ah,Bh,Ch,D,Qh,R,Xh,Ph]=randomStartEM(Y,U,D1,10,opts);
-logL=dataLogLikelihood(Y,U,Ah,Bh,Ch,D,Qh,R,Xh(:,1),Ph(:,:,1));
+opts.Niter=500;
+[fAh,fBh,fCh,D,fQh,R,fXh,fPh]=EM(Y2,U,model{1}.X,opts); %Slow/true EM
+logL=dataLogLikelihood(Y,U,fAh,fBh,fCh,D,fQh,R,fXh(:,1),fPh(:,:,1));
 model{3}.runtime=toc
-[J,B,C,X,~,Q,P] = canonizev2(Ah,Bh,Ch,Xh,Qh,Ph);
+[J,B,C,X,~,Q,P] = canonizev2(fAh,fBh,fCh,fXh,fQh,fPh);
 model{3}=autodeal(J,B,C,D,X,Q,R,P,logL);
-model{3}.name='EM (iterated,fast)';
+model{3}.name='EM (medfilt,smooth start)';
 %% Identify 3: robust EM 
 tic
 opts.robustFlag=true;
 opts.Niter=1000;
-[fAh,fBh,fCh,D,fQh,R,fXh,fPh]=EM(Y,U,D1,opts); %Slow/true EM
+[fAh,fBh,fCh,D,fQh,R,fXh,fPh]=EM(Y,U,model{1}.X,opts); %Slow/true EM
 logL=dataLogLikelihood(Y,U,fAh,fBh,fCh,D,fQh,R,fXh(:,1),fPh(:,:,1));
 model{4}.runtime=toc
 [J,B,C,X,~,Q,P] = canonizev2(fAh,fBh,fCh,fXh,fQh,fPh);
 model{4}=autodeal(J,B,C,D,X,Q,R,P,logL);
-model{4}.name='EM (robust)'; %Robust mode does not do fast filtering
+model{4}.name='EM (robust, smooth start)'; %Robust mode does not do fast filtering
 %% Identify 4: true EM
 % tic
 % [fAh,fBh,fCh,D,fQh,R,fXh,fPh]=EM(Y,U,D1,[]); %Slow/true EM

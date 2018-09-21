@@ -18,6 +18,9 @@ end
 a=imag(diag(J)); b=real(diag(J));
 if any(abs(a./b)>1e-15) %If there are (truly) complex eigen-values, will transform to the real-jordan form
     [V,~] = cdf2rdf(V,J);
+else
+    V=real(V);
+    J=real(J);
 end
 
 %% Scale so states converge to 1 on single input system with u=1 

@@ -1,39 +1,31 @@
-function [Niter,robustFlag,fastFlag,convergenceTol,targetTol,targetLogL] = processEMopts(opts)
+function [opts] = processEMopts(opts)
 
 if ~isfield(opts,'Niter')
-    Niter=500; %Max number of iters
-else
-    Niter=opts.Niter;
+    opts.Niter=500; %Max number of iters
 end
 
 if ~isfield(opts,'robustFlag')
-    robustFlag=false; % Non-robust behavior
-else
-    robustFlag=opts.robustFlag;
+    opts.robustFlag=false; % Non-robust behavior
 end
 
 if ~isfield(opts,'fastFlag')
-    fastFlag=0; %statKF/KS auto-select fast samples
-else
-    fastFlag=opts.fastFlag;
+    opts.fastFlag=0; %statKF/KS auto-select fast samples
 end
 
 if ~isfield(opts,'convergenceTol')
-    convergenceTol=1e-9; % 1e-9 minimum relative improvement in logL every 50 strides
-else
-    convergenceTol=opts.convergenceTol;
+    opts.convergenceTol=1e-9; % 1e-9 minimum relative improvement in logL every 50 strides
 end
 
 if ~isfield(opts,'targetTol')
-    targetTol=3e-1; % 30% minimum improvement towards target every 50 iters
-else
-    targetTol=opts.targetTol;
+    opts.targetTol=3e-1; % 30% minimum improvement towards target every 50 iters
 end
 
 if ~isfield(opts,'targetLogL')
-    targetLogL=[]; % 30% minimum improvement towards target every 50 iters
-else
-    targetLogL=opts.targetLogL;
+    opts.targetLogL=[]; % 30% minimum improvement towards target every 50 iters
+end
+
+if ~isfield(opts,'sphericalR')
+    opts.sphericalR=false; % 30% minimum improvement towards target every 50 iters
 end
     
 end

@@ -11,7 +11,7 @@ for i=1:Nreps
 
     %Initialize starting point:
     x01=randn(nd,1);
-    P01=1e5*eye(nd); %No sense in being certain about made up numbers
+    P01=1e1*eye(nd); %No sense in being certain about made up numbers
     A1=diag(rand(nd,1).*sign(randn(nd,1))); %WLOG
     B1=randn(nd,size(U,1));
     C1=randn(size(Y,1),nd)/size(Y,1); %WLOG
