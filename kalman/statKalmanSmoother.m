@@ -34,9 +34,9 @@ if nargin<10 || isempty(U)
  U=zeros(1,size(Y,2));
 end
 if nargin<11 || isempty(outRejFlag)
-  outRejFlag=0;
+  outRejFlag=0; %No outlier rejection
 end
-if nargin<12 || isempty(fastFlag)
+if nargin<12 || isempty(fastFlag) || isempty(outRejFlag)
     M=N-1; %Do true filtering for all samples
 elseif fastFlag==0
     M2=20; %Default for fast filtering: 20 samples

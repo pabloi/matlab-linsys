@@ -1,4 +1,4 @@
-function [x,P,K,z]=KFupdate(C,R,y,x,P)
+function [x,P,K,z,zprctile]=KFupdate(C,R,y,x,P)
 
 
 cP=mycholcov(P);
@@ -14,9 +14,13 @@ P=P-PCicS*PCicS';%=P-P*C'/S*C*P;%=P-K*C*P;
 K=PCicS*icS';
 x=x+K*(y-C*x);
 
-if nargout>3
-    %If we wanted to check sanity of the update, by evaluating if the
-    %innovation (of the state) is within reason given the prior expectations:
+
+%If we wanted to check sanity of the update, by evaluating if the
+%innovation (of the state) is within reason given the prior expectations:
+if nargout>4
+    [zprctile,z]=z2prctile(y,[],C*x,icS');
+elseif nargout>3
+    
     z=z2score(y,[],C*x,icS');
 end
 end

@@ -56,12 +56,12 @@ end
 if nargin<10 || isempty(U)
   U=zeros(size(B,2),size(X,2));
 end
-if nargin<11 || isempty(outlierRejection)
+if nargin<11 
     outlierRejection=false;
 end
-if nargin<12 || isempty(fastFlag)
+if nargin<12 || isempty(fastFlag) || isempty(outlierRejection)
     M=N; %Do true filtering for all samples
-elseif any(any(isnan(Y)))
+elseif any(any(isnan(Y))) || outlierRejection
   warning('statKFfast:NaNsamples','Requested fast KF but some samples are NaN, not using fast mode.')
   M=N;
 elseif fastFlag==0
@@ -154,13 +154,18 @@ D2=D1;
 end
 
 %Do the true filtering for M steps
+rejSamples=false(N,1);
+rejThreshold=chi2inv(.9,D2);
 for i=1:M
   %First, do the update given the output at this step:
   y=Y_D(:,i);
   if ~any(isnan(y)) %If measurement is NaN, skip update.
-      if outlierRejection; [prevXt,prevPt,z]=KFupdate(C,R,y,x,P);
-          if z<th %zscore is less than the outlier threshold, doing update
+      if outlierRejection 
+          [prevXt,prevPt,K,z]=KFupdate(C,R,y,prevX,prevP);
+          if z<rejThreshold %zprctile is above outlier threshold
               prevP=prevPt;    prevX=prevXt;
+          else
+              rejSamples(i)=true;
           end
       else %This is here because it is more efficient to not compute the z-score if we dont need it
           if D2>D1 %This never happens if Opt 2 was used to reduce the problem 

@@ -27,7 +27,7 @@ else
     predY=C*Xp(:,1:end-1)+D*U;
     z=Y-predY; %If this values are too high, it may be convenient to just set logL=-Inf, for numerical reasons
     idx=~any(isnan(Y));
-    z=z(:,idx);
+    z=z(:,idx); %Removing NaN samples
 
     switch method
         case 'approx'

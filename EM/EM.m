@@ -1,4 +1,4 @@
-function [A,B,C,D,Q,R,X,P,bestLogL]=EM(Y,U,Xguess,targetLogL,fastFlag,robustFlag,Niter)
+function [A,B,C,D,Q,R,X,P,bestLogL]=EM(Y,U,Xguess,opts)
 %A true EM implementation to do LTI-SSM identification
 %INPUT:
 %Y is D2 x N
@@ -6,17 +6,13 @@ function [A,B,C,D,Q,R,X,P,bestLogL]=EM(Y,U,Xguess,targetLogL,fastFlag,robustFlag
 %Xguess - Either the number of states for the system (if scalar) or a guess
 %at the initial states of the system (if D1 x N matrix)
 
-if nargin<5 || isempty(fastFlag)
-    fastFlag=[];
-else
-    fastFlag=0; %Disable warnings relating to unstable systems in fast estimation
-    w = warning ('off','statKFfast:unstable');
-    w = warning ('off','statKFfast:NaNsamples');
-    w = warning ('off','statKSfast:unstable');
+if nargin<4
+    opts=[];
 end
-if nargin<6 || isempty(robustFlag)
-    robustFlag=false;
-end
+[Niter,robustFlag,fastFlag,convergenceTol,targetTol,targetLogL] = processEMopts(opts);
+warning ('off','statKFfast:unstable');
+warning ('off','statKFfast:NaNsamples');
+warning ('off','statKSfast:unstable');
 
 %% ------------Init stuff:-------------------------------------------
 %Define init guess of state:
@@ -32,9 +28,6 @@ X=Xguess;
 [A1,B1,C1,D1,Q1,R1,x01,P01,bestLogL]=initParams(Y,U,X);
 
 %Initialize log-likelihood register & current best solution:
-if nargin<7 || isempty(Niter)
-    Niter=301;
-end
 logl=nan(Niter,1);
 logl(1,1)=bestLogL;
 if isa(Y,'gpuArray')
@@ -42,11 +35,8 @@ if isa(Y,'gpuArray')
 end
 A=A1; B=B1; C=C1; D=D1; Q=Q1; R=R1; x0=x01; P0=P01; P=repmat(P0,1,1,size(X,2));
 
-%Q1=zeros(size(Q));
-%logl(1)=dataLogLikelihood(Y,U,A1,B1,C1,D1,Q1,R1,x0,P0,'approx');
-
 %Initialize target logL:
-if nargin<4 || isempty(targetLogL)
+if isempty(targetLogL)
     targetLogL=logl(1);
 end
 
@@ -67,12 +57,12 @@ for k=1:Niter-1
     
     %E-step:
     if isa(Y,'cell') %Data is many realizations of same system
-        [X1,P1,Pt1,~,~,Xp,Pp,~]=cellfun(@(y,x0,p0,u) statKalmanSmoother(y,A1,C1,Q1,R1,x0,p0,B1,D1,u,[],fastFlag),Y,x01,P01,U,'UniformOutput',false);
+        [X1,P1,Pt1,~,~,Xp,Pp,rejSamples]=cellfun(@(y,x0,p0,u) statKalmanSmoother(y,A1,C1,Q1,R1,x0,p0,B1,D1,u,[],fastFlag),Y,x01,P01,U,'UniformOutput',false);
         if any(cellfun(@(x) any(imag(x(:))~=0),X1))
             error('Complex states') 
         end
     else
-        [X1,P1,Pt1,~,~,Xp,Pp,~]=statKalmanSmoother(Y,A1,C1,Q1,R1,x01,P01,B1,D1,U,[],fastFlag);
+        [X1,P1,Pt1,~,~,Xp,Pp,rejSamples]=statKalmanSmoother(Y,A1,C1,Q1,R1,x01,P01,B1,D1,U,[],fastFlag);
         if any(imag(X1(:))~=0)
             error('Complex states') 
         end
@@ -80,7 +70,10 @@ for k=1:Niter-1
     
     
     %Check improvements:
-    l=dataLogLikelihood(Y,U,A1,B1,C1,D1,Q1,R1,Xp,Pp,'approx'); %Passing the Kalman-filtered states and uncertainty makes the computation more efficient
+    Y2=Y;
+    Y2(:,rejSamples)=NaN;
+    %sum(rejSamples)
+    l=dataLogLikelihood(Y2,U,A1,B1,C1,D1,Q1,R1,Xp,Pp,'approx'); %Passing the Kalman-filtered states and uncertainty makes the computation more efficient
     logl(k+1)=l;
     delta=l-logl(k,1);
     improvement=delta>=0;
@@ -123,11 +116,11 @@ for k=1:Niter-1
     end
 
     %Check if we should stop early (to avoid wasting time):
-    if k>50 && (belowTarget && (targetRelImprovement50)<2e-1) %Breaking if improvement less than 20% of distance to targetLogL, as this probably means we are not getting a solution better than the given target
+    if k>50 && (belowTarget && (targetRelImprovement50)<targetTol) %Breaking if improvement less than tol of distance to targetLogL
        msg='Unlikely to reach target value. Stopping.';
         %fprintf([ num2str(k) ' iterations.\n'])
        breakFlag=true; 
-    elseif k>50 && (relImprovementLast50)<1e-9 %Considering the system stalled if relative improvement on logl is <1e-9
+    elseif k>50 && (relImprovementLast50)<convergenceTol %Considering the system stalled if relative improvement on logl is <tol
         msg='Increase is within tolerance (local max). Stopping.';
         %fprintf(['increase is within tolerance (local max). '  num2str(k) ' iterations.\n'])
         %disp(['LogL as % of target:' num2str(round(l*100000/targetLogL)/1000)])
@@ -164,9 +157,9 @@ end
 
 %%
 if fastFlag==0 %Re-enable disabled warnings
-    w = warning ('on','statKFfast:unstable');
-    w = warning ('on','statKFfast:NaNsamples');
-    w = warning ('on','statKSfast:unstable');
+    warning ('on','statKFfast:unstable');
+    warning ('on','statKFfast:NaNsamples');
+    warning ('on','statKSfast:unstable');
 end
 end
 

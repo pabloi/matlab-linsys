@@ -79,10 +79,14 @@ Q=Q1 +Q2;
 aux=mycholcov(SP); %Enforce symmetry
 Ca=C*aux';
 Nz=size(z,2);
-R1=(z*z')/Nz;
+if ~robustFlag
+    R1=(z*z')/Nz;
+else
+    R1=robCov(z);
+end
 R2=(Ca*Ca')/Nz;
 R=R1+R2;
-%R=(z*Y')/Nz; %Equivalent to above, but does not envorce symmetry
+%R=(z*Y')/Nz; %Equivalent to above, but does not enforce symmetry
 R=R+1e-15*eye(size(R)); %Avoid numerical issues
 
 
