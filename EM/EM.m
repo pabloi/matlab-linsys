@@ -26,7 +26,6 @@ X=Xguess;
 
 % Init params:
 [A1,B1,C1,D1,Q1,R1,x01,P01,bestLogL]=initParams(Y,U,X,opts);
-[A1,B1,C1,x01,~,Q1,P01] = canonizev2(A1,B1,C1,x01,Q1,P01);
 
 %Initialize log-likelihood register & current best solution:
 logl=nan(opts.Niter,1);
@@ -91,6 +90,8 @@ for k=1:opts.Niter-1
         msg='Complex logL, probably ill-conditioned matrices involved. Stopping.';
         %fprintf(['Complex logL, probably ill-conditioned matrices involved. Stopping after ' num2str(k) ' iterations.\n'])
         breakFlag=true;
+    elseif any(isnan(X1(:))) 
+        error('EM:NaNdetected','States are NaN, aborting');
     elseif any(abs(eig(A1))>1)
         %No need to break for unstable systems, usually they converge to a
         %stable system or lack of improvement in logl makes the iteration stop
@@ -151,7 +152,12 @@ for k=1:opts.Niter-1
     end
     %M-step:
     [A1,B1,C1,D1,Q1,R1,x01,P01]=estimateParams(Y,U,X1,P1,Pt1,opts);
-    %[A1,B1,C1,x01,~,Q1,P01] = canonizev2(A1,B1,C1,x01,Q1,P01);
+    if mod(k,step)==0 
+        [A1,B1,C1,x01,~,Q1,P01] = canonizev2(A1,B1,C1,x01,Q1,P01); %Regularizing the solution to avoid ill-conditioned situations
+        %This is necessary because it is
+        %possible that the EM algorithm will runaway towards a numerically
+        %unstable representation of an otherwise stable system
+    end
 end
 
 %%
@@ -182,7 +188,7 @@ end
     %Initialize guesses of A,B,C,D,Q,R
     [A1,B1,C1,D1,Q1,R1,x01,P01]=estimateParams(Y,U,X,P,Pt,opts);
     %Make sure scaling is appropriate:
-    %[A1,B1,C1,x01,~,Q1,P01] = canonizev2(A1,B1,C1,x01,Q1,P01); 
+    [A1,B1,C1,x01,~,Q1,P01] = canonizev2(A1,B1,C1,x01,Q1,P01); 
     %Compute logL:
     logL=dataLogLikelihood(Y,U,A1,B1,C1,D1,Q1,R1,x01(:,1),P01(:,:,1),'approx');
 end

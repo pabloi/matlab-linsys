@@ -9,9 +9,8 @@ if nargin<5 || isempty(b)
   b=0;
 end
 x=A*x+b;
-%aux=mycholcov(P); %To ensure symmetry
-%Aa=A*aux';
-%P=Aa*Aa'+Q;
-P=A*P*A'+Q; %This is much faster than the Chol decomposition, 
-%and may not add instability, since P is decomposed in the update step anyway
+aux=mycholcov(P); %To ensure psd
+Aa=A*aux';
+P=Aa*Aa'+Q;
+%P=A*P*A'+Q; %This is much faster than the Chol decomposition, but may add instability
 end
