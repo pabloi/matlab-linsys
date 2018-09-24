@@ -90,7 +90,7 @@ for k=1:opts.Niter-1
         msg='Complex logL, probably ill-conditioned matrices involved. Stopping.';
         %fprintf(['Complex logL, probably ill-conditioned matrices involved. Stopping after ' num2str(k) ' iterations.\n'])
         breakFlag=true;
-    elseif any(isnan(X1(:))) 
+    elseif isnan(sum(X1(:)))
         error('EM:NaNdetected','States are NaN, aborting');
     elseif any(abs(eig(A1))>1)
         %No need to break for unstable systems, usually they converge to a

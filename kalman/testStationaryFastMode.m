@@ -58,10 +58,19 @@ for i=1:2
     plot(Xsf(i,:)-X(i,1:end-1),'DisplayName','FastSmooth')
     plot(Xff(i,:)-X(i,1:end-1),'DisplayName','FastFilt')
         set(gca,'ColorOrderIndex',1)
-    bar(1500+500*i,sqrt(mean((X(i,1:end-1)-Xs(i,:)).^2)),'BarWidth',100,'EdgeColor','None')
-    bar(1600+500*i,sqrt(mean((X(i,1:end-1)-Xf(i,:)).^2)),'BarWidth',100,'EdgeColor','None')
-    bar(1700+500*i,sqrt(mean((X(i,1:end-1)-Xsf(i,:)).^2)),'BarWidth',100,'EdgeColor','None')
-    bar(1800+500*i,sqrt(mean((X(i,1:end-1)-Xff(i,:)).^2)),'BarWidth',100,'EdgeColor','None')
+    %bar(1500+500*i,sqrt(mean((X(i,1:end-1)-Xs(i,:)).^2)),'BarWidth',100,'EdgeColor','None')
+    aux=sqrt(mean((X(i,1:end-1)-Xs(i,:)).^2));
+    b1=bar(1500+500*i,aux,'BarWidth',100,'EdgeColor','None');
+    text(1450+500*i,1.2*aux,num2str(aux,3),'Color',b1.FaceColor)
+    aux=sqrt(mean((X(i,1:end-1)-Xf(i,:)).^2));
+    b1=bar(1600+500*i,aux,'BarWidth',100,'EdgeColor','None');
+    text(1550+500*i,1.2*aux,num2str(aux,3),'Color',b1.FaceColor)
+    aux=sqrt(mean((X(i,1:end-1)-Xsf(i,:)).^2));
+    b1=bar(1700+500*i,aux,'BarWidth',100,'EdgeColor','None');
+    text(1650+500*i,1.2*aux,num2str(aux,3),'Color',b1.FaceColor)
+    aux=sqrt(mean((X(i,1:end-1)-Xff(i,:)).^2));
+    b1=bar(1800+500*i,aux,'BarWidth',100,'EdgeColor','None');
+    text(1750+500*i,1.2*aux,num2str(aux,3),'Color',b1.FaceColor)
     grid on
 end
 title('Residuals')

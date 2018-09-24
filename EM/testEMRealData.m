@@ -40,8 +40,8 @@ U=[zeros(size(dataSym{1},1),1);ones(size(dataSym{2},1),1);zeros(size(dataSym{3},
 Y=[median(dataSym{1},3); median(dataSym{2},3)]';
 U=[zeros(size(dataSym{1},1),1);ones(size(dataSym{2},1),1)]';
 %% Median-filtered B, A
- binw=3;
- Y2=[medfilt1(median(dataSym{1},3),binw,'truncate'); medfilt1(median(dataSym{2},3),binw,'truncate')]';
+binw=3;
+Y2=[medfilt1(median(dataSym{1},3),binw,'truncate'); medfilt1(median(dataSym{2},3),binw,'truncate')]';
 %%
 D1=3;
 %% Identify 0: handcrafted sPCA
