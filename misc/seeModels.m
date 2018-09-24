@@ -14,9 +14,8 @@ end
 for k=1:nD
     subplot(nD,1,k)
     hold on
-
     for i=1:length(models)
-        %scatter(1:length(rejSamples),models{i}.dataProj2(k,:),10,'filled','b','DisplayName','Data projected alt')
+        scatter(1:length(rejSamples),models{i}.dataProj2(k,:),10,.6*ones(1,3),'filled','DisplayName','Data projected alt')
         scatter(find(rejSamples),models{i}.dataProj(k,rejSamples),30,'filled','r','DisplayName','Data rejected')
         scatter(1:length(rejSamples),models{i}.dataProj(k,:),10,'filled','k','DisplayName','Data projected')
         %scatter(find(rejSamples),models{i}.dataProj2(k,rejSamples),30,'filled','b','DisplayName','Data rejected')

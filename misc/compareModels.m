@@ -4,17 +4,20 @@ M=size(model{1}.X,1);
 fh=figure;
 Ny=4;
 Nx=M+4;
-
+yoff=size(Y,2)*1.1;
 %Compute output and residuals
 for i=1:length(model)
-        if ~isfield(model{i},'P')
+    if ~isfield(model{i},'P')
         model{i}.P0=[];
     else
         model{i}.P0=model{i}.P(:,:,1);
     end
-    [Xs,Ps,Pt,Xf,Pf,Xp,Pp,rejSamples]=statKalmanSmoother(Y,model{i}.J,model{i}.C,model{i}.Q,model{i}.R,model{i}.X(:,1),model{i}.P0,model{i}.B,model{i}.D,U,false,true); 
+    [Xs,Ps,Pt,Xf,Pf,Xp,Pp,rejSamples]=statKalmanSmoother(Y,model{i}.J,model{i}.C,model{i}.Q,model{i}.R,model{i}.X(:,1),model{i}.P0,model{i}.B,model{i}.D,U,false,false); 
     model{i}.Xs=Xs; %Smoothed data
+    model{i}.Pp=Pp; %One-step ahead uncertainty from filtered data.
+    model{i}.Pf=Pf;
     model{i}.Xf=Xf; %Filtered data
+    model{i}.Xp=Xp; %Predicted data
     model{i}.out=model{i}.C*model{i}.Xs+model{i}.D*U;
     model{i}.res=Y-model{i}.out;
     model{i}.oneAheadStates=model{i}.J*model{i}.Xs(:,1:end-1)+model{i}.B*U(:,1:end-1);
@@ -28,7 +31,7 @@ end
 
 % Plot output PCs and residuals
 [cc,pp,aa]=pca(Y','Centered','off');
-for kk=1:M+2
+for kk=1:min(M+2,size(Y,1))
     subplot(Nx,Ny,(kk-1)*Ny+1) %Output along first PC of true data
     hold on
 scatter(1:size(Y,2),cc(:,kk)'*Y,5,'filled','k')
@@ -58,15 +61,13 @@ end
 set(gca,'ColorOrderIndex',1)
 clear p
 for k=1:length(model)
-    p(k)=plot(model{k}.Xs(i,:),'LineWidth',1,'DisplayName',[model{k}.name ', \tau=' num2str(-1./log(model{k}.J(i,i)),3)]);
-    try
-    patch([1:size(model{k}.Xs,2),size(model{k}.Xs,2):-1:1]',[model{k}.Xs(i,:)+sqrt(squeeze(model{k}.P(i,i,:)))', fliplr(model{k}.X(i,:)-sqrt(squeeze(model{k}.P(i,i,:)))')]',p(k).Color,'EdgeColor','none','FaceAlpha',.3)
-    end
+    p(k)=plot(model{k}.Xf(i,:),'LineWidth',1,'DisplayName',[model{k}.name ', \tau=' num2str(-1./log(model{k}.J(i,i)),3)]);
+    patch([1:size(model{k}.Xf,2),size(model{k}.Xf,2):-1:1]',[model{k}.Xf(i,:)+sqrt(squeeze(model{k}.Pf(i,i,:)))', fliplr(model{k}.Xf(i,:)-sqrt(squeeze(model{k}.Pf(i,i,:)))')]',p(k).Color,'EdgeColor','none','FaceAlpha',.3)
 end
-title('States')
-if i==1
+title('(Filtered) States')
+%if i==1
 legend(p,'Location','SouthEast')
-end
+%end
 ylabel(['State ' num2str(i)])
 end
 
@@ -76,11 +77,11 @@ hold on
 for k=1:length(model)
 aux1=sqrt(sum((Y-model{k}.smoothOut).^2));
 p1=plot(aux1,'LineWidth',1);
-bar2=bar([1600+k*100],mean([aux1]),'EdgeColor','none','BarWidth',100,'FaceColor',p1.Color);
-text(1700+(k-1)*100,.8+k*.2,['LogL=' num2str(model{k}.logLtest)],'Color',bar2.FaceColor)
+bar2=bar([yoff+k*100],mean([aux1]),'EdgeColor','none','BarWidth',100,'FaceColor',p1.Color);
+text(yoff+(k)*100,.8+k*.2,['LogL=' num2str(model{k}.logLtest)],'Color',bar2.FaceColor)
 end
 title('Smooth output error (RMSE)')
-axis([0 2200 .0 1.5])
+axis tight
 grid on
 
 %MLE state output error
@@ -89,11 +90,11 @@ hold on
 for k=1:length(model)
 aux1=sqrt(sum((Y-model{k}.out).^2));
 p1=plot(aux1,'LineWidth',1);
-bar2=bar([1600+k*100],mean([aux1]),'EdgeColor','none','BarWidth',100,'FaceColor',p1.Color);
-text(1700+(k-1)*100,.8+.2*k,['LogL=' num2str(model{k}.logLtest)],'Color',bar2.FaceColor)
+bar2=bar([yoff+k*100],mean([aux1]),'EdgeColor','none','BarWidth',100,'FaceColor',p1.Color);
+text(yoff+(k)*100,.8+.2*k,['LogL=' num2str(model{k}.logLtest)],'Color',bar2.FaceColor)
 end
 title('Output error (RMSE)')
-axis([0 2200 .0 1.5])
+axis tight
 grid on
 
  %One ahead error
@@ -102,8 +103,8 @@ hold on
 for k=1:length(model)
 aux1=sqrt(sum((Y(:,2:end)-model{k}.oneAheadOut).^2));
 p1=plot(aux1,'LineWidth',1);
-bar2=bar([1600+k*100],nanmean([aux1]),'EdgeColor','none','BarWidth',100,'FaceColor',p1.Color);
-text(1700+(k-1)*100,nanmean(aux1)*(1+.5*k),[num2str(nanmean(aux1))],'Color',bar2.FaceColor)
+bar2=bar([yoff+k*100],nanmean([aux1]),'EdgeColor','none','BarWidth',100,'FaceColor',p1.Color);
+text(yoff+(k)*100,nanmean(aux1)*(1+.5*k),[num2str(nanmean(aux1))],'Color',bar2.FaceColor)
 end
 title('One-ahead output error (RMSE)')
 axis tight
@@ -113,13 +114,13 @@ grid on
 subplot(Nx,Ny,Ny*(M)+2) 
 hold on
 for k=1:length(model)
-    stError=model{k}.X(:,2:end)-model{k}.oneAheadStates;
+    stError=model{k}.Xs(:,2:end)-model{k}.oneAheadStates;
 aux1=sqrt(z2score(stError,model{k}.Q));
 p1=plot(aux1,'LineWidth',1);
-bar2=bar([1600+k*100],nanmean([aux1]),'EdgeColor','none','BarWidth',100,'FaceColor',p1.Color);
-text(1700+(k-1)*100,nanmean(aux1)*(1+.5*k),[num2str(nanmean(aux1))],'Color',bar2.FaceColor)
+bar2=bar([yoff + k*100],nanmean([aux1]),'EdgeColor','none','BarWidth',100,'FaceColor',p1.Color);
+text(yoff+(k)*100,nanmean(aux1)*(1+.5*k),[num2str(nanmean(aux1))],'Color',bar2.FaceColor)
 end
-title('One-ahead state error (z-score)')
+title('(Smoothed) One-ahead state error (z-score)')
 axis tight
 grid on
 
