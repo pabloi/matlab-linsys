@@ -117,11 +117,11 @@ end
 %Fast smoothing for the middle (N-2*M) samples
 if Nfast>0 %Assume steady-state: 
     [icP,~]=pinvchol(pp);
-    H=(pf*(A'*icP))*icP'; %TODO: check for stabilty efficiently
-%     if any(abs(eig(H))>1)
-%         warning('statKS:unstableSmooth','Unstable smoothing, skipping the backward pass.')
-%         H=zeros(size(H));
-%     end
+    H=(pf*(A'*icP))*icP'; %TODO: check for stability efficiently
+     if any(abs(eig(H))>1)
+         warning('statKS:unstableSmooth','Unstable smoothing, skipping the backward pass.')
+         H=zeros(size(H));
+     end
     aux=Xf-H*Xp(:,2:end); %Precompute for speed
     for i=(N-M1-1):-1:(M2+1)
         prevXs=aux(:,i) + H*prevXs; %=Xf(:,i) + H*(prevXs-Xp(:,i+1));
