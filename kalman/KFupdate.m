@@ -3,16 +3,21 @@ function [x,P,K,z,zprctile]=KFupdate(C,R,y,x,P)
 
 cP=mycholcov(P);
 CcP=C*cP';
-cS=chol(R+CcP*CcP'); %This should always be PD, so chol() should work
+cS=chol(R+CcP*CcP'); %This should always be PD, so chol() should work,
+%however very small (but positive) eigenvalues in R and P can lead to a
+%numerically non-PD matrix, and this fails
 icS=eye(size(R))/cS;
-%[icS,cS]=pinvchol(R+CcP*CcP'); %Equivalent to two lines above, but
+%[icS]=pinvchol(R+CcP*CcP'); %Equivalent to two lines above, but
 %slightly slower, because of overhead checks of invertibility
-%K=P*C'/S;%=pinv(pinv(P)+CtRinvC);
 %CicS=C'*icS;
 PCicS=P*C'*icS;
-P=P-PCicS*PCicS';%=P-P*C'/S*C*P;%=P-K*C*P;
-K=PCicS*icS';
+K=PCicS*icS'; %K=P*C'/S;
 x=x+K*(y-C*x);
+I_KC=eye(size(P))-K*C;
+%P=P-PCicS*PCicS';%=P-P*C'/S*C*P;%=P-K*C*P; %This expression may lead to
+%non-psd covariance, since it is the subtraction of two psd matrices
+I_KCcP=I_KC*cP';
+P=I_KCcP*I_KCcP'+K*R*K';
 
 
 %If we wanted to check sanity of the update, by evaluating if the
