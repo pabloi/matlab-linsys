@@ -13,25 +13,28 @@ if nargin<4 || isempty(X)
 end
 
 %% Find linear transformation to Jordan's canonical form 
-A2=A-diag(diag(A));
-if any(abs(A2(:))>1e-15) %Don't bother finding Jordan form if matrix is already diagonal
-    [V,J] = jordan(A); %J=V\A*V; %V*X'=X -> V*X'_+1 = X_+1 = (A*X +B*u) = A*V*X' +B*u => J*X' + K*u
-    %Deal with badly scaled V matrix:
-    V2=V;
-    V2=V2./sqrt(abs(diag(V)));
-    V2=V2./sqrt(abs(diag(V)))';
-    V=V2; %V2 still returns the Canonical jordan form, but is better scaled
-    J=V\A*V;
-else
-    V=eye(size(A));
-    J=A;
-end
+% A2=A-diag(diag(A));
+% if any(abs(A2(:))>1e-15) %Don't bother finding Jordan form if matrix is already diagonal
+%     [V,~] = jordan(A); %J=V\A*V; %V*X'=X -> V*X'_+1 = X_+1 = (A*X +B*u) = A*V*X' +B*u => J*X' + K*u
+%     %Deal with badly scaled V matrix:
+%     V2=V;
+%     V2=V2./sqrt(abs(diag(V)));
+%     V2=V2./sqrt(abs(diag(V)))';
+%     V=V2; %V2 still returns the Canonical jordan form, but is better scaled
+%     J=V\A*V;
+% else
+%     V=eye(size(A));
+%     J=A;
+% end
+% 
 
+[V,J]=eig(A);
 % Deal with complex solutions, if they happen:
 a=imag(diag(J)); b=real(diag(J));
 if any(abs(a./b)>1e-15) %If there are (truly) complex eigen-values, will transform to the real-jordan form
-    [V,~] = cdf2rdf(V,J);
-else
+    [V,D]=eig(A);
+    [V,~] = cdf2rdf(V,D);
+else %Ignore imaginary parts
     V=real(V);
     J=real(J);
 end
