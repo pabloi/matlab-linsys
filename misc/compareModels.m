@@ -12,7 +12,8 @@ for i=1:length(model)
     else
         model{i}.P0=model{i}.P(:,:,1);
     end
-    [Xs,Ps,Pt,Xf,Pf,Xp,Pp,rejSamples]=statKalmanSmoother(Y,model{i}.J,model{i}.C,model{i}.Q,model{i}.R,model{i}.X(:,1),model{i}.P0,model{i}.B,model{i}.D,U,false,false); 
+    fastFlag=0;
+    [Xs,Ps,Pt,Xf,Pf,Xp,Pp,rejSamples]=statKalmanSmoother(Y,model{i}.J,model{i}.C,model{i}.Q,model{i}.R,model{i}.X(:,1),model{i}.P0,model{i}.B,model{i}.D,U,false,fastFlag); 
     model{i}.Xs=Xs; %Smoothed data
     model{i}.Pp=Pp; %One-step ahead uncertainty from filtered data.
     model{i}.Pf=Pf;

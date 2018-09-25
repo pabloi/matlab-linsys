@@ -56,21 +56,25 @@ end
 if nargin<10 || isempty(U)
   U=zeros(size(B,2),size(X,2));
 end
-if nargin<11 
+if nargin<11 || isempty(outlierRejection)
     outlierRejection=false;
 end
-if nargin<12 || isempty(fastFlag) || isempty(outlierRejection)
+if nargin<12 || isempty(fastFlag) || fastFlag==0
     M=N; %Do true filtering for all samples
-elseif any(any(isnan(Y))) || outlierRejection
+elseif any(any(isnan(Y))) || outlierRejection 
   warning('statKFfast:NaNsamples','Requested fast KF but some samples are NaN, not using fast mode.')
   M=N;
-elseif fastFlag==0
+elseif fastFlag==1
     M2=20; %Default for fast filtering: 20 samples
     M1=ceil(3*max(-1./log(abs(eig(A))))); %This many strides ensures ~convergence of gains before we assume steady-state
     M=max(M1,M2);
     M=min(M,N); %Prevent more than N, if this happens, we are not doing fast filtering
 else
-    M=min(ceil(abs(fastFlag)),N); %If fastFlag is a number but not 0, use that as number of samples
+    M=min(ceil(abs(fastFlag)),N); %If fastFlag is a number but not 0 or 1, use that as number of samples
+    M1=ceil(3*max(-1./log(abs(eig(A))))); %This many strides ensures ~convergence of gains before we assume steady-state
+    if M<N-1 && M<M1
+        warning('statKSfast:fewSamples','Number of samples for fast filtering were provided, but system time-constants indicate more are needed')
+    end
 end
 
 %Special case: deterministic system, no filtering needed. This can also be

@@ -61,7 +61,7 @@ model{1}.name='sPCA';
 %% Identify 1: true EM with smooth start
 tic
 opts.Niter=500;
-opts.fastFlag=false;
+opts.fastFlag=0;
 opts.robustFlag=false;
 [fAh,fBh,fCh,D,fQh,R,fXh,fPh]=EM(Y,U,model{1}.X,opts); %Slow/true EM
 logL=dataLogLikelihood(Y,U,fAh,fBh,fCh,D,fQh,R,fXh(:,1),fPh(:,:,1));
@@ -83,7 +83,7 @@ model{2}.name='EM (smooth start)';
 tic
 opts.Niter=500;
 opts.robustFlag=false;
-opts.fastFlag=false;
+opts.fastFlag=[];
 [fAh,fBh,fCh,D,fQh,R,fXh,fPh]=EM(Y2,U,model{1}.X,opts); %Slow/true EM
 logL=dataLogLikelihood(Y,U,fAh,fBh,fCh,D,fQh,R,fXh(:,1),fPh(:,:,1));
 model{3}.runtime=toc
