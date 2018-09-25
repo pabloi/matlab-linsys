@@ -21,12 +21,14 @@ if ~isfield(opts,'targetTol')
 end
 
 if ~isfield(opts,'targetLogL')
-    opts.targetLogL=[]; % 30% minimum improvement towards target every 50 iters
+    opts.targetLogL=[]; 
 end
 
 if ~isfield(opts,'sphericalR')
-    opts.sphericalR=false; % 30% minimum improvement towards target every 50 iters
+    opts.sphericalR=false;
 end
-    
+if ~isfield(opts,'outlierReject')
+    opts.outlierReject=false; 
+end
 end
 

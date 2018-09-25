@@ -53,21 +53,20 @@ for k=1:opts.Niter-1
     %logl(k,2)=dataLogLikelihood(Y,U,A,B,C,D,Q,R,X);
 	%M-step: find parameters A,B,C,D,Q,R that maximize likelihood of data
     
-    %if k>20
-    %    robFlag=opts.robustFlag;
-    %else
-       robFlag=false;
-    %end
     %E-step:
     if isa(Y,'cell') %Data is many realizations of same system
-        [X1,P1,Pt1,~,~,Xp,Pp,rejSamples]=cellfun(@(y,x0,p0,u) statKalmanSmoother(y,A1,C1,Q1,R1,x0,p0,B1,D1,u,robFlag,opts.fastFlag),Y,x01,P01,U,'UniformOutput',false);
+        [X1,P1,Pt1,~,~,Xp,Pp,rejSamples]=cellfun(@(y,x0,p0,u) statKalmanSmoother(y,A1,C1,Q1,R1,x0,p0,B1,D1,u,opts.outlierReject,opts.fastFlag),Y,x01,P01,U,'UniformOutput',false);
         if any(cellfun(@(x) any(imag(x(:))~=0),X1))
             error('Complex states') 
+        elseif any(cellfun(@(x) isnan(sum(x(:))),X1))
+            error('EM:NaNdetected','States are NaN, aborting');
         end
     else
-        [X1,P1,Pt1,~,~,Xp,Pp,rejSamples]=statKalmanSmoother(Y,A1,C1,Q1,R1,x01,P01,B1,D1,U,robFlag,opts.fastFlag);
+        [X1,P1,Pt1,~,~,Xp,Pp,rejSamples]=statKalmanSmoother(Y,A1,C1,Q1,R1,x01,P01,B1,D1,U,opts.outlierReject,opts.fastFlag);
         if any(imag(X1(:))~=0)
             error('Complex states') 
+        elseif isnan(sum(X1(:)))
+            error('EM:NaNdetected','States are NaN, aborting');
         end
     end
     
@@ -83,15 +82,13 @@ for k=1:opts.Niter-1
     improvement=delta>=0;
     targetRelImprovement50=(l-logl(max(k-50,1),1))/(opts.targetLogL-l);
     belowTarget=max(l,bestLogL)<opts.targetLogL;
-    relImprovementLast50=1-logl(max(k-50,1),1)/l; %Assessing the relative improvement on logl over the last 10 iterations (or less if there aren't as many)
+    relImprovementLast50=1-logl(max(k-50,1),1)/abs(l); %Assessing the relative improvement on logl over the last 10 iterations (or less if there aren't as many)
     
     %Check for failure conditions:
     if imag(l)~=0 %This does not happen
         msg='Complex logL, probably ill-conditioned matrices involved. Stopping.';
         %fprintf(['Complex logL, probably ill-conditioned matrices involved. Stopping after ' num2str(k) ' iterations.\n'])
         breakFlag=true;
-    elseif isnan(sum(X1(:)))
-        error('EM:NaNdetected','States are NaN, aborting');
     elseif any(abs(eig(A1))>1)
         %No need to break for unstable systems, usually they converge to a
         %stable system or lack of improvement in logl makes the iteration stop
@@ -133,14 +130,14 @@ for k=1:opts.Niter-1
     %Print some info
     step=50;
     if mod(k,step)==0 || breakFlag %Print info
-        pOverTarget=100*(l/opts.targetLogL-1);
+        pOverTarget=100*((l-opts.targetLogL)/abs(opts.targetLogL));
         if k>=step && ~breakFlag
             lastChange=l-logl(k+1-step,1);
             disp(['Iter = ' num2str(k) ', \Delta logL = ' num2str(lastChange) ', % over target = ' num2str(pOverTarget)])
             %sum(rejSamples)
         else %k==1 || breakFlag
             l=bestLogL;
-            pOverTarget=100*(l/opts.targetLogL-1);
+            pOverTarget=100*((l-opts.targetLogL)/abs(opts.targetLogL));
             disp(['Iter = ' num2str(k) ', logL = ' num2str(l) ', % over target = ' num2str(pOverTarget)])
             if breakFlag
             fprintf([msg ' \n'])
@@ -185,12 +182,12 @@ else
     end
 end
 
-    %Initialize guesses of A,B,C,D,Q,R
-    [A1,B1,C1,D1,Q1,R1,x01,P01]=estimateParams(Y,U,X,P,Pt,opts);
-    %Make sure scaling is appropriate:
-    [A1,B1,C1,x01,~,Q1,P01] = canonizev2(A1,B1,C1,x01,Q1,P01); 
-    %Compute logL:
-    logL=dataLogLikelihood(Y,U,A1,B1,C1,D1,Q1,R1,x01(:,1),P01(:,:,1),'approx');
+%Initialize guesses of A,B,C,D,Q,R
+[A1,B1,C1,D1,Q1,R1,x01,P01]=estimateParams(Y,U,X,P,Pt,opts);
+%Make sure scaling is appropriate:
+[A1,B1,C1,x01,~,Q1,P01] = canonizev2(A1,B1,C1,x01,Q1,P01); 
+%Compute logL:
+logL=dataLogLikelihood(Y,U,A1,B1,C1,D1,Q1,R1,x01,P01,'approx');
 end
 
 function [P,Pt]=initCov(X)
@@ -217,5 +214,6 @@ else
     X=nan(D1,size(Y,2));
     X(:,idx)=pp(:,1:D1)';
     X(:,~idx)=interp1(find(idx),pp(:,1:D1),find(~idx))';
+    X=(1e2*X)./sqrt(sum(X.^2,2)); %Making sure we have good scaling, WLOG
 end
 end

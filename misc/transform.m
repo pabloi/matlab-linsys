@@ -10,10 +10,24 @@ if nargin>2
         if nargin>4
             Q=V*Q*V';
             if nargin>5
-                X=V*X;
+                if isa(X,'cell')
+                    for i=1:length(X)
+                        X{i}=V*X{i};
+                    end
+                else
+                    X=V*X;
+                end
                 if nargin>6
-                    for i=1:size(P,3)
-                      P(:,:,i)=V*P(:,:,i)*V'; 
+                    if isa(P,'cell')
+                        for k=1:length(P)
+                           for i=1:size(P{k},3)
+                                P{k}(:,:,i)=V*P{k}(:,:,i)*V'; 
+                           end
+                        end
+                    else
+                        for i=1:size(P,3)
+                          P(:,:,i)=V*P(:,:,i)*V'; 
+                        end
                     end
                 end
             end
