@@ -1,11 +1,11 @@
 function [fh] = compareModels(model,Y,U)
 
 M=size(model{1}.X,1);
-fh=figure;
+fh=figure('Units','Normalized','OuterPosition',[0 0 1 1]);
 Ny=4;
 Nx=M+4;
 yoff=size(Y,2)*1.1;
-%Compute output and residuals
+%% Compute output and residuals
 for i=1:length(model)
     if ~isfield(model{i},'P')
         model{i}.P0=[];
@@ -30,7 +30,7 @@ for i=1:length(model)
     model{i}.logLtest=dataLogLikelihood(Y,U,model{i}.J,model{i}.B,model{i}.C,model{i}.D,model{i}.Q,model{i}.R,model{i}.X(:,1),model{i}.P0,'approx');
 end
 
-% Plot output PCs and residuals
+%% Plot output PCs and residuals
 [cc,pp,aa]=pca(Y','Centered','off');
 for kk=1:min(M+2,size(Y,1))
     subplot(Nx,Ny,(kk-1)*Ny+1) %Output along first PC of true data
@@ -47,7 +47,7 @@ scatter(1:size(Y,2),cc(:,kk)'*Y,5,'filled','k')
     ylabel(['PC ' num2str(kk)])
 end
 
-% Plot STATES
+%% Plot STATES
 for i=1:M
 subplot(Nx,Ny,Ny*(i-1)+2) %States
 hold on
@@ -72,33 +72,33 @@ legend(p,'Location','SouthEast')
 ylabel(['State ' num2str(i)])
 end
 
-%Smooth output RMSE
+%% Smooth output RMSE
 subplot(Nx,Ny,Ny*(M+2)+1) 
 hold on
 for k=1:length(model)
 aux1=sqrt(sum((Y-model{k}.smoothOut).^2));
 p1=plot(aux1,'LineWidth',1);
 bar2=bar([yoff+k*100],mean([aux1]),'EdgeColor','none','BarWidth',100,'FaceColor',p1.Color);
-text(yoff+(k)*100,.8+k*.2,['LogL=' num2str(model{k}.logLtest)],'Color',bar2.FaceColor)
+text(yoff+(k)*100,mean([aux1])*(1+k*.5),['logL=' num2str(model{k}.logLtest)],'Color',bar2.FaceColor)
 end
 title('Smooth output error (RMSE)')
 axis tight
 grid on
 
-%MLE state output error
+%% MLE state output error
 subplot(Nx,Ny,Ny*(M+1)+2) 
 hold on
 for k=1:length(model)
 aux1=sqrt(sum((Y-model{k}.out).^2));
 p1=plot(aux1,'LineWidth',1);
 bar2=bar([yoff+k*100],mean([aux1]),'EdgeColor','none','BarWidth',100,'FaceColor',p1.Color);
-text(yoff+(k)*100,.8+.2*k,['LogL=' num2str(model{k}.logLtest)],'Color',bar2.FaceColor)
+text(yoff+(k)*100,mean([aux1])*(1+k*.5),['logL=' num2str(model{k}.logLtest)],'Color',bar2.FaceColor)
 end
 title('Output error (RMSE)')
 axis tight
 grid on
 
- %One ahead error
+%% %One ahead error
 subplot(Nx,Ny,Ny*(M+2)+2)
 hold on
 for k=1:length(model)
@@ -111,7 +111,7 @@ title('One-ahead output error (RMSE)')
 axis tight
 grid on
 
-%MLE state innovation
+%% MLE state innovation
 subplot(Nx,Ny,Ny*(M)+2) 
 hold on
 for k=1:length(model)
@@ -125,7 +125,7 @@ title('(Smoothed) One-ahead state error (z-score)')
 axis tight
 grid on
 
-% Plot features of one-ahead output residuals:
+%% Plot features of one-ahead output residuals:
 Nny=ceil(4*Ny/2);
 for i=1:length(model)
     res=Y(:,2:end)-model{i}.oneAheadOut; %One-ahead residuals
@@ -160,8 +160,58 @@ for i=1:length(model)
     histogram(cc(:,1),'EdgeColor','none','Normalization','pdf','FaceAlpha',.2,'BinEdges',[-1:.02:1])
 end
 xx=[-1:.001:1];
-    subplot(Nx,Nny,(kk+1)*Nny+4)
-    hold on
-    sig=.25;
-    plot(xx,exp(-(xx.^2)/(2*sig^2))/sqrt(2*pi*sig^2),'k')
-    title('Residual PC 1 histogram')
+subplot(Nx,Nny,(kk+1)*Nny+4)
+hold on
+sig=.25;
+plot(xx,exp(-(xx.^2)/(2*sig^2))/sqrt(2*pi*sig^2),'k')
+title('Residual PC 1 histogram')
+    
+%% Define colormap:
+ex1=[1,0,0];
+ex2=[0,0,1];
+mid=ones(1,3);
+N=100;
+map=[ex1.*[N:-1:1]'/N + mid.*[0:N-1]'/N; mid; ex2.*[0:N-1]'/N + mid.*[N:-1:1]'/N];
+%% Plot C and D columns
+aC=max(abs(model{1}.C(:)));
+for i=1:length(model) %models
+    for k=1:(M)
+        subplot(Nx,2*Ny,Ny+i+(k-1)*2*Ny)
+        Nc=size(model{i}.C,1);
+        imagesc(reshape(model{i}.C(:,k),12,Nc/12)')
+        colormap(flipud(map))
+        caxis([-aC aC])
+        if i==1
+            ylabel(['C_' num2str(k)])
+        end
+    end
+    subplot(Nx,2*Ny,Ny+i+M*2*Ny)
+    imagesc(reshape(model{i}.D,12,Nc/12)')
+    colormap(flipud(map))
+    caxis([-aC aC])
+    if i==1
+        ylabel('D')
+    end
+end
+%% Plot R
+aR=mean(diag(model{1}.R));
+for i=1:length(model) %models
+    subplot(Nx,2*Ny,Ny+i+(M+1)*2*Ny)
+    imagesc(model{i}.R)
+    colormap(flipud(map))
+    caxis([-aR aR])
+    if i==1
+        ylabel('R')
+    end
+end
+
+%% Plot Q
+for i=1:length(model) %models
+    subplot(Nx,2*Ny,Ny+i+(M+2)*2*Ny)
+    imagesc(model{i}.Q)
+    colormap(flipud(map))
+    caxis(.1*[-aR aR]./aC^2)
+    if i==1
+        ylabel('Q')
+    end
+end
