@@ -4,3 +4,9 @@
 ext/
 
 EM/robCov\.png
+
+*.mat
+
+*.png
+
+*.fig
