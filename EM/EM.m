@@ -29,7 +29,7 @@ X=Xguess;
 
 %Initialize log-likelihood register & current best solution:
 logl=nan(opts.Niter,1);
-logl(1,1)=bestLogL;
+logl(1)=bestLogL;
 if isa(Y,'gpuArray')
     logl=nan(Niter,1,'gpuArray');
 end
@@ -43,7 +43,7 @@ end
 
 %% ----------------Now, do E-M-----------------------------------------
 breakFlag=false;
-disp(['Iter = 1, target logL = ' num2str(opts.targetLogL)])
+disp(['Iter = 1, target logL = ' num2str(opts.targetLogL,8) ', current logL=' num2str(bestLogL,8)])
 for k=1:opts.Niter-1
 	%E-step: compute the expectation of latent variables given current parameter estimates
     %Note this is an approximation of true E-step in E-M algorithm. The
@@ -84,23 +84,25 @@ for k=1:opts.Niter-1
     belowTarget=max(l,bestLogL)<opts.targetLogL;
     relImprovementLast50=1-logl(max(k-50,1),1)/abs(l); %Assessing the relative improvement on logl over the last 10 iterations (or less if there aren't as many)
     
-    %Check for failure conditions:
-    if imag(l)~=0 %This does not happen
-        msg='Complex logL, probably ill-conditioned matrices involved. Stopping.';
-        %fprintf(['Complex logL, probably ill-conditioned matrices involved. Stopping after ' num2str(k) ' iterations.\n'])
-        breakFlag=true;
-    elseif any(abs(eig(A1))>1)
+    %Check for warning conditions:
+    if any(abs(eig(A1))>1)
         %No need to break for unstable systems, usually they converge to a
         %stable system or lack of improvement in logl makes the iteration stop
         %fprintf(['Unstable system detected. Stopping. ' num2str(k) ' iterations.\n'])
         %warning('EM:unstableSys','Unstable system detected');
-        %break
     elseif ~improvement %This should never happen, except that our loglikelihood is approximate, so there can be some error
         if abs(delta)>1e-6 %Drops of about 1e-6 can be expected because we are
           %computing an approximate logl and because of numerical precision. Report
           %only if drops are larger than this. This value probably is sample-size dependent, so may need adjusting.
           % warning('EM:logLdrop',['logL decreased at iteration ' num2str(k) ', drop = ' num2str(delta)])
         end
+    end
+    
+    %Check for failure conditions:
+    if imag(l)~=0 %This does not happen
+        msg='Complex logL, probably ill-conditioned matrices involved. Stopping.';
+        %fprintf(['Complex logL, probably ill-conditioned matrices involved. Stopping after ' num2str(k) ' iterations.\n'])
+        breakFlag=true;
     else %There was improvement
         if l>=bestLogL
             %If everything went well and these parameters are the best ever: 
@@ -138,7 +140,7 @@ for k=1:opts.Niter-1
         else %k==1 || breakFlag
             l=bestLogL;
             pOverTarget=100*((l-opts.targetLogL)/abs(opts.targetLogL));
-            disp(['Iter = ' num2str(k) ', logL = ' num2str(l) ', % over target = ' num2str(pOverTarget)])
+            disp(['Iter = ' num2str(k) ', logL = ' num2str(l,8) ', % over target = ' num2str(pOverTarget)])
             if breakFlag
             fprintf([msg ' \n'])
             end

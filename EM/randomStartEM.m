@@ -5,9 +5,9 @@ fprintf(['\n Starting rep 0... \n']);
 opt1=opts;
 opt1.fastFlag=0; %Enforcing fast filtering
 [A,B,C,D,Q,R,X,P,bestLL]=EM(Y,U,nd,opt1); 
-
+opts.targetLogL=bestLL;
 for i=1:Nreps
-    fprintf(['\n Starting rep ' num2str(i) '. Best logL so far=' num2str(bestLL) '... \n']);
+    fprintf(['\n Starting rep ' num2str(i) '. Best logL so far=' num2str(bestLL,8) '... \n']);
 
     %Initialize starting point:
     x01=randn(nd,1);
@@ -30,7 +30,7 @@ for i=1:Nreps
         A=Ai; B=Bi; C=Ci; D=Di; Q=Qi; R=Ri; X=Xi; P=Pi;
         bestLL=logl;
         opts.targetLogL=bestLL;
-        disp(['Success, best logL=' num2str(bestLL)])
+        disp(['Success, best logL=' num2str(bestLL,8)])
     end
 end
 
@@ -40,5 +40,5 @@ if bestLL1>bestLL
     A=Ai; B=Bi; C=Ci; D=Di; Q=Qi; R=Ri; X=Xi; P=Pi; bestLL=bestLL1;
 end
  
-disp(['End. Best logL=' num2str(bestLL)]);
+disp(['End. Best logL=' num2str(bestLL,8)]);
 end
