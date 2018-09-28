@@ -1,8 +1,8 @@
 function [fh] = vizModels(model)
 
-M=size(model{1}.X,1);
+M=max(cellfun(@(x) size(x.X,1),model));
 fh=figure('Units','Normalized','OuterPosition',[0 0 1 1]);
-Ny=6;
+Ny=2+length(model);
 Nx=M+3;
 
 %% Compute output and residuals
@@ -13,20 +13,24 @@ for i=1:length(model)
     model{i}.smoothOut=Y2;
 end
 %% Plot STATES
-for i=1:M
-subplot(Nx,Ny,Ny*(i-1)+[1:2]) %States
-hold on
-%Smooth states
-set(gca,'ColorOrderIndex',1)
 clear p
 for k=1:length(model)
-    p(k)=plot(model{k}.smoothStates(i,:),'LineWidth',2,'DisplayName',[model{k}.name ', \tau=' num2str(-1./log(model{k}.J(i,i)),3)]);
+    for i=1:size(model{k}.X,1)
+    subplot(Nx,Ny,Ny*(i-1)+[1:2]) %States
+    hold on
+    set(gca,'ColorOrderIndex',k)
+    p{i}(k)=plot(model{k}.smoothStates(i,:),'LineWidth',2,'DisplayName',[model{k}.name ', \tau=' num2str(-1./log(model{k}.J(i,i)),3)]);
+    if k==1
+        ylabel(['State ' num2str(i)])
+        title('(Smoothed) Step-response states')
+    end
+    end
+if k==length(model)
+    for i=1:M
+         subplot(Nx,Ny,Ny*(i-1)+[1:2]) %
+        legend(findobj(gca,'Type','Line'),'Location','SouthEast')
+    end
 end
-title('(Smoothed) Step-response states')
-%if i==1
-legend(p,'Location','SouthEast')
-%end
-ylabel(['State ' num2str(i)])
 end
     
 %% Define colormap:
@@ -38,7 +42,7 @@ map=[ex1.*[N:-1:1]'/N + mid.*[0:N-1]'/N; mid; ex2.*[0:N-1]'/N + mid.*[N:-1:1]'/N
 %% Plot C and D columns
 aC=max(abs(model{1}.C(:)));
 for i=1:length(model) %models
-    for k=1:(M)
+    for k=1:size(model{i}.X,1)
         subplot(Nx,Ny,2+i+(k-1)*Ny)
         Nc=size(model{i}.C,1);
         try
