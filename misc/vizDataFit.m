@@ -1,4 +1,4 @@
-function [fh] = vizDataFit(model,Y,U)
+function [fh,fh2] = vizDataFit(model,Y,U)
 
 M=size(model{1}.X,1);
 fh=figure('Units','Normalized','OuterPosition',[0 0 1 1]);
@@ -13,7 +13,7 @@ for i=1:length(model)
         model{i}.P0=model{i}.P(:,:,1);
     end
     fastFlag=0;
-    [Xs,Ps,Pt,Xf,Pf,Xp,Pp,rejSamples]=statKalmanSmoother(Y,model{i}.J,model{i}.C,model{i}.Q,model{i}.R,model{i}.X(:,1),model{i}.P0,model{i}.B,model{i}.D,U,false,fastFlag); 
+    [Xs,Ps,Pt,Xf,Pf,Xp,Pp,rejSamples]=statKalmanSmoother(Y,model{i}.J,model{i}.C,model{i}.Q,model{i}.R,[],[],model{i}.B,model{i}.D,U,false,fastFlag); 
     model{i}.Xs=Xs; %Smoothed data
     model{i}.Pp=Pp; %One-step ahead uncertainty from filtered data.
     model{i}.Pf=Pf;
@@ -23,19 +23,39 @@ for i=1:length(model)
     model{i}.res=Y-model{i}.out;
     model{i}.oneAheadStates=model{i}.J*model{i}.Xs(:,1:end-1)+model{i}.B*U(:,1:end-1);
     model{i}.oneAheadOut=model{i}.C*(model{i}.oneAheadStates)+model{i}.D*U(:,2:end);
-    [Y2,X2]=fwdSim(U,model{i}.J,model{i}.B,model{i}.C,model{i}.D,model{i}.X(:,1),[],[]);
+    [Y2,X2]=fwdSim(U,model{i}.J,model{i}.B,model{i}.C,model{i}.D,model{i}.Xs(:,1),[],[]); %Simulating from MLE initial state
     model{i}.smoothStates=X2;
     model{i}.smoothOut=Y2;
 
-    model{i}.logLtest=dataLogLikelihood(Y,U,model{i}.J,model{i}.B,model{i}.C,model{i}.D,model{i}.Q,model{i}.R,model{i}.X(:,1),model{i}.P0,'approx');
+    model{i}.logLtest=dataLogLikelihood(Y,U,model{i}.J,model{i}.B,model{i}.C,model{i}.D,model{i}.Q,model{i}.R,[],[],'approx');
 end
+%% Define colormap:
+ex1=[1,0,0];
+ex2=[0,0,1];
+mid=ones(1,3);
+N=100;
+map=[ex1.*[N:-1:1]'/N + mid.*[0:N-1]'/N; mid; ex2.*[0:N-1]'/N + mid.*[N:-1:1]'/N];
 
 %% Plot output PCs and residuals
 [cc,pp,aa]=pca(Y','Centered','off');
-for kk=1:min(5,size(Y,1))
-    subplot(Nx,Ny,(kk-1)*Ny+1) %Output along first PC of true data
+maxK=min(5,size(Y,1));
+cc=cc(:,1:maxK);
+for kk=1:maxK
+    subplot(Nx,3*Ny,3*(kk-1)*Ny+1) %PC of true data
     hold on
-scatter(1:size(Y,2),cc(:,kk)'*Y,5,'filled','k')
+    Nc=size(cc,1);
+    try
+        imagesc(flipud(reshape(cc(:,kk),12,Nc/12)'))
+    catch
+        imagesc(flpiud(cc(:,kk)))
+    end
+    colormap(flipud(map))
+    aC=max(abs(cc(:)));
+    caxis([-aC aC])
+    axis tight
+    subplot(Nx,3*Ny,3*(kk-1)*Ny+[2:3]) %Output along PC of true data
+    hold on
+    scatter(1:size(Y,2),cc(:,kk)'*Y,5,'filled','k')
      set(gca,'ColorOrderIndex',1)
     for i=1:length(model)
         p(i)=plot(cc(:,kk)'*(model{i}.out),'LineWidth',2);
@@ -90,28 +110,23 @@ grid on
 set(gca,'YScale','log')
 
 %% Plot STATES
+clear p
+for k=1:length(model)
 for i=1:M
 subplot(Nx,Ny,Ny*(i-1)+3) %States
 hold on
 %Smooth states
-set(gca,'ColorOrderIndex',1)
-clear p
-for k=1:length(model)
-p(k)=plot(model{k}.smoothStates(i,:),'LineWidth',2,'DisplayName',[model{k}.name ', \tau=' num2str(-1./log(model{k}.J(i,i)),3)]);
-end
-%axis([0 2000 -.5 1.5])
+set(gca,'ColorOrderIndex',k)
+p(k,i)=plot(model{k}.smoothStates(i,:),'LineWidth',2,'DisplayName',[model{k}.name ', \tau=' num2str(-1./log(model{k}.J(i,i)),3)]);
 %MLE states:
-set(gca,'ColorOrderIndex',1)
-clear p
-for k=1:length(model)
-    p(k)=plot(model{k}.Xf(i,:),'LineWidth',1,'DisplayName',[model{k}.name ', \tau=' num2str(-1./log(model{k}.J(i,i)),3)]);
-    patch([1:size(model{k}.Xf,2),size(model{k}.Xf,2):-1:1]',[model{k}.Xf(i,:)+sqrt(squeeze(model{k}.Pf(i,i,:)))', fliplr(model{k}.Xf(i,:)-sqrt(squeeze(model{k}.Pf(i,i,:)))')]',p(k).Color,'EdgeColor','none','FaceAlpha',.3)
+plot(model{k}.Xf(i,:),'LineWidth',1,'DisplayName',[model{k}.name ', \tau=' num2str(-1./log(model{k}.J(i,i)),3)],'Color',p(k).Color);
+patch([1:size(model{k}.Xf,2),size(model{k}.Xf,2):-1:1]',[model{k}.Xf(i,:)+sqrt(squeeze(model{k}.Pf(i,i,:)))', fliplr(model{k}.Xf(i,:)-sqrt(squeeze(model{k}.Pf(i,i,:)))')]',p(k).Color,'EdgeColor','none','FaceAlpha',.3)
+if k==length(model)
+    legend(p(:,i),'Location','SouthEast')
+    title('(Filtered) States')
+    ylabel(['State ' num2str(i)])
 end
-title('(Filtered) States')
-%if i==1
-legend(p,'Location','SouthEast')
-%end
-ylabel(['State ' num2str(i)])
+end
 end
 
 %% MLE state innovation
@@ -169,3 +184,41 @@ sig=.25;
 plot(xx,exp(-(xx.^2)/(2*sig^2))/sqrt(2*pi*sig^2),'k')
 title('Residual PC 1 histogram')
   
+%% Compare outputs at different points in time:
+fh=figure('Units','Normalized','OuterPosition',[0 0 1 1]);
+N=size(Y,2);
+viewPoints=[1,40,51,151,251,651,940,951,1001,1101,N-11]+5;
+binw=10;
+viewPoints(viewPoints>N-binw/2)=[];
+Ny=length(viewPoints);
+M=length(model);
+aC=max(abs(Y(:)));
+for i=1:Ny
+    subplot(M+1,Ny,i)
+    try
+        imagesc(reshape(mean(Y(:,viewPoints(i)+[-(binw/2):(binw/2)]),2),12,size(Y,1)/12)')
+    catch
+        imagesc(mean(Y(:,viewPoints(i)+[-(binw/2):(binw/2)]),2))
+    end
+    colormap(flipud(map))
+    caxis([-aC aC])
+    axis tight
+    title(['Output at t=' num2str(viewPoints(i))])
+    if i==1
+        ylabel(['Data, binwidth=' num2str(binw)])
+    end
+    for k=1:M
+       subplot(M+1,Ny,i+k*Ny)
+        try
+            imagesc(reshape(mean(model{k}.out(:,viewPoints(i)+[-(binw/2):(binw/2)]),2),12,size(Y,1)/12)')
+        catch
+            imagesc(mean(model{k}.out(:,viewPoints(i)+[-(binw/2):(binw/2)]),2))
+        end
+        colormap(flipud(map))
+        caxis([-aC aC])
+        axis tight
+        if i==1
+            ylabel(model{k}.name)
+        end
+    end
+end

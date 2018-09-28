@@ -8,7 +8,7 @@ Nx=M+3;
 %% Compute output and residuals
 U=[zeros(1,100) ones(1,1000)];
 for i=1:length(model)
-    [Y2,X2]=fwdSim(U,model{i}.J,model{i}.B,model{i}.C,model{i}.D,model{i}.X(:,1),[],[]);
+    [Y2,X2]=fwdSim(U,model{i}.J,model{i}.B,model{i}.C,model{i}.D,[],[],[]);
     model{i}.smoothStates=X2;
     model{i}.smoothOut=Y2;
 end
