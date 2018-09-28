@@ -1,4 +1,4 @@
-function [A,B,C,D,Q,R,X,P,bestLogL]=EM(Y,U,Xguess,opts)
+function [A,B,C,D,Q,R,X,P,bestLogL]=EM(Y,U,Xguess,opts,Pguess)
 %A true EM implementation to do LTI-SSM identification
 %INPUT:
 %Y is D2 x N
@@ -8,6 +8,9 @@ function [A,B,C,D,Q,R,X,P,bestLogL]=EM(Y,U,Xguess,opts)
 
 if nargin<4
     opts=[];
+end
+if nargin<5
+  Pguess=[];
 end
 [opts] = processEMopts(opts);
 warning ('off','statKFfast:unstable');
@@ -25,7 +28,7 @@ end
 X=Xguess;
 
 % Init params:
-[A1,B1,C1,D1,Q1,R1,x01,P01,bestLogL]=initParams(Y,U,X,opts);
+[A1,B1,C1,D1,Q1,R1,x01,P01,bestLogL]=initParams(Y,U,X,opts,Pguess);
 
 %Initialize log-likelihood register & current best solution:
 logl=nan(opts.Niter,1);
@@ -52,25 +55,25 @@ for k=1:opts.Niter-1
     %whereas here we are computing E(X|params) to then maximize L(Y,E(X)|params)
     %logl(k,2)=dataLogLikelihood(Y,U,A,B,C,D,Q,R,X);
 	%M-step: find parameters A,B,C,D,Q,R that maximize likelihood of data
-    
+
     %E-step:
     if isa(Y,'cell') %Data is many realizations of same system
         [X1,P1,Pt1,~,~,Xp,Pp,rejSamples]=cellfun(@(y,x0,p0,u) statKalmanSmoother(y,A1,C1,Q1,R1,x0,p0,B1,D1,u,opts.outlierReject,opts.fastFlag),Y,x01,P01,U,'UniformOutput',false);
         if any(cellfun(@(x) any(imag(x(:))~=0),X1))
-            error('Complex states') 
+            error('Complex states')
         elseif any(cellfun(@(x) isnan(sum(x(:))),X1))
             error('EM:NaNdetected','States are NaN, aborting');
         end
     else
         [X1,P1,Pt1,~,~,Xp,Pp,rejSamples]=statKalmanSmoother(Y,A1,C1,Q1,R1,x01,P01,B1,D1,U,opts.outlierReject,opts.fastFlag);
         if any(imag(X1(:))~=0)
-            error('Complex states') 
+            error('Complex states')
         elseif isnan(sum(X1(:)))
             error('EM:NaNdetected','States are NaN, aborting');
         end
     end
-    
-    
+
+
     %Check improvements:
     Y2=Y;
     %Y2(:,rejSamples)=NaN; %Computing logL without rejected samples
@@ -80,10 +83,10 @@ for k=1:opts.Niter-1
     logl(k+1)=l;
     delta=l-logl(k,1);
     improvement=delta>=0;
-    targetRelImprovement50=(l-logl(max(k-50,1),1))/(opts.targetLogL-l);
+    targetRelImprovement50=(l-logl(max(k-50,1),1))/(opts.targetLogL-logl(max(k-50,1),1));
     belowTarget=max(l,bestLogL)<opts.targetLogL;
     relImprovementLast50=1-logl(max(k-50,1),1)/abs(l); %Assessing the relative improvement on logl over the last 10 iterations (or less if there aren't as many)
-    
+
     %Check for warning conditions:
     if any(abs(eig(A1))>1)
         %No need to break for unstable systems, usually they converge to a
@@ -97,7 +100,7 @@ for k=1:opts.Niter-1
           % warning('EM:logLdrop',['logL decreased at iteration ' num2str(k) ', drop = ' num2str(delta)])
         end
     end
-    
+
     %Check for failure conditions:
     if imag(l)~=0 %This does not happen
         msg='Complex logL, probably ill-conditioned matrices involved. Stopping.';
@@ -105,8 +108,8 @@ for k=1:opts.Niter-1
         breakFlag=true;
     else %There was improvement
         if l>=bestLogL
-            %If everything went well and these parameters are the best ever: 
-            %replace parameters  (notice the algorithm may continue even if 
+            %If everything went well and these parameters are the best ever:
+            %replace parameters  (notice the algorithm may continue even if
             %the logl dropped, but in that case we do not save the parameters)
             A=A1; B=B1; C=C1; D=D1; Q=Q1; R=R1; x0=x01; P0=P01; X=X1; P=P1; Pt=Pt1;
             bestLogL=l;
@@ -117,7 +120,7 @@ for k=1:opts.Niter-1
     if k>50 && (belowTarget && (targetRelImprovement50)<opts.targetTol) && ~opts.robustFlag%Breaking if improvement less than tol of distance to targetLogL
        msg='Unlikely to reach target value. Stopping.';
         %fprintf([ num2str(k) ' iterations.\n'])
-       breakFlag=true; 
+       breakFlag=true;
     elseif k>50 && (relImprovementLast50)<opts.convergenceTol && ~opts.robustFlag %Considering the system stalled if relative improvement on logl is <tol
         msg='Increase is within tolerance (local max). Stopping.';
         %fprintf(['increase is within tolerance (local max). '  num2str(k) ' iterations.\n'])
@@ -128,7 +131,7 @@ for k=1:opts.Niter-1
         msg='Max number of iterations reached. Stopping.';
         breakFlag=true;
     end
-    
+
     %Print some info
     step=50;
     if mod(k,step)==0 || breakFlag %Print info
@@ -151,7 +154,7 @@ for k=1:opts.Niter-1
     end
     %M-step:
     [A1,B1,C1,D1,Q1,R1,x01,P01]=estimateParams(Y,U,X1,P1,Pt1,opts);
-    if mod(k,step)==0 
+    if mod(k,step)==0
         [A1,B1,C1,x01,~,Q1,P01] = canonizev2(A1,B1,C1,x01,Q1,P01); %Regularizing the solution to avoid ill-conditioned situations
         %This is necessary because it is
         %possible that the EM algorithm will runaway towards a numerically
@@ -167,13 +170,13 @@ if opts.fastFlag==0 %Re-enable disabled warnings
 end
 end
 
-function [A1,B1,C1,D1,Q1,R1,x01,P01,logL]=initParams(Y,U,X,opts)
+function [A1,B1,C1,D1,Q1,R1,x01,P01,logL]=initParams(Y,U,X,opts,Pguess)
 
 if isa(Y,'cell')
-    [P,Pt]=cellfun(@initCov,X,'UniformOutput',false);
+    [P,Pt]=cellfun(@(x) initCov(x,Pguess),X,'UniformOutput',false);
 else
     %Initialize covariance to plausible values:
-    [P,Pt]=initCov(X);
+    [P,Pt]=initCov(X,Pguess);
 
     %Move things to gpu if needed
     if isa(Y,'gpuArray')
@@ -187,19 +190,23 @@ end
 %Initialize guesses of A,B,C,D,Q,R
 [A1,B1,C1,D1,Q1,R1,x01,P01]=estimateParams(Y,U,X,P,Pt,opts);
 %Make sure scaling is appropriate:
-[A1,B1,C1,x01,~,Q1,P01] = canonizev2(A1,B1,C1,x01,Q1,P01); 
+[A1,B1,C1,x01,~,Q1,P01] = canonizev2(A1,B1,C1,x01,Q1,P01);
 %Compute logL:
 logL=dataLogLikelihood(Y,U,A1,B1,C1,D1,Q1,R1,x01,P01,'approx');
 end
 
-function [P,Pt]=initCov(X)
+function [P,Pt]=initCov(X,Pguess)
     [~,N]=size(X);
     %Initialize covariance to plausible values:
+    if nargin<2 || isempty(Pguess)
     dX=diff(X');
-    Px=(dX'*dX)/N; 
+    Px=(dX'*dX)/N;
     P=repmat(Px,1,1,N);
     %Px1=(dX(2:end,:)'*dX(1:end-1,:));
     Pt=repmat(.2*diag(diag(Px)),1,1,N);
+  else
+    Pt=.2*Pguess;
+  end
 end
 
 function X=initGuess(Y,U,D1)
@@ -211,7 +218,7 @@ else
     if isa(Y,'gpuArray')
         [pp,~,~]=pca(gather(Y(:,idx)-D*U(:,idx)),'Centered','off'); %Can this be done in the gpu?
     else
-       [pp,~,~]=pca((Y(:,idx)-D*U(:,idx)),'Centered','off'); %Can this be done in the gpu? 
+       [pp,~,~]=pca((Y(:,idx)-D*U(:,idx)),'Centered','off'); %Can this be done in the gpu?
     end
     X=nan(D1,size(Y,2));
     X(:,idx)=pp(:,1:D1)';

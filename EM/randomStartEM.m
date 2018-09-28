@@ -4,7 +4,7 @@ function [A,B,C,D,Q,R,X,P,bestLL]=randomStartEM(Y,U,nd,Nreps,opts)
 fprintf(['\n Starting rep 0... \n']);
 opt1=opts;
 opt1.fastFlag=0; %Enforcing fast filtering
-[A,B,C,D,Q,R,X,P,bestLL]=EM(Y,U,nd,opt1); 
+[A,B,C,D,Q,R,X,P,bestLL]=EM(Y,U,nd,opt1);
 opts.targetLogL=bestLL;
 for i=1:Nreps
     fprintf(['\n Starting rep ' num2str(i) '. Best logL so far=' num2str(bestLL,8) '... \n']);
@@ -35,10 +35,10 @@ for i=1:Nreps
 end
 
 disp(['Refining solution...']);
-[Ai,Bi,Ci,Di,Qi,Ri,Xi,Pi,bestLL1]=EM(Y,U,X,opts); %Refine solution, sometimes works
+[Ai,Bi,Ci,Di,Qi,Ri,Xi,Pi,bestLL1]=EM(Y,U,X,opts,P); %Refine solution, sometimes works
 if bestLL1>bestLL
     A=Ai; B=Bi; C=Ci; D=Di; Q=Qi; R=Ri; X=Xi; P=Pi; bestLL=bestLL1;
 end
- 
+
 disp(['End. Best logL=' num2str(bestLL,8)]);
 end
