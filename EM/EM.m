@@ -205,6 +205,7 @@ function [P,Pt]=initCov(X,Pguess)
     %Px1=(dX(2:end,:)'*dX(1:end-1,:));
     Pt=repmat(.2*diag(diag(Px)),1,1,N);
   else
+    P=Pguess;
     Pt=.2*Pguess;
   end
 end

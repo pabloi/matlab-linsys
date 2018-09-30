@@ -1,6 +1,6 @@
 function [fh] = vizModels(model)
 
-M=max(cellfun(@(x) size(x.X,1),model));
+M=max(cellfun(@(x) size(x.J,1),model));
 fh=figure('Units','Normalized','OuterPosition',[0 0 1 1]);
 Ny=2+length(model);
 Nx=M+3;
@@ -15,7 +15,7 @@ end
 %% Plot STATES
 clear p
 for k=1:length(model)
-    for i=1:size(model{k}.X,1)
+    for i=1:size(model{k}.J,1)
     subplot(Nx,Ny,Ny*(i-1)+[1:2]) %States
     hold on
     set(gca,'ColorOrderIndex',k)
@@ -32,7 +32,7 @@ if k==length(model)
     end
 end
 end
-    
+
 %% Define colormap:
 ex1=[1,0,0];
 ex2=[0,0,1];
@@ -42,7 +42,7 @@ map=[ex1.*[N:-1:1]'/N + mid.*[0:N-1]'/N; mid; ex2.*[0:N-1]'/N + mid.*[N:-1:1]'/N
 %% Plot C and D columns
 aC=max(abs(model{1}.C(:)));
 for i=1:length(model) %models
-    for k=1:size(model{i}.X,1)
+    for k=1:size(model{i}.J,1)
         subplot(Nx,Ny,2+i+(k-1)*Ny)
         Nc=size(model{i}.C,1);
         try
@@ -60,7 +60,7 @@ for i=1:length(model) %models
     try
     imagesc(reshape(model{i}.D,12,Nc/12)')
     catch
-       imagesc(model{i}.D) 
+       imagesc(model{i}.D)
     end
     colormap(flipud(map))
     caxis([-aC aC])

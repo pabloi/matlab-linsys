@@ -1,6 +1,6 @@
 function [fh,fh2] = vizDataFit(model,Y,U)
 
-M=max(cellfun(@(x) size(x.X,1),model));
+M=max(cellfun(@(x) size(x.J,1),model));
 fh=figure('Units','Normalized','OuterPosition',[0 0 1 1]);
 Ny=3;
 Nx=max(M+1,6);
@@ -13,7 +13,7 @@ for i=1:length(model)
         model{i}.P0=model{i}.P(:,:,1);
     end
     fastFlag=0;
-    [Xs,Ps,Pt,Xf,Pf,Xp,Pp,rejSamples]=statKalmanSmoother(Y,model{i}.J,model{i}.C,model{i}.Q,model{i}.R,[],[],model{i}.B,model{i}.D,U,false,fastFlag); 
+    [Xs,Ps,Pt,Xf,Pf,Xp,Pp,rejSamples]=statKalmanSmoother(Y,model{i}.J,model{i}.C,model{i}.Q,model{i}.R,[],[],model{i}.B,model{i}.D,U,false,fastFlag);
     model{i}.Xs=Xs; %Smoothed data
     model{i}.Pp=Pp; %One-step ahead uncertainty from filtered data.
     model{i}.Pf=Pf;
@@ -60,7 +60,7 @@ for kk=1:maxK
     for i=1:length(model)
         p(i)=plot(cc(:,kk)'*(model{i}.out),'LineWidth',2);
     end
-        
+
     if kk==1
         title('Output projection over main PCs')
     end
@@ -69,7 +69,7 @@ end
 %% Measures of output error:
 %Smooth output RMSE
 binw=10;
-subplot(Nx,Ny,2) 
+subplot(Nx,Ny,2)
 hold on
 for k=1:length(model)
 aux1=sqrt(sum((Y-model{k}.smoothOut).^2));
@@ -84,7 +84,7 @@ grid on
 set(gca,'YScale','log')
 
 % MLE state output error
-subplot(Nx,Ny,Ny+2) 
+subplot(Nx,Ny,Ny+2)
 hold on
 for k=1:length(model)
 aux1=sqrt(sum((Y-model{k}.out).^2));
@@ -114,7 +114,7 @@ grid on
 set(gca,'YScale','log')
 
 %LogL and BIC
-subplot(Nx,Ny,3*Ny+2) 
+subplot(Nx,Ny,3*Ny+2)
 hold on
 [N,Nz]=size(Y);
 Mm=length(model);
@@ -136,7 +136,7 @@ set(gca,'YScale','log','XTick',100*(Mm+1)*[.5:1:3],'XTickLabel',{'logL','BIC','A
 %% Plot STATES
 clear p
 for k=1:length(model)
-for i=1:size(model{k}.X,1)
+for i=1:size(model{k}.J,1)
 subplot(Nx,Ny,Ny*(i-1)+3) %States
 hold on
 %Smooth states
@@ -154,7 +154,7 @@ end
 end
 
 %% MLE state innovation
-subplot(Nx,Ny,Ny*(M)+3) 
+subplot(Nx,Ny,Ny*(M)+3)
 hold on
 for k=1:length(model)
     stError=model{k}.Xs(:,2:end)-model{k}.oneAheadStates;
@@ -172,7 +172,7 @@ Nny=ceil(4);
 for i=1:length(model)
     res=Y(:,2:end)-model{i}.oneAheadOut; %One-ahead residuals
 
-    
+
     [~,cc,~]=pca((res)','Centered','off');
     subplot(Nx,Nny,(Nx-1)*Nny+1)
     hold on
@@ -180,14 +180,14 @@ for i=1:length(model)
     p(i)=plot(aux1,'LineWidth',1) ;
     title('First PC of residual, mov. avg.')
     grid on
-    
+
     subplot(Nx,Nny,(Nx-1)*Nny+2)
     hold on
     qq1=qqplot(cc(:,1));
     qq1(1).MarkerEdgeColor=p(i).Color;
     ax=gca;
     ax.Title.String='QQ plot residual PC 1';
-    
+
     subplot(Nx,Nny,(Nx-1)*Nny+3)
     hold on
     r=xcorr(cc(:,1));
@@ -198,7 +198,7 @@ for i=1:length(model)
     xlabel('Delay (samp)')
     title('Residual PC 1 autocorr')
     axis([-15 15 aa(3:4)])
-    
+
     subplot(Nx,Nny,(Nx-1)*Nny+4)
     hold on
     histogram(cc(:,1),'EdgeColor','none','Normalization','pdf','FaceAlpha',.2,'BinEdges',[-1:.02:1])
@@ -209,7 +209,7 @@ hold on
 sig=.25;
 plot(xx,exp(-(xx.^2)/(2*sig^2))/sqrt(2*pi*sig^2),'k')
 title('Residual PC 1 histogram')
-  
+
 %% Compare outputs at different points in time:
 if nargout>1
 fh2=figure('Units','Normalized','OuterPosition',[0 0 1 1]);

@@ -76,7 +76,7 @@ for D1=1:5
 %% Identify
     tic
     opts.robustFlag=false;
-    opts.Niter=500;
+    opts.Niter=1500;
     opts.outlierReject=false;
     opts.fastFlag=true;
     [fAh,fBh,fCh,D,fQh,R,fXh,fPh]=randomStartEM(Yf,Uf,D1,10,opts); %Slow/true EM
@@ -87,7 +87,7 @@ for D1=1:5
     model{D1+1}.name=['EM (iterated,all,' num2str(D1) ')']; %Robust mode does not do fast filtering
 end
 %%
-save EMrealDimCompare.mat
+save EMrealDimCompare1500.mat
 %% COmpare
 vizModels(model(1:4))
 %%

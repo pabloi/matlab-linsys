@@ -65,7 +65,7 @@ binw=3;
 Y2=[medfilt1(median(dataSym{1},3),binw,'truncate'); medfilt1(median(dataSym{2},3),binw,'truncate')]';
 %% Flat model:
 model{1}.J=0;
-model{1}.B=1;
+model{1}.B=0;
 model{1}.C=ones(size(Y,1),1);
 model{1}.D=mean(Yf(:,51:950),2);
 model{1}.Q=0;
@@ -75,8 +75,8 @@ model{1}.name='Flat';
 for D1=1:5
 %% Identify
     tic
-    opts.robustFlag=false;
-    opts.Niter=500;
+    opts.robustFlag=true;
+    opts.Niter=1500;
     opts.outlierReject=false;
     opts.fastFlag=true;
     [fAh,fBh,fCh,D,fQh,R,fXh,fPh]=randomStartEM(Yf,Uf,D1,10,opts); %Slow/true EM
@@ -87,7 +87,7 @@ for D1=1:5
     model{D1+1}.name=['EM (iterated,all,' num2str(D1) ')']; %Robust mode does not do fast filtering
 end
 %%
-save EMrealDimCompare.mat
+save EMrealDimCompareRob.mat
 %% COmpare
 vizModels(model(1:4))
 %%
