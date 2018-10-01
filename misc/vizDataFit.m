@@ -12,6 +12,7 @@ for i=1:length(model)
     else
         model{i}.P0=model{i}.P(:,:,1);
     end
+    [model{i}.J,model{i}.B,model{i}.C,~,~,model{i}.Q] = canonizev3(model{i}.J,model{i}.B,model{i}.C,[],model{i}.Q);
     fastFlag=0;
     [Xs,Ps,Pt,Xf,Pf,Xp,Pp,rejSamples]=statKalmanSmoother(Y,model{i}.J,model{i}.C,model{i}.Q,model{i}.R,[],[],model{i}.B,model{i}.D,U,false,fastFlag);
     model{i}.Xs=Xs; %Smoothed data
@@ -114,22 +115,44 @@ grid on
 set(gca,'YScale','log')
 
 %LogL and BIC
-subplot(Nx,Ny,3*Ny+2)
+subplot(Nx,2*Ny,6*Ny+3)
 hold on
 [N,Nz]=size(Y);
 Mm=length(model);
 for k=1:Mm
     set(gca,'ColorOrderIndex',k)
-bar2=bar([k*100],N*Nz*model{k}.logLtest,'EdgeColor','none','BarWidth',100);
-text((k)*100-50,1.01*N*Nz*(model{k}.logLtest+1e-3),[num2str(model{k}.logLtest,6)],'Color',bar2.FaceColor)
-[bic,aic]=bicaic(model{k},Y,U);
-bar2=bar([(Mm+1+k)*100],-bic/2,'EdgeColor','none','BarWidth',100,'FaceColor',bar2.FaceColor);
-text((Mm+1+k)*100-50,-1.01*bic/2,[num2str(-bic/2,6)],'Color',bar2.FaceColor);
-bar2=bar([(2*Mm+2+k)*100],-aic/2,'EdgeColor','none','BarWidth',100,'FaceColor',bar2.FaceColor);
-text((2*Mm+2+k)*100-50,-1.01*aic/2,[ num2str(-aic/2,6)],'Color',bar2.FaceColor);
+    bar2=bar([k*100],N*Nz*model{k}.logLtest,'EdgeColor','none','BarWidth',100);
+    text((k)*100-50,1.001*N*Nz*(model{k}.logLtest+1e-3),[num2str(N*Nz*model{k}.logLtest,6)],'Color',bar2.FaceColor,'FontSize',6)
 end
 title('Model comparison: logL, BIC, AIC')
-axis tight
+grid on
+set(gca,'YScale','log','XTick',100*(Mm+1)*[.5:1:3],'XTickLabel',{'logL','BIC','AIC'})
+
+subplot(Nx,2*Ny,6*Ny+4)
+hold on
+[N,Nz]=size(Y);
+Mm=length(model);
+for k=1:Mm
+    set(gca,'ColorOrderIndex',k)
+[bic,aic]=bicaic(model{k},Y,U);
+bar2=bar([(Mm+1+k)*100],-bic/2,'EdgeColor','none','BarWidth',100);
+text((Mm+1+k)*100-50,-1.001*bic/2,[num2str(-bic/2,6)],'Color',bar2.FaceColor,'FontSize',6);
+end
+title('Model comparison: BIC')
+grid on
+set(gca,'YScale','log','XTick',100*(Mm+1)*[.5:1:3],'XTickLabel',{'logL','BIC','AIC'})
+
+subplot(Nx,2*Ny,8*Ny+3)
+hold on
+[N,Nz]=size(Y);
+Mm=length(model);
+for k=1:Mm
+    set(gca,'ColorOrderIndex',k)
+[bic,aic]=bicaic(model{k},Y,U);
+bar2=bar([(2*Mm+2+k)*100],-aic/2,'EdgeColor','none','BarWidth',100);
+text((2*Mm+2+k)*100-50,-1.001*aic/2,[ num2str(-aic/2,6)],'Color',bar2.FaceColor,'FontSize',6);
+end
+title('Model comparison: AIC')
 grid on
 set(gca,'YScale','log','XTick',100*(Mm+1)*[.5:1:3],'XTickLabel',{'logL','BIC','AIC'})
 
@@ -139,11 +162,16 @@ for k=1:length(model)
 for i=1:size(model{k}.J,1)
 subplot(Nx,Ny,Ny*(i-1)+3) %States
 hold on
+if i==1
+    nn=[model{k}.name ', \tau=' num2str(-1./log(model{k}.J(i,i)),3)];
+else
+    nn=['\tau=' num2str(-1./log(model{k}.J(i,i)),3)];
+end
 %Smooth states
 set(gca,'ColorOrderIndex',k)
-p(k,i)=plot(model{k}.smoothStates(i,:),'LineWidth',2,'DisplayName',[model{k}.name ', \tau=' num2str(-1./log(model{k}.J(i,i)),3)]);
+p(k,i)=plot(model{k}.smoothStates(i,:),'LineWidth',2,'DisplayName',nn);
 %MLE states:
-plot(model{k}.Xf(i,:),'LineWidth',1,'DisplayName',[model{k}.name ', \tau=' num2str(-1./log(model{k}.J(i,i)),3)],'Color',p(k).Color);
+plot(model{k}.Xf(i,:),'LineWidth',1,'DisplayName',nn,'Color',p(k).Color);
 patch([1:size(model{k}.Xf,2),size(model{k}.Xf,2):-1:1]',[model{k}.Xf(i,:)+sqrt(squeeze(model{k}.Pf(i,i,:)))', fliplr(model{k}.Xf(i,:)-sqrt(squeeze(model{k}.Pf(i,i,:)))')]',p(k).Color,'EdgeColor','none','FaceAlpha',.3)
 if k==length(model)
     legend(findobj(gca,'Type','Line','LineWidth',2),'Location','SouthEast')
@@ -168,27 +196,49 @@ axis tight
 grid on
 
 %% Plot features of one-ahead output residuals:
-Nny=ceil(4);
+Nny=6;
+allLogL=cellfun(@(x) x.logLtest,model);
 for i=1:length(model)
     res=Y(:,2:end)-model{i}.oneAheadOut; %One-ahead residuals
-
-
-    [~,cc,~]=pca((res)','Centered','off');
+    [pp,cc,aa]=pca((res)','Centered','off');
     subplot(Nx,Nny,(Nx-1)*Nny+1)
+    if model{i}.logLtest==min(allLogL)
+        try
+            imagesc(flipud(reshape(pp(:,kk),12,Nc/12)'))
+        catch
+            imagesc(flpiud(pp(:,kk)))
+        end
+        colormap(flipud(map))
+        aC=.5*max(abs(cc(:)));
+        caxis([-aC aC])
+        title('First residual PC for best model')
+    end
+
+
+    subplot(Nx,Nny,(Nx-1)*Nny+2)
     hold on
     aux1=conv(cc(:,1)',ones(1,binw)/binw,'valid');
     p(i)=plot(aux1,'LineWidth',1) ;
     title('First PC of residual, mov. avg.')
     grid on
 
-    subplot(Nx,Nny,(Nx-1)*Nny+2)
+
+    subplot(Nx,Nny,(Nx-1)*Nny+3)
+    hold on
+    plot(aa,'LineWidth',1)
+    title('Distribution of residual energy')
+    grid on
+    set(gca,'YScale','log')
+    axis([1 30 1e-2 1])
+
+    subplot(Nx,Nny,(Nx-1)*Nny+4)
     hold on
     qq1=qqplot(cc(:,1));
     qq1(1).MarkerEdgeColor=p(i).Color;
     ax=gca;
     ax.Title.String='QQ plot residual PC 1';
 
-    subplot(Nx,Nny,(Nx-1)*Nny+3)
+    subplot(Nx,Nny,(Nx-1)*Nny+5)
     hold on
     r=xcorr(cc(:,1));
     plot(-(length(r)-1)/2:(length(r)-1)/2,r)
@@ -199,12 +249,12 @@ for i=1:length(model)
     title('Residual PC 1 autocorr')
     axis([-15 15 aa(3:4)])
 
-    subplot(Nx,Nny,(Nx-1)*Nny+4)
+    subplot(Nx,Nny,(Nx-1)*Nny+6)
     hold on
     histogram(cc(:,1),'EdgeColor','none','Normalization','pdf','FaceAlpha',.2,'BinEdges',[-1:.02:1])
 end
 xx=[-1:.001:1];
-subplot(Nx,Nny,(Nx-1)*Nny+4)
+subplot(Nx,Nny,(Nx-1)*Nny+6)
 hold on
 sig=.25;
 plot(xx,exp(-(xx.^2)/(2*sig^2))/sqrt(2*pi*sig^2),'k')
@@ -222,10 +272,11 @@ M=length(model);
 aC=max(abs(Y(:)));
 for i=1:Ny
     subplot(M+1,Ny,i)
+    trueD=Y(:,viewPoints(i)+[-(binw/2):(binw/2)]);
     try
-        imagesc(reshape(mean(Y(:,viewPoints(i)+[-(binw/2):(binw/2)]),2),12,size(Y,1)/12)')
+        imagesc(reshape(mean(trueD,2),12,size(Y,1)/12)')
     catch
-        imagesc(mean(Y(:,viewPoints(i)+[-(binw/2):(binw/2)]),2))
+        imagesc(mean(trueD,2))
     end
     colormap(flipud(map))
     caxis([-aC aC])
@@ -236,14 +287,18 @@ for i=1:Ny
     end
     for k=1:M
        subplot(M+1,Ny,i+k*Ny)
+       dd=model{k}.out(:,viewPoints(i)+[-(binw/2):(binw/2)]);
         try
-            imagesc(reshape(mean(model{k}.out(:,viewPoints(i)+[-(binw/2):(binw/2)]),2),12,size(Y,1)/12)')
+            imagesc(reshape(mean(dd,2),12,size(Y,1)/12)')
         catch
-            imagesc(mean(model{k}.out(:,viewPoints(i)+[-(binw/2):(binw/2)]),2))
+            imagesc(mean(dd,2))
         end
         colormap(flipud(map))
         caxis([-aC aC])
         axis tight
+        mD=sqrt(mean(sum(trueD.^2),2));
+        mD=1;
+        title(['RMSE=' num2str(sqrt(mean(sum((trueD-dd).^2),2))/mD)])
         if i==1
             ylabel(model{k}.name)
         end
