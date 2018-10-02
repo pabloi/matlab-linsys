@@ -47,9 +47,10 @@ end
 %% All data
 Yf=[median(dataSym{1},3); median(dataSym{2},3);median(dataSym{3},3)]';
 Uf=[zeros(size(dataSym{1},1),1);ones(size(dataSym{2},1),1);zeros(size(dataSym{3},1),1);]';
+Yf=Yf(:,1:1350); %Using only 400 of Post
+Uf=Uf(:,1:1350);
 %% All data, mean
 Ym=[mean(dataSym{1},3); mean(dataSym{2},3);mean(dataSym{3},3)]';
-Uf=[zeros(size(dataSym{1},1),1);ones(size(dataSym{2},1),1);zeros(size(dataSym{3},1),1);]';
 %% Just B and A
 Y=Yf(:,1:950);
 U=Uf(:,1:950);
@@ -134,9 +135,9 @@ model{5}.J=zeros(D1);
 model{5}.B=zeros(size(model{5}.B));
 model{5}.D=mean(Yf(:,51:950),2);
 %%
-save EMreal3_fix.mat
+save EMreal3_cut.mat
 %% COmpare
-vizModels(model([4:-1:1]))
+vizModels(model(2:5))
 %%
 %vizDataFit(model([4:-1:1]),Y,U)
 %vizDataFit(model([4:-1:1]),Y_p,U_p)

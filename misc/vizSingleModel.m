@@ -1,0 +1,189 @@
+function [fh] = vizSingleModel(singleModel,Y,U)
+
+M=size(singleModel.J,1);
+fh=figure('Units','Normalized','OuterPosition',[0 0 1 1]);
+if nargin>1
+    Nx=10;
+else
+    Nx=4;
+end
+Ny=M+2;
+model{1}=singleModel;
+Nu=size(model{1}.B,2);
+Nc=size(Y,1);
+
+%% First: normalize model, compute basic parameters of interest:
+if nargin<3
+    U=[zeros(Nu,100) ones(Nu,1000)]; %Step response
+end
+for i=1:length(model)
+    [model{i}.J,model{i}.B,model{i}.C,~,~,model{i}.Q] = canonizev5(900,model{i}.J,model{i}.B,model{i}.C,[],model{i}.Q);
+    [Y2,X2]=fwdSim(U,model{i}.J,model{i}.B,model{i}.C,model{i}.D,[],[],[]); %Simulating from MLE initial state
+    model{i}.smoothStates=X2;
+    model{i}.smoothOut=Y2;
+    model{i}.logLtest=dataLogLikelihood(Y,U,model{i}.J,model{i}.B,model{i}.C,model{i}.D,model{i}.Q,model{i}.R,[],[],'approx');
+    if nargin>1
+        fastFlag=0;
+        [Xs,Ps,Pt,Xf,Pf,Xp,Pp,rejSamples]=statKalmanSmoother(Y,model{i}.J,model{i}.C,model{i}.Q,model{i}.R,[],[],model{i}.B,model{i}.D,U,false,fastFlag);
+        model{i}.Xs=Xs; %Smoothed data
+        model{i}.Pp=Pp; %One-step ahead uncertainty from filtered data.
+        model{i}.Pf=Pf;
+        model{i}.Xf=Xf; %Filtered data
+        model{i}.Xp=Xp; %Predicted data
+        model{i}.out=model{i}.C*model{i}.Xs+model{i}.D*U;
+        model{i}.res=Y-model{i}.out;
+        model{i}.oneAheadStates=model{i}.J*model{i}.Xs(:,1:end-1)+model{i}.B*U(:,1:end-1);
+        model{i}.oneAheadOut=model{i}.C*(model{i}.oneAheadStates)+model{i}.D*U(:,2:end);
+        model{i}.oneAheadRes=Y(:,2:end)-model{i}.oneAheadOut;
+
+    end
+end
+
+%% Define colormap:
+ex1=[1,0,0];
+ex2=[0,0,1];
+mid=ones(1,3);
+N=100;
+map=[ex1.*[N:-1:1]'/N + mid.*[0:N-1]'/N; mid; ex2.*[0:N-1]'/N + mid.*[N:-1:1]'/N];
+
+%% Plo
+
+% STATES
+projY=[model{i}.C model{i}.D]\Y;
+subplot(Nx,Ny,1) %passthrough term
+hold on
+if nargin>1
+    scatter(1:size(Y,2),projY(M+1,:),5,.7*ones(1,3),'filled')
+end
+p(i)=plot(U,'LineWidth',2,'DisplayName',['Passthrough term, \tau=0']);
+subplot(Nx,Ny,Ny+1+[0,Ny])
+try
+    imagesc((reshape(model{1}.D,12,Nc/12)'))
+catch
+    imagesc((model{1}.D))
+end
+colormap(flipud(map))
+aC=max(abs(model{1}.C(:)));
+caxis([-aC aC])
+axis tight
+
+for i=1:M
+    subplot(Nx,Ny,i+1) %TOP row: states temporal evolution and data projection
+    hold on
+    if nargin>1
+        scatter(1:size(Y,2),projY(i,:),5,.7*ones(1,3),'filled')
+    end
+    set(gca,'ColorOrderIndex',1)
+    p(i)=plot(model{1}.smoothStates(i,:),'LineWidth',2,'DisplayName',['Deterministic state, \tau=' num2str(-1./log(model{1}.J(i,i)),3)]);
+    ylabel(['State ' num2str(i)])
+    %title('(Smoothed) Step-response states')
+    plot(model{1}.Xf(i,:),'LineWidth',1,'DisplayName','MLE state','Color',p(1).Color);
+    patch([1:size(model{1}.Xf,2),size(model{1}.Xf,2):-1:1]',[model{1}.Xf(i,:)+sqrt(squeeze(model{1}.Pf(i,i,:)))', fliplr(model{1}.Xf(i,:)-sqrt(squeeze(model{1}.Pf(i,i,:)))')]',p(i).Color,'EdgeColor','none','FaceAlpha',.3)
+    subplot(Nx,Ny,Ny+i+1+[0,Ny])% Second row: checkerboards
+    try
+        imagesc((reshape(model{1}.C(:,i),12,Nc/12)'))
+    catch
+        imagesc((model{1}.C(:,i)))
+    end
+    colormap(flipud(map))
+    caxis([-aC aC])
+    axis tight
+end
+
+%Covariances
+subplot(Nx,Ny,Ny)
+imagesc(model{1}.Q)
+colormap(flipud(map))
+aC=.5*max(abs(model{1}.Q(:)));
+caxis([-aC aC])
+axis tight
+subplot(Nx,Ny,2*Ny+[0,Ny])
+imagesc(model{1}.R)
+colormap(flipud(map))
+aC=.5*max(abs(model{1}.R(:)));
+caxis([-aC aC])
+axis tight
+
+if nargin<2
+    %Third row: one-ahead step-response
+
+
+else %IF DATA PRESENT:
+N=size(Y,2);
+viewPoints=[1,40,51,151,251,651,940,951,1001,1101,N-11]+5;
+viewPoints=[40,51,151,940,951,1001]+5;
+binw=10;
+viewPoints(viewPoints>N-binw/2)=[];
+Ny=length(viewPoints);
+M=length(model);
+aC=max(abs(model{1}.C(:)));
+for k=1:3
+    for i=1:Ny
+        switch k
+        case 1 % Third row, actual data
+            dd=Y(:,viewPoints(i)+[-(binw/2):(binw/2)]);
+            nn='Data';
+        case 2 %Fourth row: one-ahead data predictions
+            dd=model{1}.oneAheadOut(:,viewPoints(i)+[-(binw/2):(binw/2)]);
+            nn={'MLE Prediction';'(one-step ahead)'};
+        case 3 % Fifth row:  data residuals (checkerboards)
+            dd=model{1}.oneAheadRes(:,viewPoints(i)+[-(binw/2):(binw/2)]);
+            nn='Residual (5x)';
+            aC=.2*max(abs(model{1}.C(:)));; %2x magnification of residuals
+        end
+
+        subplot(Nx,Ny,i+(1+2*k)*Ny+[0,Ny])
+        try
+            imagesc(reshape(mean(dd,2),12,size(Y,1)/12)')
+        catch
+            imagesc(mean(dd,2))
+        end
+        colormap(flipud(map))
+        caxis([-aC aC])
+        axis tight
+        if k==1
+            title(['Output at t=' num2str(viewPoints(i))])
+        end
+        if i==1
+            ylabel(nn)
+            ax=gca;
+            ax.YAxis.Label.FontWeight='bold';
+        end
+    end
+end
+
+% Sixth row: residual RMSE, Smoothed, first PC of residual, variance by itself
+Ny=3;
+subplot(Nx,Ny,1+9*Ny)
+hold on
+dd=model{1}.oneAheadRes;
+aux1=sqrt(sum(dd.^2));
+binw=10;
+aux1=conv(aux1,ones(1,binw)/binw,'valid'); %Smoothing
+p1=plot(aux1,'LineWidth',1);
+title('MLE one-ahead output error (RMSE, mov. avg.)')
+axis tight
+grid on
+set(gca,'YScale','log')
+
+subplot(Nx,Ny,2+9*Ny)
+[pp,cc,aa]=pca((dd'),'Centered','off');
+hold on
+aux1=conv(cc(:,1)',ones(1,binw)/binw,'valid');
+plot(aux1,'LineWidth',1) ;
+title('First PC of residual, mov. avg.')
+grid on
+
+subplot(Nx,Ny,3+9*Ny)
+hold on
+ind=find(diff(U)~=0);
+Y(:,ind)=nan;
+aux1=conv2(Y,[-.5,1,-.5]/sqrt(1.5),'valid');
+aux1=sum(aux1.^2);
+aux1=conv(aux1,ones(1,binw)/binw,'valid'); %Smoothing
+plot(aux1,'LineWidth',1) ;
+title('Instantaneous variance of data')
+grid on
+set(gca,'YScale','log')
+
+end

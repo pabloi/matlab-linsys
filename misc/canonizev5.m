@@ -1,14 +1,15 @@
-function [J,B,C,X,V,Q,P] = canonizev3(A,B,C,X,Q,P)
+function [J,B,C,X,V,Q,P] = canonizev5(N,A,B,C,X,Q,P)
 %Canonize returns the canonical form of the linear system given by
-%A,B,C,D,X; scaling C to have unity norm along each column
+%A,B,C,D,X; scaling states to reach the value of 1 at time N,
+%under step input in the first input component
 
-if nargin<6
+if nargin<7
     P=zeros(size(A));
 end
-if nargin<5 || isempty(Q)
+if nargin<6 || isempty(Q)
     Q=zeros(size(A));
 end
-if nargin<4 || isempty(X)
+if nargin<5 || isempty(X)
     X=zeros(size(A,1),1);
 end
 
@@ -26,9 +27,9 @@ end
 %% Scale so states converge to 1 on single input system with u=1
 %(this cannot be done always, need to check)
 [J,K]=transform(inv(V),A,B);
-scale=sqrt(sum(C.^2,1)).*sign(max(K,[],2))';
-scale(scale==0)=1; %Otherwise the transform is ill-defined
-V2=diag(scale);
+I=eye(size(J));
+scale=(I-J)\(I-J^N)*K(:,1);
+V2=diag(1./scale);
 V=V2/V;
 
 %% Sort states by decay rates: (these are only the decay rates if J is diagonal)
