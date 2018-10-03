@@ -206,7 +206,7 @@ for i=1:length(model)
         try
             imagesc(flipud(reshape(pp(:,kk),12,Nc/12)'))
         catch
-            imagesc(flpiud(pp(:,kk)))
+            imagesc(flipud(pp(:,kk)))
         end
         colormap(flipud(map))
         aC=.5*max(abs(cc(:)));

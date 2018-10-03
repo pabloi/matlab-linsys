@@ -18,8 +18,8 @@ if nargin<4 %logL not given, computing
     logL=N*Ny*dataLogLikelihood(Y,U,model.J,model.B,model.C,model.D,model.Q,model.R,[],[],method);
 end
 BIC=log(N)*k -2*logL;
+%BIC1=???  %Chen and Chen 2008
 AIC=2*k-2*logL;
 
 
 end
-
