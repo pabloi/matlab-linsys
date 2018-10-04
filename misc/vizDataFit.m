@@ -7,28 +7,27 @@ Nx=max(M+1,6);
 yoff=size(Y,2)*1.1;
 %% Compute output and residuals
 for i=1:length(model)
-    if ~isfield(model{i},'P')
-        model{i}.P0=[];
-    else
-        model{i}.P0=model{i}.P(:,:,1);
-    end
     [model{i}.J,model{i}.B,model{i}.C,~,~,model{i}.Q] = canonizev3(model{i}.J,model{i}.B,model{i}.C,[],model{i}.Q);
     fastFlag=0;
-    [Xs,Ps,Pt,Xf,Pf,Xp,Pp,rejSamples]=statKalmanSmoother(Y,model{i}.J,model{i}.C,model{i}.Q,model{i}.R,[],[],model{i}.B,model{i}.D,U,false,fastFlag);
+    Nd=size(model{i}.D,2);
+    [Xs,Ps,Pt,Xf,Pf,Xp,Pp,rejSamples]=statKalmanSmoother(Y,model{i}.J,model{i}.C,model{i}.Q,model{i}.R,[],[],model{i}.B,model{i}.D,U(1:Nd,:),false,fastFlag);
     model{i}.Xs=Xs; %Smoothed data
     model{i}.Pp=Pp; %One-step ahead uncertainty from filtered data.
     model{i}.Pf=Pf;
     model{i}.Xf=Xf; %Filtered data
     model{i}.Xp=Xp; %Predicted data
-    model{i}.out=model{i}.C*model{i}.Xs+model{i}.D*U;
+    model{i}.out=model{i}.C*model{i}.Xs+model{i}.D*U(1:Nd,:); %Discarding input components at the end
     model{i}.res=Y-model{i}.out;
-    model{i}.oneAheadStates=model{i}.J*model{i}.Xs(:,1:end-1)+model{i}.B*U(:,1:end-1);
-    model{i}.oneAheadOut=model{i}.C*(model{i}.oneAheadStates)+model{i}.D*U(:,2:end);
-    [Y2,X2]=fwdSim(U,model{i}.J,model{i}.B,model{i}.C,model{i}.D,model{i}.Xs(:,1),[],[]); %Simulating from MLE initial state
+    model{i}.oneAheadStates=model{i}.J*model{i}.Xs(:,1:end-1)+model{i}.B*U(1:Nd,1:end-1);
+    model{i}.oneAheadOut=model{i}.C*(model{i}.oneAheadStates)+model{i}.D*U(1:Nd,2:end);
+    [Y2,X2]=fwdSim(U(1:Nd,:),model{i}.J,model{i}.B,model{i}.C,model{i}.D,model{i}.Xs(:,1),[],[]); %Simulating from MLE initial state
     model{i}.smoothStates=X2;
     model{i}.smoothOut=Y2;
 
-    model{i}.logLtest=dataLogLikelihood(Y,U,model{i}.J,model{i}.B,model{i}.C,model{i}.D,model{i}.Q,model{i}.R,[],[],'approx');
+    model{i}.logLtest=dataLogLikelihood(Y,U(1:Nd,:),model{i}.J,model{i}.B,model{i}.C,model{i}.D,model{i}.Q,model{i}.R,[],[],'approx');
+    [bic,aic]= bicaic(model{i},numel(Y)*model{i}.logLtest);
+    model{i}.BIC=bic/(2*numel(Y)); %To put in the same scale as logL
+    model{i}.AIC=aic/(2*numel(Y));
 end
 %% Define colormap:
 ex1=[1,0,0];
@@ -121,10 +120,10 @@ hold on
 Mm=length(model);
 for k=1:Mm
     set(gca,'ColorOrderIndex',k)
-    bar2=bar([k*100],N*Nz*model{k}.logLtest,'EdgeColor','none','BarWidth',100);
-    text((k)*100-50,1.001*N*Nz*(model{k}.logLtest+1e-3),[num2str(N*Nz*model{k}.logLtest,6)],'Color',bar2.FaceColor,'FontSize',6)
+    bar2=bar([k*100],model{k}.logLtest,'EdgeColor','none','BarWidth',100);
+    text((k)*100-50,1.001*(model{k}.logLtest+1e-3),[num2str(model{k}.logLtest,6)],'Color',bar2.FaceColor,'FontSize',6)
 end
-title('Model comparison: logL, BIC, AIC')
+title('Model comparison: logL')
 grid on
 set(gca,'YScale','log','XTick',100*(Mm+1)*[.5:1:3],'XTickLabel',{'logL','BIC','AIC'})
 
@@ -134,9 +133,9 @@ hold on
 Mm=length(model);
 for k=1:Mm
     set(gca,'ColorOrderIndex',k)
-[bic,aic]=bicaic(model{k},Y,U);
-bar2=bar([(Mm+1+k)*100],-bic/2,'EdgeColor','none','BarWidth',100);
-text((Mm+1+k)*100-50,-1.001*bic/2,[num2str(-bic/2,6)],'Color',bar2.FaceColor,'FontSize',6);
+bic=model{k}.BIC;
+bar2=bar([(Mm+1+k)*100],bic,'EdgeColor','none','BarWidth',100);
+text((Mm+1+k)*100-50,1.001*bic,[num2str(bic,6)],'Color',bar2.FaceColor,'FontSize',6);
 end
 title('Model comparison: BIC')
 grid on
@@ -148,9 +147,9 @@ hold on
 Mm=length(model);
 for k=1:Mm
     set(gca,'ColorOrderIndex',k)
-[bic,aic]=bicaic(model{k},Y,U);
-bar2=bar([(2*Mm+2+k)*100],-aic/2,'EdgeColor','none','BarWidth',100);
-text((2*Mm+2+k)*100-50,-1.001*aic/2,[ num2str(-aic/2,6)],'Color',bar2.FaceColor,'FontSize',6);
+aic=model{k}.AIC;
+bar2=bar([(2*Mm+2+k)*100],aic,'EdgeColor','none','BarWidth',100);
+text((2*Mm+2+k)*100-50,1.001*aic,[ num2str(aic,6)],'Color',bar2.FaceColor,'FontSize',6);
 end
 title('Model comparison: AIC')
 grid on

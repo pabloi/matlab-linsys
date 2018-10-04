@@ -7,21 +7,25 @@ if nargin>1
 else
     Nx=4;
 end
-Ny=M+2;
+Nu=size(singleModel.B,2);
+Ny=M+Nu+1;
 model{1}=singleModel;
-Nu=size(model{1}.B,2);
 Nc=size(Y,1);
+N=size(Y,2);
 
 %% First: normalize model, compute basic parameters of interest:
 if nargin<3
     U=[zeros(Nu,100) ones(Nu,1000)]; %Step response
 end
 for i=1:length(model)
-    [model{i}.J,model{i}.B,model{i}.C,~,~,model{i}.Q] = canonizev5(900,model{i}.J,model{i}.B,model{i}.C,[],model{i}.Q);
+    [model{i}.J,model{i}.B,model{i}.C,~,~,model{i}.Q] = canonizev3(model{i}.J,model{i}.B,model{i}.C,[],model{i}.Q);
     [Y2,X2]=fwdSim(U,model{i}.J,model{i}.B,model{i}.C,model{i}.D,[],[],[]); %Simulating from MLE initial state
     model{i}.smoothStates=X2;
     model{i}.smoothOut=Y2;
     model{i}.logLtest=dataLogLikelihood(Y,U,model{i}.J,model{i}.B,model{i}.C,model{i}.D,model{i}.Q,model{i}.R,[],[],'approx');
+    [bic,aic]= bicaic(model{i},numel(Y)*model{i}.logLtest);
+    model{i}.BIC=bic/(2*numel(Y)); %To put in the same scale as logL
+    model{i}.AIC=aic/(2*numel(Y));
     if nargin>1
         fastFlag=0;
         [Xs,Ps,Pt,Xf,Pf,Xp,Pp,rejSamples]=statKalmanSmoother(Y,model{i}.J,model{i}.C,model{i}.Q,model{i}.R,[],[],model{i}.B,model{i}.D,U,false,fastFlag);
@@ -38,6 +42,7 @@ for i=1:length(model)
 
     end
 end
+set(fh,'Name',['Per sample logL=' num2str(model{1}.logLtest) ', BIC=' num2str(model{1}.BIC) ', AIC=' num2str(model{1}.AIC)]);
 
 %% Define colormap:
 ex1=[1,0,0];
@@ -51,41 +56,49 @@ ytl={'GLU','TFL','ADM','HIP','RF','VL','VM','SMT','SMB','BF','MG','LG','SOL','PE
 yt=1:15;
 fs=7;
 % STATES
-CD=[model{i}.C model{i}.D];
-%CDiR=CD'*inv(model{i}.R);
-%CDiRCD=CDiR*CD;
-%projY=CDiRCD\CDiR*Y;
-projY=CD\Y;
-subplot(Nx,Ny,1) %passthrough term
-hold on
-if nargin>1
-    scatter(1:size(Y,2),projY(M+1,:),5,.7*ones(1,3),'filled')
-end
-p(i)=plot(U,'k','LineWidth',2,'DisplayName',['Passthrough term, \tau=0']);
-title('Input')
-ax=gca;
-ax.Position=ax.Position+[0 .02 0 0];
-subplot(Nx,Ny,Ny+1+[0,Ny])
-try
-    imagesc((reshape(model{1}.D,12,Nc/12)'))
-    set(gca,'XTick',[],'YTick',yt,'YTickLabel',ytl,'FontSize',fs)
-catch
-    imagesc((model{1}.D))
-    set(gca,'XTick',[],'YTick',[],'YTickLabel',[],'FontSize',fs)
-end
+C=model{i}.C;
+D=model{i}.D;
+CD=[C D];
+%CiR=CD'*inv(model{i}.R);
+%CiRC=CiR*CD;
+%projY=CiRC\CiR*(Y);
+projY=CD\(Y);
+for k=1:Nu
+    subplot(Nx,Ny,k) %passthrough term
+    hold on
+    if nargin>1
+        scatter(1:size(Y,2),projY(M+k,:),5,.7*ones(1,3),'filled')
+    end
+    plot(U(k,:),'k','LineWidth',2,'DisplayName',['Passthrough term, \tau=0']);
+    title(['Input ' num2str(k)])
+    ax=gca;
+    ax.Position=ax.Position+[0 .02 0 0];
 
-colormap(flipud(map))
-aC=max(abs(CD(:)));
-caxis([-aC aC])
-axis tight
-ylabel({'Contribution';'to output'})
-ax=gca;
-ax.YAxis.Label.FontSize=12;
-ax.YAxis.Label.FontWeight='bold';
-title('D')
+    subplot(Nx,Ny,Ny+k+[0,Ny])
+    try
+        imagesc((reshape(model{1}.D(:,k),12,Nc/12)'))
+        set(gca,'XTick',[],'YTick',yt,'YTickLabel',ytl,'FontSize',fs)
+    catch
+        imagesc((model{1}.D(:,k)))
+        set(gca,'XTick',[],'YTick',[],'YTickLabel',[],'FontSize',fs)
+    end
+
+    colormap(flipud(map))
+    %aC=max(abs(CD(:)));
+    aC=prctile(abs(Y(:)),98);
+    caxis([-aC aC])
+    axis tight
+    if k==1
+        ylabel({'Contribution';'to output'})
+    end
+    ax=gca;
+    ax.YAxis.Label.FontSize=12;
+    ax.YAxis.Label.FontWeight='bold';
+    title(['D_' num2str(k)])
+end
 
 for i=1:M
-    subplot(Nx,Ny,i+1) %TOP row: states temporal evolution and data projection
+    subplot(Nx,Ny,i+Nu) %TOP row: states temporal evolution and data projection
     hold on
     if nargin>1
         scatter(1:size(Y,2),projY(i,:),5,.7*ones(1,3),'filled')
@@ -100,7 +113,7 @@ for i=1:M
     ax=gca;
     ax.Position=ax.Position+[0 .02 0 0];
 
-    subplot(Nx,Ny,Ny+i+1+[0,Ny])% Second row: checkerboards
+    subplot(Nx,Ny,Ny+i+Nu+[0,Ny])% Second row: checkerboards
     try
         imagesc((reshape(model{1}.C(:,i),12,Nc/12)'))
         set(gca,'XTick',[],'YTick',yt,'YTickLabel',[],'FontSize',fs)
@@ -122,16 +135,18 @@ subplot(Nx,Ny,Ny)
 imagesc(model{1}.Q)
 set(gca,'XTick',[],'YTick',[],'YTickLabel',[],'FontSize',8)
 colormap(flipud(map))
-aC=.5*max(abs(model{1}.Q(:)));
-caxis([-aC aC])
+aQ=.5*max(abs(model{1}.Q(:)));
+caxis([-aQ aQ])
 axis tight
+title(['Q, tr(Q)=' num2str(trace(model{1}.Q))])
 subplot(Nx,Ny,2*Ny+[0,Ny])
 imagesc(model{1}.R)
 set(gca,'XTick',[],'YTick',[],'YTickLabel',[],'FontSize',8)
 colormap(flipud(map))
-aC=.5*max(abs(model{1}.R(:)));
-caxis([-aC aC])
+aR=.5*max(abs(model{1}.R(:)));
+caxis([-aR aR])
 axis tight
+title(['R, tr(R)=' num2str(trace(model{1}.R))])
 
 if nargin<2
     %Third row: one-ahead step-response
@@ -145,7 +160,6 @@ binw=4;
 viewPoints(viewPoints>N-binw/2)=[];
 Ny=length(viewPoints);
 M=length(model);
-aC=max(abs(model{1}.C(:)));
 for k=1:3
     for i=1:Ny
         switch k
@@ -158,7 +172,6 @@ for k=1:3
         case 3 % Fifth row:  data residuals (checkerboards)
             dd=model{1}.oneAheadRes(:,viewPoints(i)+[-(binw/2):(binw/2)]);
             nn='Residual';
-            aC=max(abs(model{1}.C(:)));; %2x magnification of residuals
         end
 
         subplot(Nx,Ny,i+(1+2*k)*Ny+[0,Ny])
@@ -169,13 +182,7 @@ for k=1:3
             imagesc(nanmean(dd,2))
             set(gca,'XTick',[],'YTick',[],'YTickLabel',[],'FontSize',fs)
         end
-        %if i==1
-
-    %else
-%set(gca,'XTick',[],'YTick',yt,'YTickLabel',[],'FontSize',fs)
-%    end
         ax=gca;
-
         colormap(flipud(map))
         caxis([-aC aC])
         axis tight
@@ -198,12 +205,11 @@ Ny=1;
 subplot(Nx,Ny,1+9*Ny)
 hold on
 dd=model{1}.oneAheadRes;
-%dd=Y-CD*projY;
 aux1=sqrt(sum(dd.^2));
 binw=10;
 aux1=conv(aux1,ones(1,binw)/binw,'valid'); %Smoothing
 p1=plot(aux1,'LineWidth',1,'DisplayName','Residual RMSE, 10-stride mov. avg.');
-dd=Y-CD*projY;
+dd=Y-C*(C\(Y-D*U))-D*U;
 aux1=sqrt(sum(dd.^2));
 binw=10;
 aux1=conv(aux1,ones(1,binw)/binw,'valid'); %Smoothing
@@ -212,7 +218,7 @@ p1=plot(aux1,'LineWidth',1,'DisplayName','Output orthogonal to [C,D], RMSE, 10-s
 axis tight
 grid on
 set(gca,'YScale','log')
-ind=find(diff(U)~=0);
+ind=find(diff(U(1,:))~=0); %Bad way to do this
 Y(:,ind)=nan;
 aux1=conv2(Y,[-.5,1,-.5]/sqrt(1.5),'valid'); %Y(k)-.5*(y(k+1)+y(k-1));
 %aux1=(Y(:,2:end)-Y(:,1:end-1))/sqrt(2);
