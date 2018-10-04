@@ -1,7 +1,7 @@
 function [fh] = vizSingleModel(singleModel,Y,U)
 
 M=size(singleModel.J,1);
-fh=figure('Units','Normalized','OuterPosition',[0 0 1 1]);
+fh=figure('Units','Normalized','OuterPosition',[0 0 .5 1],'Color',ones(1,3));
 if nargin>1
     Nx=10;
 else
@@ -47,25 +47,42 @@ N=100;
 map=[ex1.*[N:-1:1]'/N + mid.*[0:N-1]'/N; mid; ex2.*[0:N-1]'/N + mid.*[N:-1:1]'/N];
 
 %% Plo
-
+ytl={'GLU','TFL','ADM','HIP','RF','VL','VM','SMT','SMB','BF','MG','LG','SOL','PER','TA'};
+yt=1:15;
+fs=7;
 % STATES
-projY=[model{i}.C model{i}.D]\Y;
+CD=[model{i}.C model{i}.D];
+%CDiR=CD'*inv(model{i}.R);
+%CDiRCD=CDiR*CD;
+%projY=CDiRCD\CDiR*Y;
+projY=CD\Y;
 subplot(Nx,Ny,1) %passthrough term
 hold on
 if nargin>1
     scatter(1:size(Y,2),projY(M+1,:),5,.7*ones(1,3),'filled')
 end
-p(i)=plot(U,'LineWidth',2,'DisplayName',['Passthrough term, \tau=0']);
+p(i)=plot(U,'k','LineWidth',2,'DisplayName',['Passthrough term, \tau=0']);
+title('Input')
+ax=gca;
+ax.Position=ax.Position+[0 .02 0 0];
 subplot(Nx,Ny,Ny+1+[0,Ny])
 try
     imagesc((reshape(model{1}.D,12,Nc/12)'))
+    set(gca,'XTick',[],'YTick',yt,'YTickLabel',ytl,'FontSize',fs)
 catch
     imagesc((model{1}.D))
+    set(gca,'XTick',[],'YTick',[],'YTickLabel',[],'FontSize',fs)
 end
+
 colormap(flipud(map))
-aC=max(abs(model{1}.C(:)));
+aC=max(abs(CD(:)));
 caxis([-aC aC])
 axis tight
+ylabel({'Contribution';'to output'})
+ax=gca;
+ax.YAxis.Label.FontSize=12;
+ax.YAxis.Label.FontWeight='bold';
+title('D')
 
 for i=1:M
     subplot(Nx,Ny,i+1) %TOP row: states temporal evolution and data projection
@@ -74,31 +91,43 @@ for i=1:M
         scatter(1:size(Y,2),projY(i,:),5,.7*ones(1,3),'filled')
     end
     set(gca,'ColorOrderIndex',1)
-    p(i)=plot(model{1}.smoothStates(i,:),'LineWidth',2,'DisplayName',['Deterministic state, \tau=' num2str(-1./log(model{1}.J(i,i)),3)]);
-    ylabel(['State ' num2str(i)])
+    %p(i)=plot(model{1}.smoothStates(i,:),'LineWidth',2,'DisplayName',['Deterministic state, \tau=' num2str(-1./log(model{1}.J(i,i)),3)]);
+    title(['State ' num2str(i)])
     %title('(Smoothed) Step-response states')
-    plot(model{1}.Xf(i,:),'LineWidth',1,'DisplayName','MLE state','Color',p(1).Color);
+    p(i)=plot(model{1}.Xf(i,:),'LineWidth',2,'DisplayName',['\tau=' num2str(-1./log(model{1}.J(i,i)),3)],'Color','k');
     patch([1:size(model{1}.Xf,2),size(model{1}.Xf,2):-1:1]',[model{1}.Xf(i,:)+sqrt(squeeze(model{1}.Pf(i,i,:)))', fliplr(model{1}.Xf(i,:)-sqrt(squeeze(model{1}.Pf(i,i,:)))')]',p(i).Color,'EdgeColor','none','FaceAlpha',.3)
+    legend(p(i),'Location','SouthWest')
+    ax=gca;
+    ax.Position=ax.Position+[0 .02 0 0];
+
     subplot(Nx,Ny,Ny+i+1+[0,Ny])% Second row: checkerboards
     try
         imagesc((reshape(model{1}.C(:,i),12,Nc/12)'))
+        set(gca,'XTick',[],'YTick',yt,'YTickLabel',[],'FontSize',fs)
     catch
         imagesc((model{1}.C(:,i)))
+        set(gca,'XTick',[],'YTick',[],'YTickLabel',[],'FontSize',fs)
     end
+
+    ax=gca;
+    ax.YAxis.Label.FontSize=12;
     colormap(flipud(map))
     caxis([-aC aC])
     axis tight
+    title(['C_' num2str(i)])
 end
 
 %Covariances
 subplot(Nx,Ny,Ny)
 imagesc(model{1}.Q)
+set(gca,'XTick',[],'YTick',[],'YTickLabel',[],'FontSize',8)
 colormap(flipud(map))
 aC=.5*max(abs(model{1}.Q(:)));
 caxis([-aC aC])
 axis tight
 subplot(Nx,Ny,2*Ny+[0,Ny])
 imagesc(model{1}.R)
+set(gca,'XTick',[],'YTick',[],'YTickLabel',[],'FontSize',8)
 colormap(flipud(map))
 aC=.5*max(abs(model{1}.R(:)));
 caxis([-aC aC])
@@ -111,8 +140,8 @@ if nargin<2
 else %IF DATA PRESENT:
 N=size(Y,2);
 viewPoints=[1,40,51,151,251,651,940,951,1001,1101,N-11]+5;
-viewPoints=[40,51,151,940,951,1001]+5;
-binw=10;
+%viewPoints=[51,934,951]+8;
+binw=4;
 viewPoints(viewPoints>N-binw/2)=[];
 Ny=length(viewPoints);
 M=length(model);
@@ -128,62 +157,91 @@ for k=1:3
             nn={'MLE Prediction';'(one-step ahead)'};
         case 3 % Fifth row:  data residuals (checkerboards)
             dd=model{1}.oneAheadRes(:,viewPoints(i)+[-(binw/2):(binw/2)]);
-            nn='Residual (5x)';
-            aC=.2*max(abs(model{1}.C(:)));; %2x magnification of residuals
+            nn='Residual';
+            aC=max(abs(model{1}.C(:)));; %2x magnification of residuals
         end
 
         subplot(Nx,Ny,i+(1+2*k)*Ny+[0,Ny])
         try
-            imagesc(reshape(mean(dd,2),12,size(Y,1)/12)')
+            imagesc(reshape(nanmean(dd,2),12,size(Y,1)/12)')
+            set(gca,'XTick',[],'YTick',yt,'YTickLabel',ytl,'FontSize',fs)
         catch
-            imagesc(mean(dd,2))
+            imagesc(nanmean(dd,2))
+            set(gca,'XTick',[],'YTick',[],'YTickLabel',[],'FontSize',fs)
         end
+        %if i==1
+
+    %else
+%set(gca,'XTick',[],'YTick',yt,'YTickLabel',[],'FontSize',fs)
+%    end
+        ax=gca;
+
         colormap(flipud(map))
         caxis([-aC aC])
         axis tight
         if k==1
             title(['Output at t=' num2str(viewPoints(i))])
+            ax=gca;
+            ax.Title.FontSize=10;
         end
         if i==1
             ylabel(nn)
             ax=gca;
             ax.YAxis.Label.FontWeight='bold';
+            ax.YAxis.Label.FontSize=12;
         end
     end
 end
 
 % Sixth row: residual RMSE, Smoothed, first PC of residual, variance by itself
-Ny=3;
+Ny=1;
 subplot(Nx,Ny,1+9*Ny)
 hold on
 dd=model{1}.oneAheadRes;
+%dd=Y-CD*projY;
 aux1=sqrt(sum(dd.^2));
 binw=10;
 aux1=conv(aux1,ones(1,binw)/binw,'valid'); %Smoothing
-p1=plot(aux1,'LineWidth',1);
-title('MLE one-ahead output error (RMSE, mov. avg.)')
+p1=plot(aux1,'LineWidth',1,'DisplayName','Residual RMSE, 10-stride mov. avg.');
+dd=Y-CD*projY;
+aux1=sqrt(sum(dd.^2));
+binw=10;
+aux1=conv(aux1,ones(1,binw)/binw,'valid'); %Smoothing
+p1=plot(aux1,'LineWidth',1,'DisplayName','Output orthogonal to [C,D], RMSE, 10-stride mov. avg.');
+%title('MLE one-ahead output error (RMSE, mov. avg.)')
 axis tight
 grid on
 set(gca,'YScale','log')
-
-subplot(Nx,Ny,2+9*Ny)
-[pp,cc,aa]=pca((dd'),'Centered','off');
-hold on
-aux1=conv(cc(:,1)',ones(1,binw)/binw,'valid');
-plot(aux1,'LineWidth',1) ;
-title('First PC of residual, mov. avg.')
-grid on
-
-subplot(Nx,Ny,3+9*Ny)
-hold on
 ind=find(diff(U)~=0);
 Y(:,ind)=nan;
-aux1=conv2(Y,[-.5,1,-.5]/sqrt(1.5),'valid');
-aux1=sum(aux1.^2);
+aux1=conv2(Y,[-.5,1,-.5]/sqrt(1.5),'valid'); %Y(k)-.5*(y(k+1)+y(k-1));
+%aux1=(Y(:,2:end)-Y(:,1:end-1))/sqrt(2);
+aux1=sqrt(sum(aux1.^2));
 aux1=conv(aux1,ones(1,binw)/binw,'valid'); %Smoothing
-plot(aux1,'LineWidth',1) ;
-title('Instantaneous variance of data')
-grid on
-set(gca,'YScale','log')
+plot(aux1,'LineWidth',1,'DisplayName','''Instantaneous std''') ;
+ylabel({'Residual';' RMSE'})
+ax=gca;
+ax.YAxis.Label.FontSize=12;
+ax.YAxis.Label.FontWeight='bold';
+legend('Location','NorthEast')
+
+%subplot(Nx,Ny,2+9*Ny)
+%[pp,cc,aa]=pca((dd'),'Centered','off');
+%hold on
+%aux1=conv(cc(:,1)',ones(1,binw)/binw,'valid');
+%plot(aux1,'LineWidth',1) ;
+%title('First PC of residual, mov. avg.')
+%grid on
+
+%subplot(Nx,Ny,3+9*Ny)
+%hold on
+%aux1=conv2(Y,[-.5,1,-.5],'valid'); %Y(k)-.5*(y(k+1)+y(k-1));
+%aux1=sqrt(sum(aux1.^2))/sqrt(1.5);
+%aux1=aux1./(8.23+sqrt(sum(Y(:,2:end-1).^2))); %
+%aux1=conv(aux1,ones(1,binw)/binw,'valid'); %Smoothing
+%plot(aux1,'LineWidth',1) ;
+%title('Instantaneous normalized std of data')
+%grid on
+%set(gca,'YScale','log')
 
 end
