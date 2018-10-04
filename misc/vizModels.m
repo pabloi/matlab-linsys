@@ -3,10 +3,11 @@ function [fh] = vizModels(model)
 M=max(cellfun(@(x) size(x.J,1),model));
 fh=figure('Units','Normalized','OuterPosition',[0 0 1 1]);
 Ny=2+length(model);
-Nx=M+3;
+Md=size(model{1}.D,2);
+Nx=M+Md+2;
 
 %% Compute output and residuals
-U=[zeros(1,100) ones(1,1000)];
+U=[zeros(Md,100) ones(Md,1000)];
 for i=1:length(model)
     [model{i}.J,model{i}.B,model{i}.C,~,~,model{i}.Q] = canonizev4(model{i}.J,model{i}.B,model{i}.C,[],model{i}.Q);
     [Y2,X2]=fwdSim(U,model{i}.J,model{i}.B,model{i}.C,model{i}.D,[],[],[]);
@@ -24,7 +25,6 @@ for k=1:length(model)
     %end
     %lastTau=-1./log(eig(model{k}.J));
     for i=1:size(model{k}.J,1)
-
     subplot(Nx,Ny,Ny*(plotInd(i)-1)+[1:2]) %States
     hold on
     set(gca,'ColorOrderIndex',k)
@@ -67,22 +67,25 @@ for i=1:length(model) %models
             ylabel(['C_' num2str(k)])
         end
     end
-    subplot(Nx,Ny,2+i+(M)*Ny)
+
+    for k=1:Md
+        subplot(Nx,Ny,2+i+(M+k-1)*Ny)
     try
-    imagesc(reshape(model{i}.D,12,Nc/12)')
+    imagesc(reshape(model{i}.D(:,k),12,Nc/12)')
     catch
-       imagesc(model{i}.D)
+       imagesc(model{i}.D(:,k))
     end
     colormap(flipud(map))
     caxis([-aC aC])
     if i==1
-        ylabel('D')
+        ylabel(['D_' num2str(k)])
+    end
     end
 end
 %% Plot R
 aR=mean(diag(model{1}.R));
 for i=1:length(model) %models
-    subplot(Nx,Ny,2+i+(M+1)*Ny)
+    subplot(Nx,Ny,2+i+(M+Md)*Ny)
     imagesc(model{i}.R)
     colormap(flipud(map))
     caxis([-aR aR])
@@ -97,7 +100,7 @@ if aQ==0
     aQ=.01*aR./aC^2;
 end
 for i=1:length(model) %models
-    subplot(Nx,Ny,2+i+(M+2)*Ny)
+    subplot(Nx,Ny,2+i+(M+Md)*Ny)
     imagesc(model{i}.Q)
     colormap(flipud(map))
     caxis([-aQ aQ])

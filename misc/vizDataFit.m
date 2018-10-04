@@ -274,9 +274,9 @@ for i=1:Ny
     subplot(M+1,Ny,i)
     trueD=Y(:,viewPoints(i)+[-(binw/2):(binw/2)]);
     try
-        imagesc(reshape(mean(trueD,2),12,size(Y,1)/12)')
+        imagesc(reshape(nanmean(trueD,2),12,size(Y,1)/12)')
     catch
-        imagesc(mean(trueD,2))
+        imagesc(nanmean(trueD,2))
     end
     colormap(flipud(map))
     caxis([-aC aC])
@@ -287,18 +287,18 @@ for i=1:Ny
     end
     for k=1:M
        subplot(M+1,Ny,i+k*Ny)
-       dd=model{k}.out(:,viewPoints(i)+[-(binw/2):(binw/2)]);
+       dd=trueD-model{k}.out(:,viewPoints(i)+[-(binw/2):(binw/2)]);
         try
-            imagesc(reshape(mean(dd,2),12,size(Y,1)/12)')
+            imagesc(reshape(nanmean(dd,2),12,size(Y,1)/12)')
         catch
-            imagesc(mean(dd,2))
+            imagesc(nanmean(dd,2))
         end
         colormap(flipud(map))
         caxis([-aC aC])
         axis tight
         mD=sqrt(mean(sum(trueD.^2),2));
         mD=1;
-        title(['RMSE=' num2str(sqrt(mean(sum((trueD-dd).^2),2))/mD)])
+        title(['RMSE=' num2str(sqrt(nanmean(sum((dd).^2),2))/mD)])
         if i==1
             ylabel(model{k}.name)
         end
