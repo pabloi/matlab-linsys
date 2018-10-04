@@ -10,7 +10,22 @@ function [A,B,C,D,Q,R,x0,P0]=estimateParams(Y,U,X,P,Pt,opts)
 %See Cheng and Sabes 2006, Ghahramani and Hinton 1996, Shumway and Stoffer 1982
 
 %
+[No,N]=size(Y);
+Nu=size(U,1);
+%
 [opts] = processEMopts(opts);
+if isempty(opts.indD)
+  opts.indD=1:Nu;
+end
+if isempty(opts.indB)
+  opts.indB=1:Nu;
+end
+
+%
+if all(U(:)==0)  %Can't estimate B,D if input is null/empty
+    U=zeros(0,N);
+end
+
 %Define vars:
 [yx,yu,xx,uu,xu,SP,SPt,xx_,uu_,xu_,xx1,xu1,SP_,S_P]=computeRelevantMatrices(Y,X,U,P,Pt,opts.robustFlag);
 D1=size(xx,1);
@@ -23,10 +38,20 @@ A=AB(:,1:D1);
 B=AB(:,D1+1:end);
 
 %Estimate C,D:
+xu=xu(:,opts.indD);
+uu=uu(opts.indD,opts.indD);
+yu=yu(:,opts.indD);
 O=[SP+xx xu; xu' uu];
 CD=[yx,yu]/O; %Notice that in absence of uncertainty in states, this reduces to [C,D]=Y/[X;U]
 C=CD(:,1:D1);
-D=CD(:,D1+1:end);
+D=zeros(No,Nu);
+D(:,opts.indD)=CD(:,D1+1:end);
+
+if isempty(U)
+    B=ones(D1,Nu); %Setting zeros here makes some canonical (e.g. canonizev2) forms ill-defined
+    D=zeros(No,Nu);
+    U=zeros(Nu,N);
+end
 
 %Estimate Q,R: %Adaptation of Shumway and Stoffer 1982: (there B=D=0 and C is fixed), but consistent with Ghahramani and Hinton 1996, and Cheng and Sabes 2006
 [w,z]=computeResiduals(Y,U,X,A,B,C,D);
@@ -37,14 +62,12 @@ Aa=A*aux';
 Nw=size(w,2);
 APt=A*SPt';
 Q2=(S_P-(APt+APt')+Aa*Aa')/(Nw);
-%Q2=(S_P-A*SPt')/Nw; %This is equivalent to the expression above if these 
-%matrices come from kalman smoothing.
 sQ=mycholcov(Q2);
 Q2=sQ'*sQ; %Enforcing psd, unclear if necessary
 %See Ghahramani and Hinton, and Cheng and Sabes
 
 if ~opts.robustFlag
-    Q1=(w*w')/(Nw); 
+    Q1=(w*w')/(Nw);
 %Covariance of EXPECTED residuals given the data and params
 %not designed to deal with outliers, autocorrelated w
 %Note: if we dont have exact extimates of A,B, then the residuals w are not
@@ -52,17 +75,17 @@ if ~opts.robustFlag
 %to the best-fitting multivariate normal. Thus, we benefit from doing a
 %more robust estimate, especially to avoid local minima in trueEM
 else
-%Robust estimation manages to avoid the failure mode where Q is overestimated 
+%Robust estimation manages to avoid the failure mode where Q is overestimated
 %because of the presence of 'outlier' observations (which may or may not be
-%true outliers), which in turn causes predicted states to be very uncertain, 
-%which causes large state updates when those 'outliers' are observed, leading 
+%true outliers), which in turn causes predicted states to be very uncertain,
+%which causes large state updates when those 'outliers' are observed, leading
 %to large state residuals w, which leads to large Q and so on.
 %It also breaks the non-decreasing logL guarantee of EM, and slightly
 %slower than the classical update: 10ms per call on my current setup, which
 %is 100+% the time of the whole estimateParams(). However, improved
 %parameter estimation may lead to faster overall EM() running time if the
 %fastFlag is enabled.
-    [Q1]=robCov(w,95); %Fast variant of robustcov() estimation
+    [Q1]=robCov(w);%,95); %Fast variant of robustcov() estimation
     %Q1=squeeze(median(w.*reshape(w',1,size(w,2),size(w,1)),2));
 end
 Q=Q1 +Q2;
@@ -79,8 +102,9 @@ Nz=size(z,2);
 %end
 R2=(Ca*Ca')/Nz;
 R=R1+R2;
-%R=(z*Y')/Nz; %Equivalent to above, but does not enforce symmetry
 if opts.sphericalR
+    %R1=robCov(z,95);
+    %R=R1+R2;
     nR=size(R,1);
     R=eye(nR)*trace(R)/nR;
 end
@@ -100,8 +124,10 @@ function [x0,P0]=estimateInit(X,P,A,Q)
 x0=X(:,1); %Smoothed estimate
 P0=P(:,:,1); %Smoothed estimate, the problem with this estimate is that it is monotonically decreasing on the iteration of trueEM(). More likely it should converge to the same prior uncertainty we have for all other states.
 %A variant to not make it monotonically decreasing:
+%aux=mycholcov(P0);
 %Aa=A*aux';
-P0=Q;%+Aa*Aa';
+%P0=Q+Aa*Aa';
+P0=Q;
 end
 
 function [yx,yu,xx,uu,xu,SP,SPt,xx_,uu_,xu_,xx1,xu1,SP_,S_P]=computeRelevantMatrices(Y,X,U,P,Pt,robustFlag)

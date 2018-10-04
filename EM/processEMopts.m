@@ -30,4 +30,10 @@ end
 if ~isfield(opts,'outlierReject')
     opts.outlierReject=false;
 end
+if ~isfield(opts,'indD')
+  opts.indD=[];
+end
+if ~isfield(opts,'indB')
+  opts.indB=[];
+end
 end

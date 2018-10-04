@@ -23,7 +23,10 @@ if isempty(Xguess)
     error('Xguess has to be a guess of the states (D x N matrix) or a scalar indicating the number of states to be estimated')
 elseif numel(Xguess)==1 %Xguess is just dimension
     D1=Xguess;
-    Xguess=initGuess(Y,U,D1);
+    if isempty(opts.indD)
+      opts.indD=1:size(U,1);
+    end
+    Xguess=initGuess(Y,U(opts.indD,:),D1);
 end
 X=Xguess;
 

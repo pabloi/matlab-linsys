@@ -1,4 +1,7 @@
 function [J,B,C,D,Q,R]=getFlatModel(Y,U)
+  bad=any(isnan(Y),1);
+  Y=Y(:,~bad);
+  U=U(:,~bad);
 J=0;
 B=0;
 Q=0;
