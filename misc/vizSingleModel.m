@@ -23,8 +23,9 @@ for i=1:length(model)
     model{i}.smoothStates=X2;
     model{i}.smoothOut=Y2;
     model{i}.logLtest=dataLogLikelihood(Y,U,model{i}.J,model{i}.B,model{i}.C,model{i}.D,model{i}.Q,model{i}.R,[],[],'approx');
-    [bic,aic]= bicaic(model{i},numel(Y)*model{i}.logLtest);
+    [bic,aic,bic2]= bicaic(model{i},Y,numel(Y)*model{i}.logLtest);
     model{i}.BIC=bic/(2*numel(Y)); %To put in the same scale as logL
+    model{i}.BIC2=bic2/(2*numel(Y)); %To put in the same scale as logL
     model{i}.AIC=aic/(2*numel(Y));
     if nargin>1
         fastFlag=0;
@@ -42,7 +43,7 @@ for i=1:length(model)
 
     end
 end
-set(fh,'Name',['Per sample logL=' num2str(model{1}.logLtest) ', BIC=' num2str(model{1}.BIC) ', AIC=' num2str(model{1}.AIC)]);
+set(fh,'Name',['Per sample logL=' num2str(model{1}.logLtest) ', BIC=' num2str(model{1}.BIC) ', AIC=' num2str(model{1}.AIC) ',BICalt=' num2str(model{1}.BIC2)]);
 
 %% Define colormap:
 ex1=[1,0,0];
@@ -105,7 +106,7 @@ for i=1:M
     end
     set(gca,'ColorOrderIndex',1)
     %p(i)=plot(model{1}.smoothStates(i,:),'LineWidth',2,'DisplayName',['Deterministic state, \tau=' num2str(-1./log(model{1}.J(i,i)),3)]);
-    title(['State ' num2str(i)])
+    title({['State ' num2str(i)];['b=' num2str(model{1}.B(i,:),2)]})
     %title('(Smoothed) Step-response states')
     p(i)=plot(model{1}.Xf(i,:),'LineWidth',2,'DisplayName',['\tau=' num2str(-1./log(model{1}.J(i,i)),3)],'Color','k');
     patch([1:size(model{1}.Xf,2),size(model{1}.Xf,2):-1:1]',[model{1}.Xf(i,:)+sqrt(squeeze(model{1}.Pf(i,i,:)))', fliplr(model{1}.Xf(i,:)-sqrt(squeeze(model{1}.Pf(i,i,:)))')]',p(i).Color,'EdgeColor','none','FaceAlpha',.3)
@@ -201,7 +202,7 @@ for k=1:3
 end
 
 % Sixth row: residual RMSE, Smoothed, first PC of residual, variance by itself
-Ny=1;
+Ny=2;
 subplot(Nx,Ny,1+9*Ny)
 hold on
 dd=model{1}.oneAheadRes;
@@ -231,23 +232,29 @@ ax.YAxis.Label.FontSize=12;
 ax.YAxis.Label.FontWeight='bold';
 legend('Location','NorthEast')
 
-%subplot(Nx,Ny,2+9*Ny)
-%[pp,cc,aa]=pca((dd'),'Centered','off');
+subplot(Nx,Ny,2+9*Ny)
+hold on
+title('Autocorr of residuals first 3 PCs')
+dd=model{1}.oneAheadRes;
+dd=substituteNaNs(dd');
+[pp,cc,aa]=pca((dd),'Centered','off');
+for k=1:3
+r=xcorr(cc(:,k));
+plot(-(length(r)-1)/2:(length(r)-1)/2,r)
+end
+axis tight
+aa=axis;
+grid on
+xlabel('Delay (samp)')
+title('Residual PC 1 autocorr')
+axis([-15 15 aa(3:4)])
+
 %hold on
 %aux1=conv(cc(:,1)',ones(1,binw)/binw,'valid');
 %plot(aux1,'LineWidth',1) ;
 %title('First PC of residual, mov. avg.')
 %grid on
 
-%subplot(Nx,Ny,3+9*Ny)
-%hold on
-%aux1=conv2(Y,[-.5,1,-.5],'valid'); %Y(k)-.5*(y(k+1)+y(k-1));
-%aux1=sqrt(sum(aux1.^2))/sqrt(1.5);
-%aux1=aux1./(8.23+sqrt(sum(Y(:,2:end-1).^2))); %
-%aux1=conv(aux1,ones(1,binw)/binw,'valid'); %Smoothing
-%plot(aux1,'LineWidth',1) ;
-%title('Instantaneous normalized std of data')
-%grid on
-%set(gca,'YScale','log')
+
 
 end

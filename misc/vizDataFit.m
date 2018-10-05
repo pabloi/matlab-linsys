@@ -25,7 +25,7 @@ for i=1:length(model)
     model{i}.smoothOut=Y2;
 
     model{i}.logLtest=dataLogLikelihood(Y,U(1:Nd,:),model{i}.J,model{i}.B,model{i}.C,model{i}.D,model{i}.Q,model{i}.R,[],[],'approx');
-    [bic,aic]= bicaic(model{i},numel(Y)*model{i}.logLtest);
+    [bic,aic]= bicaic(model{i},Y,numel(Y)*model{i}.logLtest);
     model{i}.BIC=bic/(2*numel(Y)); %To put in the same scale as logL
     model{i}.AIC=aic/(2*numel(Y));
 end
@@ -64,7 +64,7 @@ for kk=1:maxK
     if kk==1
         title('Output projection over main PCs')
     end
-    ylabel(['PC ' num2str(kk)])
+    ylabel(['PC ' num2str(kk) ', ' num2str(aa(kk)/sum(aa)) '%'])
 end
 %% Measures of output error:
 %Smooth output RMSE
@@ -199,7 +199,8 @@ Nny=6;
 allLogL=cellfun(@(x) x.logLtest,model);
 for i=1:length(model)
     res=Y(:,2:end)-model{i}.oneAheadOut; %One-ahead residuals
-    [pp,cc,aa]=pca((res)','Centered','off');
+    res=substituteNaNs(res'); %Removing NaNs, otherwise this is all crap
+    [pp,cc,aa]=pca((res),'Centered','off');
     subplot(Nx,Nny,(Nx-1)*Nny+1)
     if model{i}.logLtest==min(allLogL)
         try
