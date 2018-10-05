@@ -11,7 +11,7 @@ clear all
 load ../data/dynamicsData.mat
 addpath(genpath('./fun/'))
 % Some pre-proc
-B=nanmedian(allDataEMG{1}(end-45:end-5,:,:)); %Baseline: last 40, exempting 5
+B=nanmean(allDataEMG{1}(end-45:end-5,:,:)); %Baseline: last 40, exempting 5
 clear data dataSym
 subjIdx=2:16;
 %muscPhaseIdx=[1:(180-24),(180-11:180)];
@@ -46,7 +46,7 @@ for i=1:3 %B,A,P
 end
 
 %% All data
-Yf=[median(data{1},3); median(data{2},3);median(data{3},3)]';
+Yf=[median(dataSym{1},3); median(dataSym{2},3);median(dataSym{3},3)]';
 Uf=[zeros(size(dataSym{1},1),1);ones(size(dataSym{2},1),1);zeros(size(dataSym{3},1),1);]';
 Yf=Yf(:,1:1350); %Using only 400 of Post
 Uf=Uf(:,1:1350);
@@ -59,22 +59,19 @@ Up=Uf(:,951:end);
 %% P and some A
 Y_p=Yf(:,850:end);
 U_p=Uf(:,850:end);
-%% Median-filtered B, A
-binw=3;
-Y2=[medfilt1(median(dataSym{1},3),binw,'truncate'); medfilt1(median(dataSym{2},3),binw,'truncate')]';
 %% Flat model:
 [J,B,C,D,Q,R]=getFlatModel(Y,U);
 model{1}=autodeal(J,B,C,D,Q,R);
 model{1}.name='Flat';
 %%
-for D1=2:4
+for D1=1:4
 %% Identify
     tic
     opts.robustFlag=false;
     opts.Niter=1500;
     opts.outlierReject=false;
     opts.fastFlag=true;
-    [fAh,fBh,fCh,D,fQh,R,fXh,fPh]=randomStartEM(Yf,Uf,D1,10,opts); %Slow/true EM
+    [fAh,fBh,fCh,D,fQh,R,fXh,fPh]=randomStartEM(Y,U,D1,10,opts); %Slow/true EM
     logL=dataLogLikelihood(Y,U,fAh,fBh,fCh,D,fQh,R,fXh(:,1),fPh(:,:,1));
     model{D1+1}.runtime=toc;
     [J,B,C,X,~,Q,P] = canonizev2(fAh,fBh,fCh,fXh,fQh,fPh);
@@ -82,10 +79,10 @@ for D1=2:4
     model{D1+1}.name=['EM (iterated,all,' num2str(D1) ')']; %Robust mode does not do fast filtering
 end
 %%
-save EMrealDimCompare1500Bilat.mat
+save EMrealDimCompare1500_Aonly.mat
 %% COmpare
-vizModels(model(1:5))
+vizModels(model(1:4))
 %%
 %vizDataFit(model([4:-1:1]),Y,U)
 %vizDataFit(model([4:-1:1]),Y_p,U_p)
-vizDataFit(model(1:5),Yf,Uf)
+vizDataFit(model(1:4),Yf,Uf)

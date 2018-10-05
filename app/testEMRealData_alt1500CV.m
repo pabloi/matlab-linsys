@@ -29,29 +29,37 @@ Up=Uf(:,951:end);
 Y_p=Yf(:,850:end);
 U_p=Uf(:,850:end);
 %% Flat model:
-[J,B,C,D,Q,R]=getFlatModel(Yf,Uf);
-model{1}=autodeal(J,B,C,D,Q,R);
-model{1}.name='Flat';
+[J,B,C,D,Q,R]=getFlatModel(Yf(:,1:2:end),Uf(:,1:2:end));
+model{1,1}=autodeal(J,B,C,D,Q,R);
+model{1,1}.name='Flat, CV1';
+[J,B,C,D,Q,R]=getFlatModel(Yf(:,2:2:end),Uf(:,2:2:end));
+model{1,2}=autodeal(J,B,C,D,Q,R);
+model{1,2}.name='Flat, CV2';
 %%
 for D1=1:5
 %% Identify
     tic
-    opts.robustFlag=false;
+    opts.robustFlag=true;
     opts.Niter=1500;
     opts.outlierReject=false;
     opts.fastFlag=true;
-    [fAh,fBh,fCh,D,fQh,R,fXh,fPh]=randomStartEM(Yf,Uf,D1,10,opts); %Slow/true EM
-    logL=dataLogLikelihood(Y,U,fAh,fBh,fCh,D,fQh,R,fXh(:,1),fPh(:,:,1));
-    model{D1+1}.runtime=toc;
-    [J,B,C,X,~,Q,P] = canonizev2(fAh,fBh,fCh,fXh,fQh,fPh);
-    model{D1+1}=autodeal(J,B,C,D,X,Q,R,P,logL);
-    model{D1+1}.name=['EM (iterated,all,' num2str(D1) ')']; %Robust mode does not do fast filtering
+    for k=1:2
+        [fAh,fBh,fCh,D,fQh,R,fXh,fPh]=randomStartEM(Yf(:,k:2:end),Uf(:,k:2:end),D1,10,opts); %Slow/true EM
+        logL=dataLogLikelihood(Y,U,fAh,fBh,fCh,D,fQh,R,fXh(:,1),fPh(:,:,1));
+        model{D1+1}.runtime=toc;
+        [J,B,C,X,~,Q,P] = canonizev2(fAh,fBh,fCh,fXh,fQh,fPh);
+        model{D1+1,k}=autodeal(J,B,C,D,X,Q,R,P,logL);
+        model{D1+1,k}.name=['EM (' num2str(D1) ', CV' num2str(k) ')']; %Robust mode does not do fast filtering
+    end
 end
 %%
-save EMrealDimCompare1500.mat
+save EMrealDimCompare1500CVrob.mat
 %% COmpare
-vizModels(model(1:6))
-%%
-%vizDataFit(model([4:-1:1]),Y,U)
-%vizDataFit(model([4:-1:1]),Y_p,U_p)
-vizDataFit(model(1:6),Yf,Uf)
+%%Train set:
+for k=1:2
+vizDataFit(model(2:5,k),Yf(:,k:2:end),Uf(:,k:2:end))
+end
+%% Test set:
+for k=1:2
+vizDataFit(model(2:5,3-k),Yf(:,k:2:end),Uf(:,k:2:end))
+end
