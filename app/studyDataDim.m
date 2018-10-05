@@ -29,6 +29,7 @@ hold on
 for d=1:4
 [J,B,C,D,X,Q,R]=subspaceID(Yf',U,d);
 [J,B,C,X,~,Q]=canonizev4(J,B,C,X,Q);
+R=diag(diag(R));
 %subplot(2,1,1); plot(X')
 res=Yf(1:size(X,2),:)'-C*X-D*U(:,1:size(X,2));
 aux=sqrt(sum(res.^2));

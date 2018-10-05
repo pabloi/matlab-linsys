@@ -102,6 +102,9 @@ Nz=size(z,2);
 %end
 R2=(Ca*Ca')/Nz;
 R=R1+R2;
+if opts.diagR
+  R=diag(diag(R));
+end
 if opts.sphericalR
     %R1=robCov(z,95);
     %R=R1+R2;

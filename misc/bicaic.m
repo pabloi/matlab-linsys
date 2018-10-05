@@ -23,7 +23,7 @@ Nd=sum(sum(model.D~=0));
 Nq=sum(sum(triu(model.Q)~=0));
 Nr=sum(sum(triu(model.R)~=0));
 k=Na+Nb+Nc+Nd+Nq+Nr; %Model free parameters
-k_alt=k+M*N-Nq-Nr; %Counting states at each point in time as free parameters, but not counting Q and R anymore, since the model is completely determined by A,B,C,D,Q,R
+k_alt=k+M*N-Nq-Nr-Na-Nb; %Counting parameters as a matrix factorization problem
 
 BIC=2*logL-log(N)*k;
 BICalt=2*logL-log(N)*k_alt;

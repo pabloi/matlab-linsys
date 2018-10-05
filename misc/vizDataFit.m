@@ -25,8 +25,9 @@ for i=1:length(model)
     model{i}.smoothOut=Y2;
 
     model{i}.logLtest=dataLogLikelihood(Y,U(1:Nd,:),model{i}.J,model{i}.B,model{i}.C,model{i}.D,model{i}.Q,model{i}.R,[],[],'approx');
-    [bic,aic]= bicaic(model{i},Y,numel(Y)*model{i}.logLtest);
+    [bic,aic,bic2]= bicaic(model{i},Y,numel(Y)*model{i}.logLtest);
     model{i}.BIC=bic/(2*numel(Y)); %To put in the same scale as logL
+    model{i}.BIC2=bic2/(2*numel(Y)); %To put in the same scale as logL
     model{i}.AIC=aic/(2*numel(Y));
 end
 %% Define colormap:
@@ -152,6 +153,20 @@ bar2=bar([(2*Mm+2+k)*100],aic,'EdgeColor','none','BarWidth',100);
 text((2*Mm+2+k)*100-50,1.001*aic,[ num2str(aic,6)],'Color',bar2.FaceColor,'FontSize',6);
 end
 title('Model comparison: AIC')
+grid on
+set(gca,'YScale','log','XTick',100*(Mm+1)*[.5:1:3],'XTickLabel',{'logL','BIC','AIC'})
+
+subplot(Nx,2*Ny,8*Ny+4)
+hold on
+[N,Nz]=size(Y);
+Mm=length(model);
+for k=1:Mm
+    set(gca,'ColorOrderIndex',k)
+bic=model{k}.BIC2;
+bar2=bar([(Mm+1+k)*100],bic,'EdgeColor','none','BarWidth',100);
+text((Mm+1+k)*100-50,1.001*bic,[num2str(bic,6)],'Color',bar2.FaceColor,'FontSize',6);
+end
+title('Model comparison: BIC alt')
 grid on
 set(gca,'YScale','log','XTick',100*(Mm+1)*[.5:1:3],'XTickLabel',{'logL','BIC','AIC'})
 

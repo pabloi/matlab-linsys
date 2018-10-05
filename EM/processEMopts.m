@@ -27,6 +27,9 @@ end
 if ~isfield(opts,'sphericalR')
     opts.sphericalR=false;
 end
+if ~isfield(opts,'diagR') || isempty(opts.diagR)
+    opts.diagR=false;
+end
 if ~isfield(opts,'outlierReject')
     opts.outlierReject=false;
 end
