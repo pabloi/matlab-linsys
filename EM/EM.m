@@ -12,26 +12,23 @@ end
 if nargin<5
   Pguess=[];
 end
+
+%Process opts:
 [opts] = processEMopts(opts);
+if isempty(opts.indD)
+  opts.indD=1:size(U,1);
+end
+
+%Disable some annoying warnings:
 warning ('off','statKFfast:unstable');
 warning ('off','statKFfast:NaNsamples');
 warning ('off','statKSfast:unstable');
 
 %% ------------Init stuff:-------------------------------------------
-%Define init guess of state:
-if isempty(Xguess)
-    error('Xguess has to be a guess of the states (D x N matrix) or a scalar indicating the number of states to be estimated')
-elseif numel(Xguess)==1 %Xguess is just dimension
-    D1=Xguess;
-    if isempty(opts.indD)
-      opts.indD=1:size(U,1);
-    end
-    Xguess=initGuess(Y,U(opts.indD,:),D1);
-end
-X=Xguess;
-
 % Init params:
-[A1,B1,C1,D1,Q1,R1,x01,P01,bestLogL]=initParams(Y,U,X,opts,Pguess);
+ [A1,B1,C1,D1,Q1,R1,X1,P1,Pt1,bestLogL]=initEM(Y,U,Xguess,opts,Pguess);
+ x01=X1(:,1); P01=P1(:,:,1);
+%[A1,B1,C1,D1,Q1,R1,x01,P01,bestLogL]=initParams(Y,U,X,opts,Pguess);
 
 %Initialize log-likelihood register & current best solution:
 logl=nan(opts.Niter,1);
@@ -39,13 +36,12 @@ logl(1)=bestLogL;
 if isa(Y,'gpuArray')
     logl=nan(Niter,1,'gpuArray');
 end
-A=A1; B=B1; C=C1; D=D1; Q=Q1; R=R1; x0=x01; P0=P01; P=repmat(P0,1,1,size(X,2));
+A=A1; B=B1; C=C1; D=D1; Q=Q1; R=R1; x0=x01; P0=P01; P=P1; Pt=Pt1;
 
 %Initialize target logL:
 if isempty(opts.targetLogL)
     opts.targetLogL=logl(1);
 end
-
 
 %% ----------------Now, do E-M-----------------------------------------
 breakFlag=false;
@@ -170,63 +166,5 @@ if opts.fastFlag==0 %Re-enable disabled warnings
     warning ('on','statKFfast:unstable');
     warning ('on','statKFfast:NaNsamples');
     warning ('on','statKSfast:unstable');
-end
-end
-
-function [A1,B1,C1,D1,Q1,R1,x01,P01,logL]=initParams(Y,U,X,opts,Pguess)
-
-if isa(Y,'cell')
-    [P,Pt]=cellfun(@(x) initCov(x,Pguess),X,'UniformOutput',false);
-else
-    %Initialize covariance to plausible values:
-    [P,Pt]=initCov(X,Pguess);
-
-    %Move things to gpu if needed
-    if isa(Y,'gpuArray')
-        U=gpuArray(U);
-        X=gpuArray(X);
-        P=gpuArray(P);
-        Pt=gpuArray(Pt);
-    end
-end
-
-%Initialize guesses of A,B,C,D,Q,R
-[A1,B1,C1,D1,Q1,R1,x01,P01]=estimateParams(Y,U,X,P,Pt,opts);
-%Make sure scaling is appropriate:
-[A1,B1,C1,x01,~,Q1,P01] = canonizev2(A1,B1,C1,x01,Q1,P01);
-%Compute logL:
-logL=dataLogLikelihood(Y,U,A1,B1,C1,D1,Q1,R1,x01,P01,'approx');
-end
-
-function [P,Pt]=initCov(X,Pguess)
-    [~,N]=size(X);
-    %Initialize covariance to plausible values:
-    if nargin<2 || isempty(Pguess)
-    dX=diff(X');
-    Px=(dX'*dX)/N;
-    P=repmat(Px,1,1,N);
-    %Px1=(dX(2:end,:)'*dX(1:end-1,:));
-    Pt=repmat(.2*diag(diag(Px)),1,1,N);
-  else
-    P=Pguess;
-    Pt=.2*Pguess;
-  end
-end
-
-function X=initGuess(Y,U,D1)
-if isa(Y,'cell')
-    X=cellfun(@(y,u) initGuess(y,u,D1),Y,U,'UniformOutput',false);
-else
-    idx=~any(isnan(Y));
-    D=Y(:,idx)/U(:,idx);
-    if isa(Y,'gpuArray')
-        [pp,~,~]=pca(gather(Y(:,idx)-D*U(:,idx)),'Centered','off'); %Can this be done in the gpu?
-    else
-       [pp,~,~]=pca((Y(:,idx)-D*U(:,idx)),'Centered','off'); %Can this be done in the gpu?
-    end
-    X=nan(D1,size(Y,2));
-    X(:,idx)=pp(:,1:D1)';
-    X(:,~idx)=interp1(find(idx),pp(:,1:D1),find(~idx))';
-    X=(1e2*X)./sqrt(sum(X.^2,2)); %Making sure we have good scaling, WLOG
 end
 end
