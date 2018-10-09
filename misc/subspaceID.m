@@ -39,6 +39,8 @@ z=X_ip2-A*X_ip1-B*U_ip1;
 w=Y_ip1-C*X_ip1-D*U_ip1;
 Q=z*z'/N;
 R=w*w'/N;
+%Estimate states for all datapoints:
+X=C\(Y-D*U);
 end
 
 function H=myhankel(A,i,j)
