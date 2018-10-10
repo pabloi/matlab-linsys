@@ -5,7 +5,7 @@ Ny=3;
 C=randn(Ny,2);
 D=randn(Ny,1);
 Q=zeros(2);
-R=.01*eye(Ny);
+R=.5*eye(Ny);
 x0=[0;0];
 U=[zeros(1,500), ones(1,1000)];
 d=2;
@@ -42,12 +42,5 @@ std(err1,[],2)
 mean(err_,2)
 std(err_,[],2)
 
-[A1,~,~,X1,~,~] = canonizev4(A1,B1,C1,X1,Q1); %Trying to get canonical states
-Xerr=X1-X(:,1:end-1); %An estimate of the state estimation error.
-%Can't do exactly because states are not uniquely determined. This likely overestimates the true error
-Abiased=A-A*(Xerr*Xerr')/(X1*X1') + (Xerr(:,2:end)*Xerr(:,1:end-1)')/(X1*X1') %Theoretical result
-eig(Abiased)
-A1
-eig(A1)
 %mean(err__,2)
 %std(err__,[],2)

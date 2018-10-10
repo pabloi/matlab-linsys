@@ -4,7 +4,7 @@ function [A,B,C,D,X,Q,R]=subspaceIDv2(Y,U,d)
 
 [Ny,N]=size(Y);
 
-i=13;
+i=20; %Should always be even
 j=N-2*i;
 
 Y_1i=myhankel(Y,i,j);
@@ -55,14 +55,18 @@ clear w
 for k=1:Nx
   x0=1-1/v(k,k);
   if imag(x0)==0
-    w(k)=fzero(@(x) v(k,k)-(1-x^i)/(1-x),x0); %Can only be done for real v(i,i)
+    %fzero can only be used for real-argument, real-valued searches
+    %w(k)=fzero(@(x) v(k,k)-(1-x^i)/(1-x),v(k,k)/(i-1));
+    w(k)=fzero(@(x) polyval([ones(1,i-1) 1-v(k,k)],x),v(k,k)); %Better conditioned than above, no discontinuity at x=1
+    %If i is even, then the polynomial is monotonic, and there is a single real root
   else %Complex poles
-    fun=@(x) abs(v(k,k)-(1-(x(1)+1i*x(2))^i)/(1-(x(1)+1i*x(2))));
-    aux=fminunc(fun,[real(x0);imag(x0)]);
-    w(k)=aux(1)+1i*aux(2);
+    rr=roots([ones(1,i-1) 1-v(k,k)]);
+    aa=abs(angle(rr));
+    [~,idx]=min(aa);
+    w(k)=rr(idx); %Minimum phase solution
   end
 end
-A=d*diag(w)/d;
+A=real(d*diag(w)/d); %The real() part is taken to avoid numerical issues in roots() from returning complex poles that are not exactly paired
 B=(X_ip2-A*X_ip1)/U_ip1;
 
 %Residuals:

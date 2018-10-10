@@ -3,7 +3,8 @@ function [A,B,C,D,X,Q,R]=subspaceID(Y,U,d)
 %Following Shadmehr & Mussa-Ivaldi 2012
 
 N=size(Y,2);
-i=2;
+%i=2*round(sqrt(N*d/100)/2);%30; %For good estimation, d < i << N
+i=10;
 j=N-2*i;
 
 Y_1i=myhankel(Y,i,j);
@@ -14,9 +15,10 @@ Y_ip12i=myhankel(Y(:,(i+1):end),i,j);
 
 O_ip1=(projectPerp(Y_ip12i,U_ip12i)/projectPerp(W_1i,U_ip12i))*W_1i;
 [~,S,V] = svd(O_ip1,'econ');
+sd=(diag(S));
+cumsum(sd(1:10))'/sum(sd)
 if nargin<3 %Automatic figuring out of number of states...
 %figure
-%sd=(diag(S));
 %plot(cumsum(sd)/sum(sd))
 %set(gca,'YScale','log')
 Nx=2;
