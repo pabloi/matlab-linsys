@@ -1,5 +1,5 @@
 function y=substituteNaNs(y)
-%Acts column-wise
+%Acts column-wise, replacing NaNs with a linearly interpolated value
 for i=1:size(y,2)
   notNaN=~isnan(y(:,i));
   if any(~notNaN)
