@@ -46,27 +46,12 @@ w=Y_ip1-C*X_ip1-D*U_ip1;
 R=w*w'/N;
 
 sz=i;
-P2=permute(reshape(P(1:Ny*sz,1:Nx),Ny,sz,Nx),[1,3,2]);
+P2=permute(reshape(P(Ny+1:Ny*sz,1:Nx),Ny,sz-1,Nx),[1,3,2]);
 
-IA=C\P2(:,:); %This should result in a matrix of the form [I A ... A^(Nx-1)];
-IA=reshape(IA,Nx,Nx,sz); % I + A + A^2 + A^3 + .. + A^(Nx-1)
-[d,v]=eig(sum(IA,3));
-clear w
-for k=1:Nx
-  x0=1-1/v(k,k);
-  if imag(x0)==0
-    %fzero can only be used for real-argument, real-valued searches
-    %w(k)=fzero(@(x) v(k,k)-(1-x^i)/(1-x),v(k,k)/(i-1));
-    w(k)=fzero(@(x) polyval([ones(1,i-1) 1-v(k,k)],x),v(k,k)); %Better conditioned than above, no discontinuity at x=1
-    %If i is even, then the polynomial is monotonic, and there is a single real root
-  else %Complex poles
-    rr=roots([ones(1,i-1) 1-v(k,k)]);
-    aa=abs(angle(rr));
-    [~,idx]=min(aa);
-    w(k)=rr(idx); %Minimum phase solution
-  end
-end
-A=real(d*diag(w)/d); %The real() part is taken to avoid numerical issues in roots() from returning complex poles that are not exactly paired
+IA=C\P2(:,:); %This should result in a matrix of the form [A ... A^(Nx-1)];
+IA=reshape(IA,Nx,Nx,sz-1); %  A + A^2 + A^3 + .. + A^(Nx-1)
+A=unfoldMatrix(sum(IA,3),ones(1,i-1));
+A=real(A); %Eliminating numerical issues from unfolding with complex eigenvalues
 B=(X_ip2-A*X_ip1)/U_ip1;
 
 %Residuals:

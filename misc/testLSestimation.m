@@ -23,27 +23,19 @@ for k=1:Niter
   err1(:,k)=sort(eig(A_LS1))-sort(eig(A));
   A_LS2=sqrtm(X(:,3:end)/X(:,1:end-2));
   err2(:,k)=sort(eig(A_LS2))-sort(eig(A));
-  A_LSn=((X(:,5:end)+X(:,4:end-1)+X(:,3:end-2)+X(:,2:end-3))/X(:,1:end-4));
-  v=eig(A_LSn);
-  clear w
-  for l=1:size(X,1)
-    w(l)=fzero(@(x) polyval([1 1 1 1 -v(l)],x),1);
-  end
-  errn(:,k)=sort(w')-sort(eig(A));
+  A_LSn=estimateTransitionMatrix(X,9);
+  w=eig(A_LSn);
+  errn(:,k)=sort(w)-sort(eig(A));
 
   %Estimates from noisy data:
-  Xn=X+100*rand(size(X));
+  Xn=X+1*rand(size(X));
   A_LS1=Xn(:,2:end)/Xn(:,1:end-1);
   err1_(:,k)=sort(eig(A_LS1))-sort(eig(A));
   A_LS2=sqrtm(Xn(:,3:end)/Xn(:,1:end-2));
   err2_(:,k)=sort(eig(A_LS2))-sort(eig(A));
-  A_LSn=((Xn(:,5:end)+Xn(:,4:end-1)+Xn(:,3:end-2)+Xn(:,2:end-3))/Xn(:,1:end-4));
-  v=eig(A_LSn);
-  clear w
-  for l=1:size(X,1)
-    w(l)=fzero(@(x) polyval([1 1 1 1 -v(l)],x),1);
-  end
-  errn_(:,k)=sort(w')-sort(eig(A));
+  A_LSn=estimateTransitionMatrix(Xn,19);
+  w=eig(A_LSn);
+  errn_(:,k)=sort(w)-sort(eig(A));
 end
 
 %%

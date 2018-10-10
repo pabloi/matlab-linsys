@@ -5,12 +5,12 @@ Ny=3;
 C=randn(Ny,2);
 D=randn(Ny,1);
 Q=zeros(2);
-R=.5*eye(Ny);
+R=.1*eye(Ny);
 x0=[0;0];
 U=[zeros(1,500), ones(1,1000)];
 d=2;
 %%
-Niter=2e1;
+Niter=3e2;
 err1=nan(size(A,1),Niter);
 err_=nan(size(A,1),Niter);
 err__=nan(size(A,1),Niter);
@@ -38,8 +38,10 @@ err_(:,k)= sort(eig(A_))-sort(eig(A));
 end
 %%
 mean(err1,2)
+mean(abs(err1),2)
 std(err1,[],2)
 mean(err_,2)
+mean(abs(err_),2)
 std(err_,[],2)
 
 %mean(err__,2)

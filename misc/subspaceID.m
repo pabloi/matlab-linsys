@@ -16,7 +16,9 @@ Y_ip12i=myhankel(Y(:,(i+1):end),i,j);
 O_ip1=(projectPerp(Y_ip12i,U_ip12i)/projectPerp(W_1i,U_ip12i))*W_1i;
 [~,S,V] = svd(O_ip1,'econ');
 sd=(diag(S));
-cumsum(sd(1:10))'/sum(sd)
+%figure
+%plot(cumsum(sd)/sum(sd))
+%set(gca,'YScale','log')
 if nargin<3 %Automatic figuring out of number of states...
 %figure
 %plot(cumsum(sd)/sum(sd))
