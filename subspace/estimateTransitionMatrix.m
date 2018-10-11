@@ -16,11 +16,12 @@ if numel(ord)==1 %Scalar given, assuming it is the order of estimation
     ord=numel(weights);
 end
 
+%Option 1: estimate A+A^2+..+A^ord and then solve the polynomial to find A
 Xpp=0;
 for k=1:ord
   Xpp= Xpp+weights(ord-k+1)*X(:,(k+1):(end-ord+k));
 end
-
 An=Xpp/X(:,1:end-ord); %Estimates w(ord)*A+w(ord-1)*A^2+...+w(1)*A^ord
 A=matrixPolyRoots(An,weights);
+
 end

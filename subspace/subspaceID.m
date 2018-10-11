@@ -54,7 +54,3 @@ function H=myhankel(A,i,j)
     H(:,l)=a(:);
   end
 end
-
-function Ap=projectPerp(A,B)
-  Ap=A-(A/B)*B;
-end
