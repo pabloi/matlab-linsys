@@ -45,13 +45,13 @@ X=C\(Y-D*U);
 w=Y_ip1-C*X_ip1-D*U_ip1;
 R=w*w'/N;
 
-sz=i;
+sz=i-1; %Needs to be larger than Nx for unique solution
 P2=permute(reshape(P(Ny+1:Ny*sz,1:Nx),Ny,sz-1,Nx),[1,3,2]);
-
-IA=C\P2(:,:); %This should result in a matrix of the form [A ... A^(Nx-1)];
-IA=reshape(IA,Nx,Nx,sz-1); %  A + A^2 + A^3 + .. + A^(Nx-1)
-A=unfoldMatrix(sum(IA,3),ones(1,i-1));
-A=real(A); %Eliminating numerical issues from unfolding with complex eigenvalues
+IA=C\P2(:,:); %This should result in a matrix of the form [A; A^2; ...; A^(Nx-1)];
+%IA=reshape(IA,Nx,Nx,sz-1); %  A + A^2 + A^3 + .. + A^(Nx-1)
+%A=unfoldMatrix(sum(IA,3),ones(1,i-1));
+%A=real(A); %Eliminating numerical issues from unfolding with complex eigenvalues
+A=fitMatrixPowers(IA');
 B=(X_ip2-A*X_ip1)/U_ip1;
 
 %Residuals:
