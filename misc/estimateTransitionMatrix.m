@@ -22,5 +22,5 @@ for k=1:ord
 end
 
 An=Xpp/X(:,1:end-ord); %Estimates w(ord)*A+w(ord-1)*A^2+...+w(1)*A^ord
-A=unfoldMatrix(An,weights);
+A=matrixPolyRoots(An,weights);
 end
