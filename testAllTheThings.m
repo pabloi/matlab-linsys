@@ -1,4 +1,7 @@
 %%
+addpath(genpath('./'))
+addpath(genpath('../robustCov'))
+%%
 testCanonize
 testLogL
 testMyCholCov
