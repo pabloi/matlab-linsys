@@ -1,7 +1,7 @@
 function [A,B,C,D,X,Q,R]=subspaceIDv2(Y,U,d)
 %Sub-space method indentification
 %Following Shadmehr & Mussa-Ivaldi 2012
-error('This is shit. None of the methods returns better behavior than subspaceID, despite that method being very biased. Especially bad in the presence of non-zero Q. Trying to correct for bias makes everything worse. For some reason estimateTransitionMatrix works well but this does not. Correlated noise?')
+%error('This is shit. None of the methods returns better behavior than subspaceID, despite that method being very biased. Especially bad in the presence of non-zero Q. Trying to correct for bias makes everything worse. For some reason estimateTransitionMatrix works well but this does not. Correlated noise?')
 [Ny,N]=size(Y);
 
 i=40; %Should always be even
@@ -62,12 +62,4 @@ B=(X_ip2-A*X_ip1)/U_ip1;
 %Residuals:
 z=X_ip2-A*X_ip1-B*U_ip1;
 Q=z*z'/N;
-end
-
-function H=myhankel(A,i,j)
-  H=nan(i*size(A,1),j);
-  for l=1:j
-    a=A(:,l:l+i-1);
-    H(:,l)=a(:);
-  end
 end

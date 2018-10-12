@@ -13,12 +13,16 @@ function [A,B,C,D,Q,R,X,P,Pt,logL]=initEM(Y,U,X,opts,P)
         Y=substituteNaNs(Y')';
       end
       [A,B,C,D,X,Q,R]=subspaceIDv2(Y,U,d); %Works if no missing data
-      [X,P,Pt]=statKalmanSmoother(Y,A,C,Q,R,[],[],B,D,U);
-      logL=dataLogLikelihood(Y,U,A,B,C,D,Q,R,X(:,1),P(:,:,1),'approx');
-  else %Initial state guess was given, using that to estimate params
+      if opts.diagR
+        R=diag(diag(R));
+      end
+  end
+      %[X,P,Pt]=statKalmanSmoother(Y,A,C,Q,R,[],[],B,D,U);
+      %logL=dataLogLikelihood(Y,U,A,B,C,D,Q,R,X(:,1),P(:,:,1),'approx');
+  %else %Initial state guess was given, using that to estimate params
       [P,Pt]=initCov(X,U,P); %Initialize Pt, and P if not given
       [A,B,C,D,Q,R,x0,P0,logL]=initParams(Y,U,X,opts,P);
-  end
+  %end
 end
 
 
