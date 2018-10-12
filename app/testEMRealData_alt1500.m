@@ -33,11 +33,11 @@ U_p=Uf(:,850:end);
 model{1}=autodeal(J,B,C,D,Q,R);
 model{1}.name='Flat';
 %%
-for D1=1:5
+for D1=1:3
 %% Identify
     tic
     opts.robustFlag=false;
-    opts.Niter=1500;
+    opts.Niter=3500;
     opts.outlierReject=false;
     opts.fastFlag=true;
     [fAh,fBh,fCh,D,fQh,R,fXh,fPh]=randomStartEM(Yf,Uf,D1,10,opts); %Slow/true EM
@@ -48,10 +48,10 @@ for D1=1:5
     model{D1+1}.name=['EM (iterated,all,' num2str(D1) ')']; %Robust mode does not do fast filtering
 end
 %%
-save EMrealDimCompare1500.mat
+save EMrealDimCompare1500v2.mat
 %% COmpare
-vizModels(model(1:6))
+vizModels(model(1:4))
 %%
 %vizDataFit(model([4:-1:1]),Y,U)
 %vizDataFit(model([4:-1:1]),Y_p,U_p)
-vizDataFit(model(1:6),Yf,Uf)
+vizDataFit(model(1:4),Yf,Uf)
