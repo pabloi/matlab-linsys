@@ -102,6 +102,13 @@ Nz=size(z,2);
 %end
 R2=(Ca*Ca')/Nz;
 R=R1+R2;
+if opts.thR~=0
+  dR=diag(R);
+  Rcorr=R./sqrt(dR);
+  Rcorr=Rcorr./sqrt(dR)'; %Correlation matrix, rather than Covariance
+  R=R.*(abs(Rcorr)>opts.thR); %Preserving elements representing pairwise correlations larger than thR.
+  %This matrix is still PSD because it is still hermitian
+end
 if opts.diagR
   R=diag(diag(R));
 end

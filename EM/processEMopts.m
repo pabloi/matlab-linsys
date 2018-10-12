@@ -30,6 +30,9 @@ end
 if ~isfield(opts,'diagR') || isempty(opts.diagR)
     opts.diagR=false;
 end
+if ~isfield(opts,'thR') || isempty(opts.thR)
+  opts.thR=0;
+end
 if ~isfield(opts,'outlierReject')
     opts.outlierReject=false;
 end
