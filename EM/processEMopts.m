@@ -1,7 +1,7 @@
 function [opts] = processEMopts(opts)
 
 if ~isfield(opts,'Niter')
-    opts.Niter=500; %Max number of iters
+    opts.Niter=3500; %Max number of iters
 end
 
 if ~isfield(opts,'robustFlag')
@@ -17,7 +17,7 @@ if ~isfield(opts,'convergenceTol')
 end
 
 if ~isfield(opts,'targetTol')
-    opts.targetTol=3e-1; % 30% minimum improvement towards target every 50 iters
+    opts.targetTol=1e-10; % 10% minimum improvement towards target every 50 iters
 end
 
 if ~isfield(opts,'targetLogL')
