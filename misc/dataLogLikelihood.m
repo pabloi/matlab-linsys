@@ -9,6 +9,14 @@ if nargin<10 || isempty(X0) || isempty(P0)
     P0=[];
 end
 
+%Check if R is psd, and do cholesky decomp:
+[cR,r]=mycholcov(R);
+if r~=size(R,1)
+    warning('R is not PD, this can end badly')
+    %This is ok as long as R +C*P*C' is strictly positive definite.
+    %Otherwise, nothing good can happen here, unless magically the residuals z have no projection on the null-space of R+C*P*C', and then we *could* compute a pseudo-likelihood by reducing the output to exclude the projection onto the null space, and reducing R+C*P*C' accordingly. However, that changes the dimension of the problem.
+end
+
 if isa(Y,'cell') %Case where input/output data corresponds to many realizations of system, requires Y,U,x0,P0 to be cells of same size
     logLperSamplePerDim=cellfun(@(y,u,x0,p0) dataLogLikelihood(y,u,A,B,C,D,Q,R,x0,p0,method),Y,U,X0,P0);
     sampleSize=cellfun(@(y) size(y,2),Y);
@@ -31,68 +39,47 @@ else
 
     switch method
         case 'approx'
-            logLperSamplePerDim=logLapprox(z,Pp,C,R);
+            logLperSamplePerDim=logLapprox(z,Pp,C,cR);
         case 'exact'
-            logLperSamplePerDim=logLexact(z,Pp,C,R);
+            logLperSamplePerDim=logLexact(z,Pp,C,cR);
         case 'max'
             logLperSamplePerDim=logLopt(z);
         case 'fast'
-            logLperSamplePerDim=logLfast(z,Pp,C,R,A);
+            logLperSamplePerDim=logLfast(z,Pp,C,cR,A);
     end
 
 end
 end
 
-function logLperSamplePerDim=logLexact(z,Pp,C,R)
+function logLperSamplePerDim=logLexact(z,Pp,C,cR)
 [D2,N2]=size(z);
-%Exact way: (very slow)
+%Exact way: (10x slower than the approximate way)
 minus2ly=nan(size(z,2),1);
 for i=1:size(z,2)
-    sP=mycholcov(Pp(:,:,i));
-    CsP=C*sP';
-    P=R+CsP*CsP';
-    [cP,r]=chol(P); %This has to be PD strictly
+    [cP]=RplusCPC(cR,Pp(:,:,i),C);
     logdetP= 2*sum(log(diag(cP)));
-    %logdetP= sum(log(eig(P)));%Should use:https://en.wikipedia.org/wiki/Matrix_determinant_lemma to cheapen computation (can exploit knowing C'*(R\C) and det(R) ahead of time to only need computing size(Pp) determinants
-    %eP=eig(P);
-    %if ~all(imag(eP)==0 & eP>0) %Sanity check, the output covariance should be positive semidef., otherwise the likelihood is not well defined
-    if r~=0
-        error('Covariance matrix is not PD, cannot compute likelihood')
-    end
-    zz=z(:,i);
-    minus2ly(i)=zz'*(P\zz) +logdetP + D2*log(2*pi);
+    zz=z(:,i);  Pz=cP'\zz;
+    minus2ly(i)=Pz'*Pz + logdetP + D2*log(2*pi);
 end
-logL=-.5*(sum(minus2ly));
-logLperSamplePerDim=logL/(N2*D2);
+logLperSamplePerDim=-.5*(sum(minus2ly))/(N2*D2);
 end
 
-function logLperSamplePerDim=logLapprox(z,Pp,C,R)
-%Faster, approximate way:
+function logLperSamplePerDim=logLapprox(z,Pp,C,cR)
+%Faster, approximate way: essentially we assume that the uncertainty is in a steady-state throughout all the data, and use the median uncertainty as a proxy for the steady-state value.
 [D,N]=size(z);
 mPP=median(Pp,3);
-cPP=mycholcov(mPP);
-CcPP=C*cPP';
-%CPpCt=C*median(Pp,3)*C'; %Mean makes no sense, changed to median
-%CPpCt=(CPpCt+CPpCt')/2; %Cheap way to ensure PSD
-CPpCt=CcPP*CcPP';
-P=R+CPpCt;
-[cP,r]=chol(P); %This has to be PD strictly
-%eP=eig(P);
-%if ~all(imag(eP)==0 & eP>0) %Sanity check, the output covariance should be positive semidef., otherwise the likelihood is not well defined
-if r~=0
-    error('Covariance matrix is not PD, cannot compute likelihood')
-end
-%logdetP= mean(log(eP)); %Should use:https://en.wikipedia.org/wiki/Matrix_determinant_lemma to cheapen computation (can exploit knowing C'*(R\C) and det(R) ahead of time to only need computing size(Pp) determinants
+[cP]=RplusCPC(cR,mPP,C);
 logdetP= 2*mean(log(diag(cP)));
-S=z*z'/N;
-%logL=-.5*N2*(trace(lsqminnorm(P,S,1e-8))+logdetP+D2*log(2*pi)); %Non-gpu ready
-logLperSamplePerDim=-.5*(mean(diag(P\S))+logdetP+log(2*pi));
+%S=z*z'/N;
+%logLperSamplePerDim=-.5*(mean(diag(P\S))+logdetP+log(2*pi));
+Pz=cP'\z;
+logLperSamplePerDim=-.5*(mean(mean(Pz.*Pz))+logdetP+log(2*pi));
 %Naturally, this is maximized over positive semidef. P (for a given set of residuals z)
 %when P=S, and then it only depends on the sample covariance of the residuals:
 %maxLperSamplePerDim = -.5*(1+mean(log(eig(S)))+log(2*pi))
 end
 
-function logLperSamplePerDim=logLfast(z,Pp,C,R,A)
+function logLperSamplePerDim=logLfast(z,Pp,C,cR,A)
 %Do exact for M samples, do approximate afterwards. Should be almost equal
 %to the exact version, but much faster. We exploit the fact that on a
 %stable system the uncertainty reaches a steady-state, so the computation
@@ -104,8 +91,8 @@ M1=ceil(3*max(-1./log(abs(eig(A))))); %This many strides ensures ~convergence of
 M=max(M1,M2);
 M=min(M,N); %Prevent more than N, if this happens, we are not doing fast filtering
 
-logLperSamplePerDim1=logLexact(z(:,1:M),Pp(:,:,1:M),C,R);
-logLperSamplePerDim2=logLapprox(z(:,M+1:N),Pp(:,:,M+1:N),C,R);
+logLperSamplePerDim1=logLexact(z(:,1:M),Pp(:,:,1:M),C,cR);
+logLperSamplePerDim2=logLapprox(z(:,M+1:N),Pp(:,:,M+1:N),C,cR);
 logLperSamplePerDim=(M*logLperSamplePerDim1+(N-M)*logLperSamplePerDim2)/N;
 
 end
@@ -122,4 +109,19 @@ logLperSamplePerDim = -.5*(1+log(2*pi)+logdetS);
 %Special case: if S is isotropic (all eigenvalues are the same), then log(det(S))=D2*log(trace(S)/D2) and N2*trace(S)=norm(z,'fro')^2
 %Thus: logL = -.5*N2*D2*(1+log(norm(z,'fro')^2/N2)-log(D2)+log(2*pi))
 %logL=N2*maxLperSample;
+end
+
+function [cP,P]=RplusCPC(cR,P,C)
+    %Summing in chol() space to guarantee that x'*P*x products are non-negative.
+    cP=mycholcov(P);
+    %Option 1: %The most accurate as far as I can tell, but not the fastest.
+    CcP=C*cP';  P=cR'*cR+CcP*CcP'; cP=mycholcov(P);
+
+    %Option 2: %Slightly faster, as it exploits the Cholesky decomp. Less accurate in general though, see testPDSsum
+    %(x'*P*x has an error of about an order of magnitude larger. However, the typical error is around 1e-29, see testPDSsum).
+    %[v,d]=eig(P);    %d=sqrt(d); % [cP]=myPSDsum(cR,[],C*v*d);
+
+    %Option 3: %Alternative to above using svd() instead of eig(), which is arguably more accurate.
+    %[~,d,v]=svd(cP);
+    %[cP]=myPSDsum(cR,[],C*v*d); %To Do: check which is larger of Pp,R, and do the update in the more convenient form
 end

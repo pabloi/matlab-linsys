@@ -111,7 +111,7 @@ if opts.sphericalR
     nR=size(R,1);
     R=eye(nR)*trace(R)/nR;
 end
-R=R+1e-15*eye(size(R)); %Avoid numerical issues
+R=R+1e-11*eye(size(R)); %Avoid numerical issues from PSD, but not PD, matrices
 
 %Estimate x0,P0:
 if isa(X,'cell')
