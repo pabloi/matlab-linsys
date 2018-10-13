@@ -1,6 +1,6 @@
 function [Y,Ysym,Ycom,U]=groupDataToMatrixForm()
 %% Load real data:
-load ./data/dynamicsData300blocks.mat
+load dynamicsData300blocks.mat
 addpath(genpath('./fun/'))
 
 % Some pre-proc

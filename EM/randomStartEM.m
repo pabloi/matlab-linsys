@@ -5,6 +5,7 @@ fprintf(['\n Starting rep 0... \n']);
 opt1=opts;
 opt1.fastFlag=0; %Enforcing fast filtering
 [A,B,C,D,Q,R,X,P,bestLL]=EM(Y,U,nd,opt1);
+nd=size(X,1);
 opts.targetLogL=bestLL;
 for i=1:Nreps
     fprintf(['\n Starting rep ' num2str(i) '. Best logL so far=' num2str(bestLL,8) '... \n']);

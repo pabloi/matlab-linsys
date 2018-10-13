@@ -1,10 +1,6 @@
 %%
-addpath(genpath('../aux/'))
-addpath(genpath('../kalman/'))
-addpath(genpath('../data/'))
-addpath(genpath('../EM/'))
-addpath(genpath('../sPCA/'))
-addpath(genpath('../../robustCov/'))
+addpath(genpath('./'))
+addpath(genpath('../robustCov/'))
 %%
 clear all
 %% Load real data:
@@ -40,8 +36,7 @@ for D1=1:3
     opts.Niter=3500;
     opts.outlierReject=false;
     opts.fastFlag=true;
-    [fAh,fBh,fCh,D,fQh,R,fXh,fPh]=randomStartEM(Yf,Uf,D1,10,opts); %Slow/true EM
-    logL=dataLogLikelihood(Y,U,fAh,fBh,fCh,D,fQh,R,fXh(:,1),fPh(:,:,1));
+    [fAh,fBh,fCh,D,fQh,R,fXh,fPh,logL]=randomStartEM(Yf,Uf,D1,10,opts); %Slow/true EM
     model{D1+1}.runtime=toc;
     [J,B,C,X,~,Q,P] = canonizev2(fAh,fBh,fCh,fXh,fQh,fPh);
     model{D1+1}=autodeal(J,B,C,D,X,Q,R,P,logL);

@@ -17,7 +17,7 @@ if ~isfield(opts,'convergenceTol')
 end
 
 if ~isfield(opts,'targetTol')
-    opts.targetTol=1e-10; % 10% minimum improvement towards target every 50 iters
+    opts.targetTol=0; % 10% minimum improvement towards target every 50 iters
 end
 
 if ~isfield(opts,'targetLogL')

@@ -38,7 +38,7 @@ N=100;
 map=[ex1.*[N:-1:1]'/N + mid.*[0:N-1]'/N; mid; ex2.*[0:N-1]'/N + mid.*[N:-1:1]'/N];
 
 %% Plot output PCs and fir
-[cc,pp,aa]=pca(Y','Centered','off');
+[cc,pp,aa]=pca(Y','Centered',false);
 maxK=min(5,size(Y,1));
 cc=cc(:,1:maxK);
 for kk=1:maxK
@@ -76,8 +76,8 @@ for k=1:length(model)
 aux1=sqrt(sum((Y-model{k}.smoothOut).^2));
 aux1=conv(aux1,ones(1,binw)/binw,'valid');
 p1=plot(aux1,'LineWidth',1);
-bar2=bar([yoff+k*100],mean([aux1]),'EdgeColor','none','BarWidth',100,'FaceColor',p1.Color);
-text(yoff+(k)*100-50,mean([aux1])*(1+k*.2),[num2str(nanmean(aux1))],'Color',bar2.FaceColor)
+bar2=bar([yoff+k*100],nanmean([aux1]),'EdgeColor','none','BarWidth',100,'FaceColor',p1.Color);
+text(yoff+(k)*100-50,nanmean([aux1])*(1+k*.2),[num2str(nanmean(aux1))],'Color','k')
 end
 title('Smooth output error (RMSE, mov. avg.)')
 axis tight
@@ -91,8 +91,8 @@ for k=1:length(model)
 aux1=sqrt(sum((Y-model{k}.out).^2));
 aux1=conv(aux1,ones(1,binw)/binw,'valid');
 p1=plot(aux1,'LineWidth',1);
-bar2=bar([yoff+k*100],mean([aux1]),'EdgeColor','none','BarWidth',100,'FaceColor',p1.Color);
-text(yoff+(k)*100-50,mean([aux1])*(1+k*.2),[num2str(mean(aux1))],'Color',bar2.FaceColor)
+bar2=bar([yoff+k*100],nanmean([aux1]),'EdgeColor','none','BarWidth',100,'FaceColor',p1.Color);
+text(yoff+(k)*100-50,nanmean([aux1])*(1+k*.2),[num2str(nanmean(aux1))],'Color','k')
 end
 title('MLE-state output error (RMSE, mov. avg.)')
 axis tight
@@ -107,7 +107,7 @@ aux1=sqrt(sum((Y(:,2:end)-model{k}.oneAheadOut).^2));
 aux1=conv(aux1,ones(1,binw)/binw,'valid');
 p1=plot(aux1,'LineWidth',1);
 bar2=bar([yoff+k*100],nanmean([aux1]),'EdgeColor','none','BarWidth',100,'FaceColor',p1.Color);
-text(yoff+(k)*100-50,nanmean(aux1)*(1+.2*k),[num2str(nanmean(aux1))],'Color',bar2.FaceColor)
+text(yoff+(k)*100-50,nanmean(aux1)*(1+.2*k),[num2str(nanmean(aux1))],'Color','k')
 end
 title('MLE one-ahead output error (RMSE, mov. avg.)')
 axis tight
@@ -122,7 +122,7 @@ Mm=length(model);
 for k=1:Mm
     set(gca,'ColorOrderIndex',k)
     bar2=bar([k*100],model{k}.logLtest,'EdgeColor','none','BarWidth',100);
-    text((k)*100-50,1.001*(model{k}.logLtest+1e-3),[num2str(model{k}.logLtest,6)],'Color',bar2.FaceColor,'FontSize',6)
+    text((k)*100-50,1.001*(model{k}.logLtest+1e-3),[num2str(model{k}.logLtest,6)],'Color','k','FontSize',6)
 end
 title('Model comparison: logL')
 grid on
@@ -136,7 +136,7 @@ for k=1:Mm
     set(gca,'ColorOrderIndex',k)
 bic=model{k}.BIC;
 bar2=bar([(Mm+1+k)*100],bic,'EdgeColor','none','BarWidth',100);
-text((Mm+1+k)*100-50,1.001*bic,[num2str(bic,6)],'Color',bar2.FaceColor,'FontSize',6);
+text((Mm+1+k)*100-50,1.001*bic,[num2str(bic,6)],'Color','k','FontSize',6);
 end
 title('Model comparison: BIC')
 grid on
@@ -150,7 +150,7 @@ for k=1:Mm
     set(gca,'ColorOrderIndex',k)
 aic=model{k}.AIC;
 bar2=bar([(2*Mm+2+k)*100],aic,'EdgeColor','none','BarWidth',100);
-text((2*Mm+2+k)*100-50,1.001*aic,[ num2str(aic,6)],'Color',bar2.FaceColor,'FontSize',6);
+text((2*Mm+2+k)*100-50,1.001*aic,[ num2str(aic,6)],'Color','k','FontSize',6);
 end
 title('Model comparison: AIC')
 grid on
@@ -164,7 +164,7 @@ for k=1:Mm
     set(gca,'ColorOrderIndex',k)
 bic=model{k}.BIC2;
 bar2=bar([(Mm+1+k)*100],bic,'EdgeColor','none','BarWidth',100);
-text((Mm+1+k)*100-50,1.001*bic,[num2str(bic,6)],'Color',bar2.FaceColor,'FontSize',6);
+text((Mm+1+k)*100-50,1.001*bic,[num2str(bic,6)],'Color','k','FontSize',6);
 end
 title('Model comparison: BIC alt')
 grid on

@@ -1,8 +1,8 @@
 %test dataLogLikelihood
 
 %%
-addpath(genpath('../')) %Adding the matlab-sysID toolbox to path, just in case
-addpath(genpath('../../robustCov/'))
+addpath(genpath('./')) %Adding the matlab-sysID toolbox to path, just in case
+addpath(genpath('../robustCov/'))
 %% Create model:
 D1=2;
 D2=180;

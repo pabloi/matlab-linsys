@@ -103,11 +103,14 @@ Nz=size(z,2);
 R2=(Ca*Ca')/Nz;
 R=R1+R2;
 if opts.thR~=0
-  dR=diag(R);
-  Rcorr=R./sqrt(dR);
-  Rcorr=Rcorr./sqrt(dR)'; %Correlation matrix, rather than Covariance
-  R=R.*(abs(Rcorr)>opts.thR); %Preserving elements representing pairwise correlations larger than thR.
-  %This matrix is still PSD because it is still hermitian
+  warning('ThR option was deprecated, no way to ensure R is psd. I suggest you crop R at the end of the process and hope for the best')
+  %dR=diag(R);
+  %Rcorr=R./sqrt(dR);
+  %Rcorr=Rcorr./sqrt(dR)'; %Correlation matrix, rather than Covariance
+  %R=R.*(abs(Rcorr)>opts.thR); %Preserving elements representing pairwise correlations larger than thR.
+  %cR=mycholcov(R);
+  %R=cR'*cR; %Enforcing PSD, which is not guaranteed if we randomly delete elements.
+  %R=R+1e-5*eye(size(R)); %This is ugly, but needed
 end
 if opts.diagR
   R=diag(diag(R));
@@ -118,7 +121,7 @@ if opts.sphericalR
     nR=size(R,1);
     R=eye(nR)*trace(R)/nR;
 end
-R=R+1e-11*eye(size(R)); %Avoid numerical issues from PSD, but not PD, matrices
+R=R+1e-9*eye(size(R)); %Avoid numerical issues from PSD, but not PD, matrices
 
 %Estimate x0,P0:
 if isa(X,'cell')
@@ -131,13 +134,13 @@ end
 end
 
 function [x0,P0]=estimateInit(X,P,A,Q)
-x0=X(:,1); %Smoothed estimate
-P0=P(:,:,1); %Smoothed estimate, the problem with this estimate is that it is monotonically decreasing on the iteration of trueEM(). More likely it should converge to the same prior uncertainty we have for all other states.
-%A variant to not make it monotonically decreasing:
-%aux=mycholcov(P0);
-%Aa=A*aux';
-%P0=Q+Aa*Aa';
-P0=Q;
+  x0=X(:,1); %Smoothed estimate
+  P0=P(:,:,1); %Smoothed estimate, the problem with this estimate is that it is monotonically decreasing on the iteration of EM(). More likely it should converge to the same prior uncertainty we have for all other states.
+  %A variant to not make it monotonically decreasing:
+  %aux=mycholcov(P0);
+  %Aa=A*aux';
+  %P0=Q+Aa*Aa';
+  P0=Q;
 end
 
 function [yx,yu,xx,uu,xu,SP,SPt,xx_,uu_,xu_,xx1,xu1,SP_,S_P]=computeRelevantMatrices(Y,X,U,P,Pt,robustFlag)

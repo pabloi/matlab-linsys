@@ -29,7 +29,7 @@ model{1}.name='Flat';
 for D1=1:5
 %% Identify
     tic
-    [A,B,C,D,X,Q,R]=subspaceIDv2(Yf2,Uf,D1);
+    [A,B,C,D,X,Q,R]=subspaceID(Yf2,Uf,D1);
     model{D1+1}.runtime=toc;
     [J,B,C,X,~,Q] = canonizev2(A,B,C,X,Q);
     logL=dataLogLikelihood(Yf,Uf,J,B,C,D,Q,R);
