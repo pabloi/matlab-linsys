@@ -13,6 +13,8 @@ function [pPredicted, pUpdated, pSmoothed] = HMMstationaryInference(observation,
 %p(x_{k+1}|x_k)
 %pStateInitial: optional argument, 1xD vector defining initial state
 %probabilities. Defaults to uniform distribution.
+%Functionally equivalent to the forward-backward algorithm, although implemented
+%in the kalman-smoother style
 
 %Define relevant sizes:
 N=length(observation);
