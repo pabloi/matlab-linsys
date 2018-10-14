@@ -1,4 +1,4 @@
-function [smoothedStateDistr] = genKFsmooth(nextStateSmoothedDistr,currStateDistr,nextStateGivenCurrDistr,nextStatePredictedDistr)
+function [smoothedStateDistr] = HMMbackUpdate(nextStateSmoothedDistr,currStateDistr,nextStateGivenCurrDistr,nextStatePredictedDistr)
 %Smoothing step in the Kalman smoother for generic (numeric) distributions
 %Implements: p(x_k|{y}) = p(x_k) \int p(x_{k+1}|x_k) p(x_{k+1}|{y})/p(x_{k+1}|{y_k}) dx_{k+1}
 %INPUT

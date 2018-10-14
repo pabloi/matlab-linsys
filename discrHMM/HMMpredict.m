@@ -1,4 +1,4 @@
-function predictedStateDistr = genKFprediction(priorStateDistr,nextStateGivenCurrDistr)
+function predictedStateDistr = HMMpredict(priorStateDistr,nextStateGivenCurrDistr)
 %Prediction step update of numerical kalman filter.
 %Implements: p(x_{k+1}|)=\int p(x_{k+1}|x_k)p(x_k) dx_k
 %INPUT

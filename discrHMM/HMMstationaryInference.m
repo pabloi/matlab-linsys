@@ -1,4 +1,4 @@
-function [pPredicted, pUpdated, pSmoothed] = genKFstationaryInference(observation,pObsGivenState,pStateGivenPrev,pStateInitial)
+function [pPredicted, pUpdated, pSmoothed] = HMMstationaryInference(observation,pObsGivenState,pStateGivenPrev,pStateInitial)
 %Inference engine for a time-series of observations given stationary
 %transition probabilities p(x_{k+1}|x_k) and observation probabilities
 %p(y_k|x_k).
@@ -40,10 +40,10 @@ pPredicted(:,1)=p;
 pUpdated=nan(M,N); %Should sparsify
 for i=1:N
    %Update:
-   p = genKFupdate(p,pObsGivenState(observation(i),:));
+   p = HMMupdate(p,pObsGivenState(observation(i),:));
    pUpdated(:,i) = p;
    %Predict:
-   p = genKFprediction(p,pStateGivenPrev);
+   p = HMMpredict(p,pStateGivenPrev);
    pPredicted(:,i+1) = p;
    if mod(i,1)==0
        p=p/sum(p); %Normalization is needed ocassionally to prevent underflow of all states
@@ -56,7 +56,7 @@ if nargout>2 %Don't bother smoothing if user did not ask for it.
     p=pUpdated(:,N);
     pSmoothed(:,N)=p;
     for i=(N-1):-1:1
-        p = genKFsmooth(p, pUpdated(:,i), pStateGivenPrev,pPredicted(:,i+1));
+        p = HMMbackUpdate(p, pUpdated(:,i), pStateGivenPrev,pPredicted(:,i+1));
         pSmoothed(:,i) = p;
     end
 end

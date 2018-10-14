@@ -1,4 +1,4 @@
-function [updatedStateDistr] = genKFupdate(priorStateDistr,obsGivenStateDistr)
+function [updatedStateDistr] = HMMupdate(priorStateDistr,obsGivenStateDistr)
 %Update step of kalman filter, accepting a generic discrete observation
 %probability matrix. Implements: p(x_k|y_k) = p(y_k|x_k)p(x_k)/p(y_k)
 %INPUT:
