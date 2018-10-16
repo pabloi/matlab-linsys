@@ -26,12 +26,11 @@ for D1=1:5
     tic
     opts.robustFlag=false;
     opts.outlierReject=false;
-    opts.fastFlag=true; %Cannot do fast for NaN filled data
+    opts.fastFlag=false; %Cannot do fast for NaN filled data
     for k=1:2
-        %Yaux=nan(size(Yf));
-        %Yaux(:,k:3:end)=Yf(:,k:3:end);
-        Yaux=Yf(:,k:2:end);
-        [fAh,fBh,fCh,D,fQh,R,fXh,fPh,logL]=randomStartEM(Yaux,Uf(:,k:2:end),D1,10,opts); %Slow/true EM
+        Yaux=nan(size(Yf));
+        Yaux(:,k:2:end)=Yf(:,k:2:end);
+        [fAh,fBh,fCh,D,fQh,R,fXh,fPh,logL]=randomStartEM(Yaux,Uf,D1,20,opts); %Slow/true EM
         model{D1+1}.runtime=toc;
         [J,B,C,X,~,Q,P] = canonizev2(fAh,fBh,fCh,fXh,fQh,fPh);
         model{D1+1,k}=autodeal(J,B,C,D,X,Q,R,P,logL);
@@ -43,9 +42,9 @@ save EMrealDimCompare1500CV2.mat
 %% COmpare
 %%Train set:
 for k=1:2
-vizDataFit(model(2:5,k),Yf(:,k:3:end),Uf(:,k:3:end))
+vizDataFit(model(2:5,k),Yf(:,k:2:end),Uf(:,k:2:end))
 end
 %% Test set:
 for k=1:2
-vizDataFit(model(2:5,3-k),Yf(:,k:3:end),Uf(:,k:3:end))
+vizDataFit(model(2:5,3-k),Yf(:,k:2:end),Uf(:,k:2:end))
 end
