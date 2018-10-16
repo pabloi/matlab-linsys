@@ -10,9 +10,11 @@ function [A,B,C,D,Q,R,X,P,Pt,logL]=initEM(Y,U,X,opts,P)
   elseif numel(X)==1 %X is just dimension, initializing with subspace method
       d=X;
       if any(isnan(Y(:))) %Removing NaNs First
-        Y=substituteNaNs(Y')';
+        Y2=substituteNaNs(Y')';
+      else
+        Y2=Y;
       end
-      [A,B,C,D,X,Q,R]=subspaceIDv2(Y,U,d); %Works if no missing data
+      [A,B,C,D,X,Q,R]=subspaceIDv2(Y2,U,d); %Works if no missing data
   end
       %[X,P,Pt]=statKalmanSmoother(Y,A,C,Q,R,[],[],B,D,U);
       %logL=dataLogLikelihood(Y,U,A,B,C,D,Q,R,X(:,1),P(:,:,1),'approx');
