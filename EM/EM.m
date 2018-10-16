@@ -15,9 +15,6 @@ end
 
 %Process opts:
 [opts] = processEMopts(opts);
-if isempty(opts.indD)
-  opts.indD=1:size(U,1);
-end
 
 %Disable some annoying warnings:
 warning ('off','statKFfast:unstable');
@@ -137,7 +134,7 @@ for k=1:opts.Niter-1
         pOverTarget=100*((l-opts.targetLogL)/abs(opts.targetLogL));
         if k>=step && ~breakFlag
             lastChange=l-logl(k+1-step,1);
-            disp(['Iter = ' num2str(k) ', \Delta logL = ' num2str(lastChange) ', % over target = ' num2str(pOverTarget) ', \tau =' num2str(-1./log(eig(A))')])
+            disp(['Iter = ' num2str(k) ', \Delta logL = ' num2str(lastChange) ', % over target = ' num2str(pOverTarget) ', \tau =' num2str(-1./log(sort(eig(A)))')])
             %sum(rejSamples)
         else %k==1 || breakFlag
             l=bestLogL;
