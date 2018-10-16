@@ -15,10 +15,10 @@ Nu=size(U,1);
 %
 [opts] = processEMopts(opts);
 if isempty(opts.indD)
-  opts.indD=1:Nu;
+  opts.indD=true(1,Nu);
 end
 if isempty(opts.indB)
-  opts.indB=1:Nu;
+  opts.indB=true(1,Nu);
 end
 
 %
@@ -31,6 +31,9 @@ end
 D1=size(xx,1);
 
 %Estimate A,B:
+xu_=xu_(:,opts.indB);
+xu1=xu1(:,opts.indB);
+uu_=uu_(opts.indB,opts.indB);
 O=[SP_+xx_ xu_; xu_' uu_];
 AB=[SPt+xx1 xu1]/O; %In absence of uncertainty, reduces to: [A,B]=X+/[X;U],
 %where X+ is X one step in the future

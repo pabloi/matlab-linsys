@@ -13,7 +13,7 @@ if ~isfield(opts,'fastFlag')
 end
 
 if ~isfield(opts,'convergenceTol')
-    opts.convergenceTol=1e-10; % 1e-9 minimum relative improvement in logL every 50 strides
+    opts.convergenceTol=1e-7; % 1e-7 minimum relative improvement in logL every 50 strides
 end
 
 if ~isfield(opts,'targetTol')
@@ -37,9 +37,13 @@ if ~isfield(opts,'outlierReject')
     opts.outlierReject=false;
 end
 if ~isfield(opts,'indD')
-  opts.indD=[];
+  opts.indD=[]; %This means ALL inputs apply to the output equation (D estimate)
+  %If given, it should be a logical vector of size 1 x size(U,1), where 1 means include and 0 means exclude
+  %Alternatively, it can be a list of included indexes only (e.g. [1,3,4])
 end
 if ~isfield(opts,'indB')
-  opts.indB=[];
+  opts.indB=[]; %This means ALL inputs apply to the dynamics equation (B estimate)
+  %If given, it should be a logical vector of size 1 x size(U,1), where 1 means include and 0 means exclude
+  %Alternatively, it can be a list of included indexes only (e.g. [1,3,4])
 end
 end
