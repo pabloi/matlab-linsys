@@ -103,14 +103,16 @@ Nz=size(z,2);
 R2=(Ca*Ca')/Nz;
 R=R1+R2;
 if opts.thR~=0
-  warning('ThR option was deprecated, no way to ensure R is psd. I suggest you crop R at the end of the process and hope for the best')
+  error('ThR option was deprecated, no way to ensure R is psd. I suggest you crop R at the end of the process and hope for the best')
+  %Rc=cov2corr(R); %Correlation matrix
+  %Rc=softThreshold(Rc,opts.thR.*(1-eye(size(Rc)))); %Soft threshold
+  %R=corr2cov(Rc,sqrt(diag(R)));
   %dR=diag(R);
   %Rcorr=R./sqrt(dR);
   %Rcorr=Rcorr./sqrt(dR)'; %Correlation matrix, rather than Covariance
   %R=R.*(abs(Rcorr)>opts.thR); %Preserving elements representing pairwise correlations larger than thR.
   %cR=mycholcov(R);
   %R=cR'*cR; %Enforcing PSD, which is not guaranteed if we randomly delete elements.
-  %R=R+1e-5*eye(size(R)); %This is ugly, but needed
 end
 if opts.diagR
   R=diag(diag(R));
