@@ -26,10 +26,9 @@ model{1}=autodeal(J,B,C,D,Q,R);
 model{1}.name='Flat';
 
 %% Identify
-for D1=1:4
+for D1=1:3
     tic
     opts.robustFlag=false;
-    opts.Niter=3500;
     opts.outlierReject=false;
     opts.fastFlag=true;
     opts.thR=.23; %Tuned by hand, by limiting the full optimal R by hand
@@ -40,7 +39,7 @@ for D1=1:4
     model{D1+1}.name=['EM (iterated,all,' num2str(D1) ')']; %Robust mode does not do fast filtering
 end
 %%
-save EMrealDimCompare1500_threshR.mat
+save EMrealDimCompare1500_threshR_seeded.mat
 %% COmpare
 vizModels(model(4))
 %%

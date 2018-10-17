@@ -1,4 +1,4 @@
-function [Y,Ysym,Ycom,U]=groupDataToMatrixForm()
+function [Y,Ysym,Ycom,U]=groupDataToMatrixForm(sqrtFlag)
 %% Load real data:
 load dynamicsData300blocks.mat
 addpath(genpath('./fun/'))
@@ -32,6 +32,10 @@ for i=1:5 %B,A1,A2,A3,P
 
     %Remove subj:
     data{i}=data{i}(:,muscPhaseIdx,subjIdx);
+    if nargin>0
+        data{i}(data{i}<0)=0;
+      data{i}=sqrt(data{i});
+    end
 
     %Compute asymmetry component
     aux=data{i}-fftshift(data{i},2);

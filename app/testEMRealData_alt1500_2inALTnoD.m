@@ -1,10 +1,6 @@
 %%
-addpath(genpath('../aux/'))
-addpath(genpath('../kalman/'))
-addpath(genpath('../data/'))
-addpath(genpath('../EM/'))
-addpath(genpath('../sPCA/'))
-addpath(genpath('../../robustCov/'))
+addpath(genpath('./'))
+addpath(genpath('../robustCov/'))
 %%
 clear all
 %% Load real data:
@@ -30,7 +26,6 @@ for D1=2:4
 %% Identify
     tic
     opts.robustFlag=false;
-    opts.Niter=1500;
     opts.outlierReject=false;
     opts.fastFlag=true;
     opts.indD=1;
