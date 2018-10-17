@@ -2,7 +2,7 @@ function [J,B,C,X,V,Q,P] = canonize(A,B,C,X,Q,P,method,N)
     %General transformation of a linear model to give a unique representation.
 %Input N is only used with method canonical, and is optional (if not given, presumed N=infinity)
 
-if nargin<6
+if nargin<6 || isempty(P)
     P=zeros(size(A));
 end
 if nargin<5 || isempty(Q)
@@ -39,7 +39,15 @@ case 'canonicalAlt'
     V=V2/V;
 case 'orthonormal' %Orthonormalizing the columns of C
     [U,D,V]=svd(C);
-    V=sqrt(D(1:size(C,2),:)*V');
+    V=(D(1:size(C,2),:))*V;
+    [J,K]=transform(V,A,B);
+    I=eye(size(J));
+    if nargin>7
+        scale=(I-J)\(I-J^N)*K(:,1);
+    else
+        scale=(I-J)\K(:,1);
+    end
+    V=V*diag(sign(scale)); %So all states increase under a step input in first input
 otherwise
     error('Unrecognized method')
 end
