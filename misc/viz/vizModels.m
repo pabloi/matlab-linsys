@@ -1,15 +1,20 @@
-function [fh] = vizModels(model)
+function [fh] = vizModels(model,altNormalization)
 
 M=max(cellfun(@(x) size(x.J,1),model));
 fh=figure('Units','Normalized','OuterPosition',[0 0 1 1]);
 Ny=2+length(model);
 Md=size(model{1}.D,2);
 Nx=M+Md+2;
+if nargin>1
+  canon='orthonormal';
+else
+  canon='canonical';
+end
 
 %% Compute output and residuals
 U=[zeros(Md,100) ones(Md,1000)];
 for i=1:length(model)
-    [model{i}.J,model{i}.B,model{i}.C,~,~,model{i}.Q] = canonizev4(model{i}.J,model{i}.B,model{i}.C,[],model{i}.Q);
+    [model{i}.J,model{i}.B,model{i}.C,~,~,model{i}.Q] = canonize(model{i}.J,model{i}.B,model{i}.C,[],model{i}.Q,[],canon);
     [Y2,X2]=fwdSim(U,model{i}.J,model{i}.B,model{i}.C,model{i}.D,[],[],[]);
     model{i}.smoothStates=X2;
     model{i}.smoothOut=Y2;
@@ -26,9 +31,10 @@ for k=1:length(model)
     %lastTau=-1./log(eig(model{k}.J));
     for i=1:size(model{k}.J,1)
     subplot(Nx,Ny,Ny*(plotInd(i)-1)+[1:2]) %States
+    tau=-1./log(sort(eig(model{k}.J)));
     hold on
     set(gca,'ColorOrderIndex',k)
-    p{i}(k)=plot(model{k}.smoothStates(i,:),'LineWidth',2,'DisplayName',[model{k}.name ', \tau=' num2str(-1./log(model{k}.J(i,i)),3)]);
+    p{i}(k)=plot(model{k}.smoothStates(i,:),'LineWidth',2,'DisplayName',[model{k}.name ', \tau=' num2str(tau(i),3)]);
     if k==1
         ylabel(['State ' num2str(i)])
         title('(Smoothed) Step-response states')

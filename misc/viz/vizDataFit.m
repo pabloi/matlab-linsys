@@ -7,7 +7,7 @@ Nx=max(M+1,6);
 yoff=size(Y,2)*1.1;
 %% Compute output and residuals
 for i=1:length(model)
-    [model{i}.J,model{i}.B,model{i}.C,~,~,model{i}.Q] = canonizev3(model{i}.J,model{i}.B,model{i}.C,[],model{i}.Q);
+    [model{i}.J,model{i}.B,model{i}.C,~,~,model{i}.Q] = canonize(model{i}.J,model{i}.B,model{i}.C,[],model{i}.Q,[],[]);
     fastFlag=0;
     Nd=size(model{i}.D,2);
     [Xs,Ps,Pt,Xf,Pf,Xp,Pp,rejSamples]=statKalmanSmoother(Y,model{i}.J,model{i}.C,model{i}.Q,model{i}.R,[],[],model{i}.B,model{i}.D,U(1:Nd,:),false,fastFlag);
@@ -17,9 +17,11 @@ for i=1:length(model)
     model{i}.Xf=Xf; %Filtered data
     model{i}.Xp=Xp; %Predicted data
     model{i}.out=model{i}.C*model{i}.Xs+model{i}.D*U(1:Nd,:); %Discarding input components at the end
+    model{i}.outF=model{i}.C*model{i}.Xf+model{i}.D*U(1:Nd,:); %Discarding input components at the end
     model{i}.res=Y-model{i}.out;
     model{i}.oneAheadStates=model{i}.J*model{i}.Xs(:,1:end-1)+model{i}.B*U(1:Nd,1:end-1);
     model{i}.oneAheadOut=model{i}.C*(model{i}.oneAheadStates)+model{i}.D*U(1:Nd,2:end);
+    model{i}.oneAheadOutF=model{i}.C*(model{i}.Xp(:,2:end-1))+model{i}.D*U(1:Nd,2:end);
     [Y2,X2]=fwdSim(U(1:Nd,:),model{i}.J,model{i}.B,model{i}.C,model{i}.D,model{i}.Xs(:,1),[],[]); %Simulating from MLE initial state
     model{i}.smoothStates=X2;
     model{i}.smoothOut=Y2;
@@ -48,7 +50,7 @@ for kk=1:maxK
     try
         imagesc(flipud(reshape(cc(:,kk),12,Nc/12)'))
     catch
-        imagesc(flpiud(cc(:,kk)))
+        imagesc(flipud(cc(:,kk)))
     end
     colormap(flipud(map))
     aC=max(abs(cc(:)));
@@ -88,13 +90,13 @@ set(gca,'YScale','log')
 subplot(Nx,Ny,Ny+2)
 hold on
 for k=1:length(model)
-aux1=sqrt(sum((Y-model{k}.out).^2));
+aux1=sqrt(sum((Y-model{k}.outF).^2));
 aux1=conv(aux1,ones(1,binw)/binw,'valid');
 p1=plot(aux1,'LineWidth',1);
 bar2=bar([yoff+k*100],nanmean([aux1]),'EdgeColor','none','BarWidth',100,'FaceColor',p1.Color);
 text(yoff+(k)*100-50,nanmean([aux1])*(1+k*.2),[num2str(nanmean(aux1))],'Color','k')
 end
-title('MLE-state output error (RMSE, mov. avg.)')
+title('KF-state output error (RMSE, mov. avg.)')
 axis tight
 grid on
 set(gca,'YScale','log')
@@ -103,13 +105,13 @@ set(gca,'YScale','log')
 subplot(Nx,Ny,2*Ny+2)
 hold on
 for k=1:length(model)
-aux1=sqrt(sum((Y(:,2:end)-model{k}.oneAheadOut).^2));
+aux1=sqrt(sum((Y(:,2:end)-model{k}.oneAheadOutF).^2));
 aux1=conv(aux1,ones(1,binw)/binw,'valid');
 p1=plot(aux1,'LineWidth',1);
 bar2=bar([yoff+k*100],nanmean([aux1]),'EdgeColor','none','BarWidth',100,'FaceColor',p1.Color);
 text(yoff+(k)*100-50,nanmean(aux1)*(1+.2*k),[num2str(nanmean(aux1))],'Color','k')
 end
-title('MLE one-ahead output error (RMSE, mov. avg.)')
+title('KF prediction output error (RMSE, mov. avg.)')
 axis tight
 grid on
 set(gca,'YScale','log')
@@ -156,19 +158,19 @@ title('Model comparison: AIC')
 grid on
 set(gca,'YScale','log','XTick',100*(Mm+1)*[.5:1:3],'XTickLabel',{'logL','BIC','AIC'})
 
-subplot(Nx,2*Ny,8*Ny+4)
-hold on
-[N,Nz]=size(Y);
-Mm=length(model);
-for k=1:Mm
-    set(gca,'ColorOrderIndex',k)
-bic=model{k}.BIC2;
-bar2=bar([(Mm+1+k)*100],bic,'EdgeColor','none','BarWidth',100);
-text((Mm+1+k)*100-50,1.001*bic,[num2str(bic,6)],'Color','k','FontSize',6);
-end
-title('Model comparison: BIC alt')
-grid on
-set(gca,'YScale','log','XTick',100*(Mm+1)*[.5:1:3],'XTickLabel',{'logL','BIC','AIC'})
+%subplot(Nx,2*Ny,8*Ny+4)
+%hold on
+%[N,Nz]=size(Y);
+%Mm=length(model);
+%for k=1:Mm
+%    set(gca,'ColorOrderIndex',k)
+%bic=model{k}.BIC2;
+%bar2=bar([(Mm+1+k)*100],bic,'EdgeColor','none','BarWidth',100);
+%text((Mm+1+k)*100-50,1.001*bic,[num2str(bic,6)],'Color','k','FontSize',6);
+%end
+%title('Model comparison: BIC alt')
+%grid on
+%set(gca,'YScale','log','XTick',100*(Mm+1)*[.5:1:3],'XTickLabel',{'logL','BIC','AIC'})
 
 %% Plot STATES
 clear p
@@ -199,13 +201,13 @@ end
 subplot(Nx,Ny,Ny*(M)+3)
 hold on
 for k=1:length(model)
-    stError=model{k}.Xs(:,2:end)-model{k}.oneAheadStates;
+    stError=model{k}.Xf(:,2:end)-model{k}.Xp(:,2:end-1);
 aux1=sqrt(z2score(stError,model{k}.Q));
 p1=plot(aux1,'LineWidth',1);
 bar2=bar([yoff + k*100],nanmean([aux1]),'EdgeColor','none','BarWidth',100,'FaceColor',p1.Color);
 text(yoff+(k)*100,nanmean(aux1)*(1+.3*k),[num2str(nanmean(aux1))],'Color',bar2.FaceColor)
 end
-title('(Smoothed) One-ahead state error (z-score)')
+title('(KF) Predicted state error (z-score)')
 axis tight
 grid on
 
