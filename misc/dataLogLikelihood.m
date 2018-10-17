@@ -24,7 +24,7 @@ if isa(Y,'cell') %Case where input/output data corresponds to many realizations 
 else
 
     if size(X0,2)<=1 %True init state guess
-        fastFlag=[]; %Traditional (slow) filter, set to 0 for fast filtering
+        fastFlag=false;
         [~,~,Xp,Pp,~]=statKalmanFilter(Y,A,C,Q,R,X0,P0,B,D,U,[],fastFlag);
     else %whole filtered priors are provided, not just t=0
         Xp=X0;
@@ -32,7 +32,7 @@ else
     end
 
     %'Incomplete' logLikelihood: p({y}|params) [Albert and Shadmehr 2017, eq. A1.25]
-    predY=C*Xp(:,1:end-1)+D*U;
+    predY=C*Xp(:,1:end-1)+D*U; %Prediction from one step ahead
     z=Y-predY; %If this values are too high, it may be convenient to just set logL=-Inf, for numerical reasons
     idx=~any(isnan(Y));
     z=z(:,idx); %Removing NaN samples
@@ -68,7 +68,7 @@ function logLperSamplePerDim=logLapprox(z,Pp,C,cR)
 %Faster, approximate way: essentially we assume that the uncertainty is in a steady-state throughout all the data, and use the median uncertainty as a proxy for the steady-state value.
 [D,N]=size(z);
 mPP=median(Pp,3);
-[cP]=RplusCPC(cR,mPP,C);
+[cP,r]=RplusCPC(cR,mPP,C);
 logdetP= 2*mean(log(diag(cP)));
 %S=z*z'/N;
 %logLperSamplePerDim=-.5*(mean(diag(P\S))+logdetP+log(2*pi));
@@ -113,9 +113,9 @@ end
 
 function [cP,P]=RplusCPC(cR,P,C)
     %Summing in chol() space to guarantee that x'*P*x products are non-negative.
-    cP=mycholcov(P);
+    cP1=mycholcov(P); %This can be PSD
     %Option 1: %The most accurate as far as I can tell, but not the fastest.
-    CcP=C*cP';  P=cR'*cR+CcP*CcP'; cP=mycholcov(P);
+    CcP=C*cP1';  P=cR'*cR+CcP*CcP'; [cP]=chol(P); %This HAS TO BE PD. If not, best case is numerical error that makes a PD matrix look like indefinite.
 
     %Option 2: %Slightly faster, as it exploits the Cholesky decomp. Less accurate in general though, see testPDSsum
     %(x'*P*x has an error of about an order of magnitude larger. However, the typical error is around 1e-29, see testPDSsum).

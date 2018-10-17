@@ -151,7 +151,7 @@ for k=1:opts.Niter-1
     %M-step:
     [A1,B1,C1,D1,Q1,R1,x01,P01]=estimateParams(Y,U,X1,P1,Pt1,opts);
     if mod(k,step)==0
-        [A1,B1,C1,x01,~,Q1,P01] = canonizev2(A1,B1,C1,x01,Q1,P01); %Regularizing the solution to avoid ill-conditioned situations
+        [A1,B1,C1,x01,~,Q1,P01] = canonize(A1,B1,C1,x01,Q1,P01); %Regularizing the solution to avoid ill-conditioned situations
         %This is necessary because it is
         %possible that the EM algorithm will runaway towards a numerically
         %unstable representation of an otherwise stable system

@@ -1,4 +1,4 @@
-function [J,K,C,X,V,Q,P] = canonizev2(A,B,C,Xa,Q,Pa)
+function [J,B,C,X,V,Q,P] = canonizev2(A,B,C,X,Q,P)
 %Canonize returns the canonical form of the linear system given by
 %A,B,C,D,X; scaling B such that all states converge to 1 at t=\infty on the
 %single input case with u=1.
