@@ -27,6 +27,7 @@ case 'canonical'
     else
         scale=(I-J)\K(:,1);
     end
+    scale(isnan(scale) | isinf(scale) | scale==0)=1; %No way to scale states with 0 corresponding input, or for integrator scales (A_ii=1), leave as is
     V2=diag(1./scale);
     V=V2/V;
 case 'canonicalAlt'
@@ -69,5 +70,6 @@ function [V,J]=diagonalizeA(A)
     end
     % Sort states by decay rates: (these are only the decay rates if J is diagonal)
     [~,idx]=sort(diag(J)); %This works if the matrix is diagonalizable
-    V=V(idx,:);
+    J=J(idx,idx);
+    V=V(:,idx);
 end
