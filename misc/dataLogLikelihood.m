@@ -115,7 +115,12 @@ function [cP,P]=RplusCPC(cR,P,C)
     %Summing in chol() space to guarantee that x'*P*x products are non-negative.
     cP1=mycholcov(P); %This can be PSD
     %Option 1: %The most accurate as far as I can tell, but not the fastest.
-    CcP=C*cP1';  P=cR'*cR+CcP*CcP'; [cP]=chol(P); %This HAS TO BE PD. If not, best case is numerical error that makes a PD matrix look like indefinite.
+    CcP=C*cP1';  P=cR'*cR+CcP*CcP'; [cP,r]=mycholcov(P); %This HAS TO BE PD. If not, best case is numerical error that makes a PD matrix look like indefinite.
+    if r<size(C,1)
+      warning('dataLogL:nonPDcov','R+C*P*C^t was not positive definite. LogL is not defined. Regularizing to move forward.')
+      cP=[cP;zeros(size(C,1)-r,size(C,1))];
+      cP=cP+1e-11*eye(size(C,1));
+    end
 
     %Option 2: %Slightly faster, as it exploits the Cholesky decomp. Less accurate in general though, see testPDSsum
     %(x'*P*x has an error of about an order of magnitude larger. However, the typical error is around 1e-29, see testPDSsum).
