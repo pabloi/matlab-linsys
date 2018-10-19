@@ -21,7 +21,8 @@ The constrained filter allows better handling of unknown dynamics (see testConst
 
 *To Do*
 - Implement fwd/backward algorithm for discrete state markov chains (genKF).
-- Implement Viterbi algorithm for ibidem.
+- Replace chol(), cholcov() and mycholcov() usage for LDL decomposition with appropriate PD/PSD checks.
+- Implement EM in reduced form when size(C,1)>size(C,2). Kalman smoothing already exploits this, but the M-step could exploit it too: we only need to estimate C'*inv(R), rather than a full R.
 - See if we can use EM to reproduce sPCA behavior (this is, identify the best linsys constraining to Q=0)
 - Implement the extended KF, and extended Kalman Smoother.
 - Implement the implicit extended KF.

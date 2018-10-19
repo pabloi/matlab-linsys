@@ -36,7 +36,7 @@ for i=1:Nreps
     %Alt R:
     %R1=(abs(randn)+1e-4)*eye(size(Y,1)); %Needs to be psd
     [Xguess]=statKalmanSmoother(Y,A1,C1,Q1,R1,x01,P01,B1,D1,U,[],0);
-    %Xguess=medfilt1(Xguess,9,[],2);
+    Xguess=medfilt1(Xguess,9,[],2); %Some smoothing to avoid starting with very ugly estimates
 
     %Optimize:
     try %Sometimes ill conditioned problems fail
@@ -57,7 +57,11 @@ disp(['Refining solution...']);
 opts.Niter=3e4;
 opts.convergenceTol=1e-11;
 opts.targetTol=0;
-[Ai,Bi,Ci,Di,Qi,Ri,Xi,Pi,bestLL1]=EM(Y,U,X,opts,P); %Refine solution, sometimes works
+try
+    [Ai,Bi,Ci,Di,Qi,Ri,Xi,Pi,bestLL1]=EM(Y,U,X,opts,P); %Refine solution, sometimes works
+catch
+    bestLL1=bestLL;
+end
 if bestLL1>bestLL
     A=Ai; B=Bi; C=Ci; D=Di; Q=Qi; R=Ri; X=Xi; P=Pi; bestLL=bestLL1;
 end

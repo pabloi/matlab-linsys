@@ -10,7 +10,6 @@ if nargin>1
 else
   canon='canonical';
 end
-
 %% Compute output and residuals
 U=[zeros(Md,100) ones(Md,1000)];
 for i=1:length(model)
@@ -29,9 +28,9 @@ for k=1:length(model)
     %    [plotInd,~]=bestPairedMatch(thisTau,lastTau);
     %end
     %lastTau=-1./log(eig(model{k}.J));
+    tau=-1./log(sort(eig(model{k}.J)));
     for i=1:size(model{k}.J,1)
     subplot(Nx,Ny,Ny*(plotInd(i)-1)+[1:2]) %States
-    tau=-1./log(sort(eig(model{k}.J)));
     hold on
     set(gca,'ColorOrderIndex',k)
     p{i}(k)=plot(model{k}.smoothStates(i,:),'LineWidth',2,'DisplayName',[model{k}.name ', \tau=' num2str(tau(i),3)]);

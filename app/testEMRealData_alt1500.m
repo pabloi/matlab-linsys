@@ -1,6 +1,5 @@
 %%
 addpath(genpath('./'))
-addpath(genpath('../robustCov/'))
 %%
 clear all
 %% Load real data:
@@ -17,18 +16,20 @@ plot(sqrt(sum(diff(Y,[],2).^2,1))./sqrt(2*sum(Y(:,2:end).^2,1)),'DisplayName','I
 hold on; plot(sqrt(sum(diff(Y,[],2).^2,1))/10,'DisplayName','Instant std')
 legend
 drawnow
+
 %% Flat model:
 [J,B,C,D,Q,R]=getFlatModel(Yf,Uf);
 model{1}=autodeal(J,B,C,D,Q,R);
 model{1}.name='Flat';
 %%
-for D1=1:5
+for D1=3:4
 %% Identify
     tic
     opts.robustFlag=false;
     opts.outlierReject=false;
     opts.fastFlag=true;
-    opts.convergenceTol=1e-9;
+    opts.convergenceTol=1e-8;
+    opts.Niter=1500;
     [fAh,fBh,fCh,D,fQh,R,fXh,fPh,logL]=randomStartEM(Yf,Uf,D1,20,opts); %Slow/true EM
     model{D1+1}.runtime=toc;
     [J,B,C,X,~,Q,P] = canonize(fAh,fBh,fCh,fXh,fQh,fPh);

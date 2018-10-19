@@ -70,51 +70,35 @@ for kk=1:maxK
     ylabel(['PC ' num2str(kk) ', ' num2str(aa(kk)/sum(aa)) '%'])
 end
 %% Measures of output error:
-%Smooth output RMSE
-binw=10;
-subplot(Nx,Ny,2)
-hold on
-for k=1:length(model)
-aux1=sqrt(sum((Y-model{k}.smoothOut).^2));
-aux1=conv(aux1,ones(1,binw)/binw,'valid');
-p1=plot(aux1,'LineWidth',1);
-bar2=bar([yoff+k*100],nanmean([aux1]),'EdgeColor','none','BarWidth',100,'FaceColor',p1.Color);
-text(yoff+(k)*100-50,nanmean([aux1])*(1+k*.2),[num2str(nanmean(aux1))],'Color','k')
-end
-title('Smooth output error (RMSE, mov. avg.)')
-axis tight
-grid on
-set(gca,'YScale','log')
 
-% MLE state output error
-subplot(Nx,Ny,Ny+2)
-hold on
-for k=1:length(model)
-aux1=sqrt(sum((Y-model{k}.outF).^2));
-aux1=conv(aux1,ones(1,binw)/binw,'valid');
-p1=plot(aux1,'LineWidth',1);
-bar2=bar([yoff+k*100],nanmean([aux1]),'EdgeColor','none','BarWidth',100,'FaceColor',p1.Color);
-text(yoff+(k)*100-50,nanmean([aux1])*(1+k*.2),[num2str(nanmean(aux1))],'Color','k')
+binw=11;
+for ll=1:3
+    subplot(Nx,Ny,2+(ll-1)*Ny)
+    hold on
+    for k=1:length(model)
+        switch ll
+            case 1 %Smooth output RMSE
+                aux1=sqrt(sum((Y-model{k}.smoothOut).^2));
+                title('Smooth output error (RMSE, mov. avg.)')
+            case 2 % MLE state output error
+                aux1=sqrt(sum((Y-model{k}.outF).^2));
+                title('KF-state output error (RMSE, mov. avg.)')
+            case 3 %One ahead error
+                aux1=sqrt(sum((Y(:,2:end)-model{k}.oneAheadOutF).^2));
+                title('KF prediction output error (RMSE, mov. avg.)')
+        end
+        idx=find(~isnan(aux1));
+        aux1=aux1(idx);
+        aux2=conv(aux1,ones(1,binw)/binw,'valid');
+        p1=plot(idx((binw-1)/2+1:end-(binw-1)/2),aux2,'LineWidth',1);
+        RMSE=sqrt(mean([aux1].^2)); %Normalized Frobenius norm
+        bar2=bar([yoff+k*100],RMSE,'EdgeColor','none','BarWidth',100,'FaceColor',p1.Color);
+        text(yoff+(k)*100-50,RMSE*(1+k*.2),[num2str(RMSE)],'Color','k')
+    end
+    axis tight
+    grid on
+    set(gca,'YScale','log')
 end
-title('KF-state output error (RMSE, mov. avg.)')
-axis tight
-grid on
-set(gca,'YScale','log')
-
-%One ahead error
-subplot(Nx,Ny,2*Ny+2)
-hold on
-for k=1:length(model)
-aux1=sqrt(sum((Y(:,2:end)-model{k}.oneAheadOutF).^2));
-aux1=conv(aux1,ones(1,binw)/binw,'valid');
-p1=plot(aux1,'LineWidth',1);
-bar2=bar([yoff+k*100],nanmean([aux1]),'EdgeColor','none','BarWidth',100,'FaceColor',p1.Color);
-text(yoff+(k)*100-50,nanmean(aux1)*(1+.2*k),[num2str(nanmean(aux1))],'Color','k')
-end
-title('KF prediction output error (RMSE, mov. avg.)')
-axis tight
-grid on
-set(gca,'YScale','log')
 
 %LogL and BIC
 subplot(Nx,2*Ny,6*Ny+3)
@@ -175,39 +159,43 @@ set(gca,'YScale','log','XTick',100*(Mm+1)*[.5:1:3],'XTickLabel',{'logL','BIC','A
 %% Plot STATES
 clear p
 for k=1:length(model)
-for i=1:size(model{k}.J,1)
-subplot(Nx,Ny,Ny*(i-1)+3) %States
-hold on
-if i==1
-    nn=[model{k}.name ', \tau=' num2str(-1./log(model{k}.J(i,i)),3)];
-else
-    nn=['\tau=' num2str(-1./log(model{k}.J(i,i)),3)];
-end
-%Smooth states
-set(gca,'ColorOrderIndex',k)
-p(k,i)=plot(model{k}.smoothStates(i,:),'LineWidth',2,'DisplayName',nn);
-%MLE states:
-plot(model{k}.Xf(i,:),'LineWidth',1,'DisplayName',nn,'Color',p(k).Color);
-patch([1:size(model{k}.Xf,2),size(model{k}.Xf,2):-1:1]',[model{k}.Xf(i,:)+sqrt(squeeze(model{k}.Pf(i,i,:)))', fliplr(model{k}.Xf(i,:)-sqrt(squeeze(model{k}.Pf(i,i,:)))')]',p(k).Color,'EdgeColor','none','FaceAlpha',.3)
-if k==length(model)
-    legend(findobj(gca,'Type','Line','LineWidth',2),'Location','SouthEast')
-    title('(Filtered) States')
-    ylabel(['State ' num2str(i)])
-end
-end
+    taus=-1./log(sort(eig(model{k}.J)));
+    for i=1:size(model{k}.J,1)
+        subplot(Nx,Ny,Ny*(i-1)+3) %States
+        hold on
+        if i==1
+            nn=[model{k}.name ', \tau=' num2str(taus(i),3)];
+        else
+            nn=['\tau=' num2str(taus(i),3)];
+        end
+        %Smooth states
+        set(gca,'ColorOrderIndex',k)
+        p(k,i)=plot(model{k}.smoothStates(i,:),'LineWidth',2,'DisplayName',nn);
+        %MLE states:
+        plot(model{k}.Xf(i,:),'LineWidth',1,'DisplayName',nn,'Color',p(k).Color);
+        patch([1:size(model{k}.Xf,2),size(model{k}.Xf,2):-1:1]',[model{k}.Xf(i,:)+sqrt(squeeze(model{k}.Pf(i,i,:)))', fliplr(model{k}.Xf(i,:)-sqrt(squeeze(model{k}.Pf(i,i,:)))')]',p(k).Color,'EdgeColor','none','FaceAlpha',.3)
+        if k==length(model)
+            legend(findobj(gca,'Type','Line','LineWidth',2),'Location','SouthEast')
+            title('(Filtered) States')
+            ylabel(['State ' num2str(i)])
+        end
+        axis tight
+        aa=axis;
+        axis([aa(1:2) -.3 1.3]);
+    end
 end
 
 %% MLE state innovation
 subplot(Nx,Ny,Ny*(M)+3)
 hold on
 for k=1:length(model)
-    stError=model{k}.Xf(:,2:end)-model{k}.Xp(:,2:end-1);
+    stError=model{k}.Xs(:,2:end)-model{k}.oneAheadStates;
 aux1=sqrt(z2score(stError,model{k}.Q));
 p1=plot(aux1,'LineWidth',1);
 bar2=bar([yoff + k*100],nanmean([aux1]),'EdgeColor','none','BarWidth',100,'FaceColor',p1.Color);
 text(yoff+(k)*100,nanmean(aux1)*(1+.3*k),[num2str(nanmean(aux1))],'Color',bar2.FaceColor)
 end
-title('(KF) Predicted state error (z-score)')
+title('(KS) Predicted state error (z-score)')
 axis tight
 grid on
 

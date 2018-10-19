@@ -42,7 +42,7 @@ end
 
 %% ----------------Now, do E-M-----------------------------------------
 breakFlag=false;
-disp(['Iter = 1, target logL = ' num2str(opts.targetLogL,8) ', current logL=' num2str(bestLogL,8)])
+disp(['Iter = 1, target logL = ' num2str(opts.targetLogL,8) ', current logL=' num2str(bestLogL,8) ', \tau =' num2str(-1./log(sort(eig(A)))')])
 for k=1:opts.Niter-1
 	%E-step: compute the expectation of latent variables given current parameter estimates
     %Note this is an approximation of true E-step in E-M algorithm. The
@@ -129,7 +129,7 @@ for k=1:opts.Niter-1
     end
 
     %Print some info
-    step=50;
+    step=100;
     if mod(k,step)==0 || breakFlag %Print info
         pOverTarget=100*((l-opts.targetLogL)/abs(opts.targetLogL));
         if k>=step && ~breakFlag
@@ -139,7 +139,7 @@ for k=1:opts.Niter-1
         else %k==1 || breakFlag
             l=bestLogL;
             pOverTarget=100*((l-opts.targetLogL)/abs(opts.targetLogL));
-            disp(['Iter = ' num2str(k) ', logL = ' num2str(l,8) ', % over target = ' num2str(pOverTarget)])
+            disp(['Iter = ' num2str(k) ', logL = ' num2str(l,8) ', % over target = ' num2str(pOverTarget) ', \tau =' num2str(-1./log(sort(eig(A)))')])
             if breakFlag
             fprintf([msg ' \n'])
             end
