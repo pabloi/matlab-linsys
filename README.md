@@ -22,7 +22,12 @@ The constrained filter allows better handling of unknown dynamics (see testConst
 *To Do*
 - Implement fwd/backward algorithm for discrete state markov chains (genKF).
 - Replace chol(), cholcov() and mycholcov() usage for LDL decomposition with appropriate PD/PSD checks.
+- Test that the toolbox works in Octave.
+- Create a CircleCI/Docker/Quay integration to continuously test for octave compatibility.
+- Add optional logs for EM and randomStartEM, in order to study convergence of solutions.
 - Implement EM in reduced form when size(C,1)>size(C,2). Kalman smoothing already exploits this, but the M-step could exploit it too: we only need to estimate C'*inv(R), rather than a full R.
+- Implement dataLogL in reduced form. This requires assuming that the  non-specified portion of R is optimal for the data, whatever the data. Not sure this is a good idea.
+- Implement GPFA.
 - See if we can use EM to reproduce sPCA behavior (this is, identify the best linsys constraining to Q=0)
 - Implement the extended KF, and extended Kalman Smoother.
 - Implement the implicit extended KF.

@@ -1,11 +1,19 @@
-function [A,B,C,D,Q,R,X,P,bestLL]=randomStartEM(Y,U,nd,Nreps,opts)
+function [A,B,C,D,Q,R,X,P,bestLL,outLog]=randomStartEM(Y,U,nd,Nreps,opts)
 
 %First iter:
 fprintf(['\n Starting rep 0... \n']);
+opts=processEMopts(opts);
+outLog=struct();
 opt1=opts;
-opt1.fastFlag=0; %Enforcing fast filtering
+opt1.fastFlag=true; %Enforcing fast filtering
+[A,B,C,D,Q,R,X,P,bestLL,startLog]=EM(Y,U,nd,opt1);
 try
-    [A,B,C,D,Q,R,X,P,bestLL]=EM(Y,U,nd,opt1);
+
+    if opts.logFlag
+        outLog.opts=opts;
+        outLog.startLog=startLog;
+        tic;
+    end
 catch
     bestLL=-Inf;
 end
@@ -40,7 +48,12 @@ for i=1:Nreps
 
     %Optimize:
     try %Sometimes ill conditioned problems fail
-      [Ai,Bi,Ci,Di,Qi,Ri,Xi,Pi,logl]=EM(Y,U,Xguess,opts);
+      [Ai,Bi,Ci,Di,Qi,Ri,Xi,Pi,logl,repLog]=EM(Y,U,Xguess,opts);
+      if opts.logFlag
+          outLog.repLog{k}=repLog;
+          outLog.repRunTime(k)=toc;
+          tic;
+      end
       %If solution improved, save and display:
       if logl>bestLL
           A=Ai; B=Bi; C=Ci; D=Di; Q=Qi; R=Ri; X=Xi; P=Pi;
@@ -51,6 +64,7 @@ for i=1:Nreps
     catch
       1;
     end
+
 end
 
 disp(['Refining solution...']);
@@ -58,7 +72,7 @@ opts.Niter=3e4;
 opts.convergenceTol=1e-11;
 opts.targetTol=0;
 try
-    [Ai,Bi,Ci,Di,Qi,Ri,Xi,Pi,bestLL1]=EM(Y,U,X,opts,P); %Refine solution, sometimes works
+    [Ai,Bi,Ci,Di,Qi,Ri,Xi,Pi,bestLL1,refineLog]=EM(Y,U,X,opts,P); %Refine solution, sometimes works
 catch
     bestLL1=bestLL;
 end
@@ -67,4 +81,8 @@ if bestLL1>bestLL
 end
 
 disp(['End. Best logL=' num2str(bestLL,8)]);
+if opts.logFlag
+    outLog.repfineLog=refineLog;
+    outLog.refineRunTime=toc;
+end
 end

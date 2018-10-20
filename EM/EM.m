@@ -1,4 +1,4 @@
-function [A,B,C,D,Q,R,X,P,bestLogL]=EM(Y,U,Xguess,opts,Pguess)
+function [A,B,C,D,Q,R,X,P,bestLogL,outLog]=EM(Y,U,Xguess,opts,Pguess)
 %A true EM implementation to do LTI-SSM identification
 %INPUT:
 %Y is D2 x N
@@ -12,9 +12,15 @@ end
 if nargin<5
   Pguess=[];
 end
+outLog=[];
 
 %Process opts:
 [opts] = processEMopts(opts);
+if opts.logFlag
+  %diary(num2str(round(now*1e5)))
+  outLog.opts=opts;
+  tic
+end
 
 %Disable some annoying warnings:
 warning ('off','statKFfast:unstable');
@@ -51,6 +57,14 @@ for k=1:opts.Niter-1
     %whereas here we are computing E(X|params) to then maximize L(Y,E(X)|params)
     %logl(k,2)=dataLogLikelihood(Y,U,A,B,C,D,Q,R,X);
 	%M-step: find parameters A,B,C,D,Q,R that maximize likelihood of data
+
+    %Save to log:
+    if opts.logFlag
+        outLog.vaps(k,:)=sort(eig(A1));
+        outLog.logL=logl(k);
+        outLog.runTime(k)=toc;
+        tic;
+    end
 
     %E-step:
     if isa(Y,'cell') %Data is many realizations of same system
@@ -163,5 +177,13 @@ if opts.fastFlag==0 %Re-enable disabled warnings
     warning ('on','statKFfast:unstable');
     warning ('on','statKFfast:NaNsamples');
     warning ('on','statKSfast:unstable');
+end
+if opts.logFlag
+  outLog.vaps(k,:)=sort(eig(A1));
+  outLog.runTime(k)=toc;
+  outLog.breakFlag=breakFlag;
+  outLog.msg=msg;
+  outLog.bestLogL=bestLogL;
+  %diary('off')
 end
 end

@@ -46,4 +46,7 @@ if ~isfield(opts,'indB')
   %If given, it should be a logical vector of size 1 x size(U,1), where 1 means include and 0 means exclude
   %Alternatively, it can be a list of included indexes only (e.g. [1,3,4])
 end
+if ~isfield(opts,'logFlag')
+  opts.logFlag=false;
+end
 end
