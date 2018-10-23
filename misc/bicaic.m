@@ -22,7 +22,6 @@ Nc=sum(sum(model.C~=0));
 Nd=sum(sum(model.D~=0));
 Nq=sum(sum(triu(model.Q)~=0));
 Nr=sum(sum(triu(model.R)~=0));
-Nr=min(Nr,Ny*M); %Limiting the description complexity of 'R' to the size of C'*inv(R) which is the only thing that needs to be stored to do kalman smoothing, and hence to estimate the full MLE R matrix for any other purpose. 
 k=Na+Nb+Nc+Nd+Nq+Nr; %Model free parameters
 k_alt=k+M*N-Nq-Nr-Na-Nb; %Counting parameters as a matrix factorization problem
 
