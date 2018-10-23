@@ -44,7 +44,7 @@ elseif fastFlag==1
     M=max(M1,M2);
     M=min(M,N-1); %Prevent more than N-1, if this happens, we are not doing fast filtering
 else
-    M=min(ceil(abs(fastFlag)),N-1); %If fastFlag is a number but not 0, use that as number of samples, issue warning if 
+    M=min(ceil(abs(fastFlag)),N-1); %If fastFlag is a number but not 0, use that as number of samples, issue warning if
     M1=ceil(3*max(-1./log(abs(eig(A))))); %This many strides ensures ~convergence of gains before we assume steady-state
     if M<N-1 && M<M1 %If number of samples provided is not ALL of them, but eigenvalues suggest the system is slower than provided number
         warning('statKSfast:fewSamples','Number of samples for fast filtering were provided, but system time-constants indicate more are needed')
@@ -90,7 +90,7 @@ if isa(Xs,'gpuArray') %For code to work on gpu
 else
     Pt=nan(D1,D1,N-1); %Transition covariance matrix
 end
- 
+
 %Separate samples into fast and normal filtering intervals:
 M1=M;
 M2=M;
@@ -119,7 +119,7 @@ for i=N-1:-1:N-M1
 end
 
 %Fast smoothing for the middle (N-2*M) samples
-if Nfast>0 %Assume steady-state: 
+if Nfast>0 %Assume steady-state:
     [icP,~]=pinvchol(pp);
     H=(pf*(A'*icP))*icP'; %TODO: check for stability efficiently
      if any(abs(eig(H))>1)
@@ -159,18 +159,33 @@ end
 
 end
 
-function [prevPs,prevXs,newPt]=backStep(pp,pf,ps,xp,xf,prevXs,A)
+function [newPs,newXs,newPt]=backStep(pp,pf,ps,xp,xf,prevXs,A)
+  %Implements the Rauch-Tung-Striebel backward recursion
   %First, compute gain:
   [icP,~]=pinvchol(pp);
   H=(pf*(A'*icP))*icP'; %H=AP'/pp; %Faster, although worse conditioned, matters a lot when smoothing
 
+  %Unstable smoothing warning: in general, the back step can be unstable for a few strides, but if it happens always, there is probably something wrong:
+  %if any(abs(eig(H))>1)
+  %  warning('Unstable back filter!')
+  %end
+
   %Compute relevant covariances
   newPt=ps*H'; %This should be such that A*newPt' is hermitian
   Hext=H*(mycholcov(pp-ps)');
-  
+
   %Updates: Improved (smoothed) state estimate
-  prevPs=pf-Hext*Hext'; %=pf + Hps*Hps' - Hcpp'*Hcpp;  %Would it be more precise/efficient to compute the sum of the last two terms as inv(inv(pf) +A'*inv(Q)*A) ?
-  cPs=mycholcov(prevPs); %Ensure PSD
-  prevPs=cPs'*cPs;
-  prevXs=xf + H*(prevXs-xp);
+  newPs=pf-Hext*Hext'; %=pf + Hps*Hps' - Hcpp'*Hcpp;  %Would it be more precise/efficient to compute the sum of the last two terms as inv(inv(pf) +A'*inv(Q)*A) ?
+  cPs=mycholcov(newPs); %Ensure PSD
+  newPs=cPs'*cPs;
+  newXs=xf + H*(prevXs-xp);
+end
+
+function [newPs,newXs,newPt,newDelta,newLambda]=backStep2(xf,Pf,CtRinvC,I_KC,prevDelta,prevLambda,CtRinv)
+  %Implements the modified Bryson-Frazier smoother, which does not invert the covariances
+  newDelta=A'*(CtRinvC +I_KC'*prevDelta*I_KC)*A;
+  newLambda=A'*(I_KC*prevLambda - CtRinv*innov);
+  newXs=xf-Pf*newLambda;
+  newPs=Pf-Pf*newDelta*Pf;
+  newPt=[]; %??
 end
