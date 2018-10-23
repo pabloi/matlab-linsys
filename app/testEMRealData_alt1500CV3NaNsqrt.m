@@ -16,15 +16,15 @@ model{1,1}.name='Flat, CV1';
 model{1,2}=autodeal(J,B,C,D,Q,R);
 model{1,2}.name='Flat, CV2';
 %%
-for D1=1:5
+for D1=1:4
 %% Identify
     tic
     opts.robustFlag=false;
     opts.outlierReject=false;
     opts.fastFlag=false; %Cannot do fast for NaN filled data
-    for k=1:2
+    for k=1:3
         Yaux=nan(size(Yf));
-        Yaux(:,[k:2:end])=Yf(:,[k:2:end]); %First 10 strides are given to both sets
+        Yaux(:,[k:3:end])=Yf(:,[k:3:end]);
         [fAh,fBh,fCh,D,fQh,R,fXh,fPh,logL]=randomStartEM(Yaux,Uf,D1,20,opts); %Slow/true EM
         model{D1+1}.runtime=toc;
         [J,B,C,X,~,Q,P] = canonize(fAh,fBh,fCh,fXh,fQh,fPh);
@@ -33,28 +33,29 @@ for D1=1:5
     end
 end
 %%
-save EMrealDimCompare1500CVsqrt.mat
+save EMrealDimCompare1500CV3sqrt.mat
 %% COmpare
 %%Train set:
-for k=1:2
+for k=1:3
     Yaux=nan(size(Yf));
-    Yaux(:,k:2:end)=Yf(:,k:2:end);
-    vizDataFit(model(2:6,k),Yaux,Uf)
+    Yaux(:,k:3:end)=Yf(:,k:3:end);
+    vizDataFit(model(2:5,k),Yaux,Uf)
     set(gcf,'Name',['CV' num2str(k) ', training data'])
 end
 %% Test set:
-for k=1:2
-    Yaux=nan(size(Yf));
-    Yaux(:,k:2:end)=Yf(:,k:2:end);
-    vizDataFit(model(2:6,3-k),Yaux,Uf)
-set(gcf,'Name',['CV' num2str(3-k) ', testing data'])
+for k=1:3
+    Yaux=Yf;
+    Yaux(:,k:3:end)=NaN;
+    vizDataFit(model(2:5,4-k),Yaux,Uf)
+set(gcf,'Name',['CV' num2str(4-k) ', testing data'])
 end
 %%All:
-for k=1:2
+for k=1:3
     vizDataFit(model(2:5,k),Yf,Uf)
     set(gcf,'Name',['CV' num2str(k) ', ALL data'])
 end
 %% See models
-for k=1:2
-    vizModels(model(2:6,k))
+for k=1:3
+    vizModels(model(2:5,k))
+    set(gcf,'Name',['CV' num2str(k) ', model viz'])
 end

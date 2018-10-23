@@ -3,18 +3,16 @@ addpath(genpath('./'))
 %%
 clear all
 %% Load real data:
-[Y,Yf,Ycom,Uf]=groupDataToMatrixForm(true);
+[Y,Yf,Ycom,Uf]=groupDataToMatrixForm(true,true);
 Yf=Yf-nanmedian(Yf(1:50,:,:)); %Subtracting Baseline
 Yf=nanmedian(Yf,3)'; %Median across subjects, using nanmedian to exploit fast mode (less than 10 missing strides)
-Yf=Yf(:,1:1350); %Using only 400 of Post
-Uf=Uf(:,1:1350);
 %% Split data:
+size(Yf)
 Yff{1}=Yf(:,1:850);
 Uff{1}=Uf(1:850);
 Yff{2}=Yf(:,851:end);
 Uff{2}=Uf(:,851:end);
-%
-load EMrealDimCompare1500CVsqrtAP.mat
+
 %% Flat model:
 [J,B,C,D,Q,R]=getFlatModel(Yff{1},Uff{1}); %Base+Adapt, minus last 100 of Adapt
 model{1,1}=autodeal(J,B,C,D,Q,R);
@@ -23,7 +21,7 @@ model{1,1}.name='Static, CV1';
 model{1,2}=autodeal(J,B,C,D,Q,R);
 model{1,2}.name='Static, CV2';
 %%
-for D1=3:4
+for D1=1:4
 %% Identify
     tic
     opts.robustFlag=false;
@@ -48,7 +46,7 @@ end
 %% Test set:
 for k=1:2
     vizDataFit(model(1:5,3-k),Yff{k},Uff{k})
-set(gcf,'Name',['CV' num2str(3-k) ', testing data'])
+    set(gcf,'Name',['CV' num2str(3-k) ', testing data'])
 end
 %%All:
 for k=1:2

@@ -5,33 +5,54 @@ fh=figure('Units','Normalized','OuterPosition',[0 0 1 1]);
 Ny=3;
 Nx=max(M+1,6);
 yoff=size(Y,2)*1.1;
-%% Compute output and residuals
+Nm=length(model); %Number of models
+%% Add reduced models:
 for i=1:length(model)
-    [model{i}.J,model{i}.B,model{i}.C,~,~,model{i}.Q] = canonize(model{i}.J,model{i}.B,model{i}.C,[],model{i}.Q,[],[]);
-    fastFlag=0;
-    Nd=size(model{i}.D,2);
-    [Xs,Ps,Pt,Xf,Pf,Xp,Pp,rejSamples]=statKalmanSmoother(Y,model{i}.J,model{i}.C,model{i}.Q,model{i}.R,[],[],model{i}.B,model{i}.D,U(1:Nd,:),false,fastFlag);
-    model{i}.Xs=Xs; %Smoothed data
-    model{i}.Pp=Pp; %One-step ahead uncertainty from filtered data.
-    model{i}.Pf=Pf;
-    model{i}.Xf=Xf; %Filtered data
-    model{i}.Xp=Xp; %Predicted data
-    model{i}.out=model{i}.C*model{i}.Xs+model{i}.D*U(1:Nd,:); %Discarding input components at the end
-    model{i}.outF=model{i}.C*model{i}.Xf+model{i}.D*U(1:Nd,:); %Discarding input components at the end
-    model{i}.res=Y-model{i}.out;
-    model{i}.oneAheadStates=model{i}.J*model{i}.Xs(:,1:end-1)+model{i}.B*U(1:Nd,1:end-1);
-    model{i}.oneAheadOut=model{i}.C*(model{i}.oneAheadStates)+model{i}.D*U(1:Nd,2:end);
-    model{i}.oneAheadOutF=model{i}.C*(model{i}.Xp(:,2:end-1))+model{i}.D*U(1:Nd,2:end);
-    [Y2,X2]=fwdSim(U(1:Nd,:),model{i}.J,model{i}.B,model{i}.C,model{i}.D,model{i}.Xs(:,1),[],[]); %Simulating from MLE initial state
-    model{i}.smoothStates=X2;
-    model{i}.smoothOut=Y2;
-
-    model{i}.logLtest=dataLogLikelihood(Y,U(1:Nd,:),model{i}.J,model{i}.B,model{i}.C,model{i}.D,model{i}.Q,model{i}.R,[],[],'approx');
-    [bic,aic,bic2]= bicaic(model{i},Y,numel(Y)*model{i}.logLtest);
-    model{i}.BIC=bic/(2*numel(Y)); %To put in the same scale as logL
-    model{i}.BIC2=bic2/(2*numel(Y)); %To put in the same scale as logL
-    model{i}.AIC=aic/(2*numel(Y));
+%    redModel{i}=model{i};
+%    [redModel{i}.C,redModel{i}.R,redModel{i}.D,redModel{i}.Y_]=reduceModel(model{i}.C,model{i}.R,model{i}.D,Y);
+    model{i}.Y_=Y;
 end
+%% Compute output and residuals
+modelOrig=model;
+for k=1%:2 %Original or reduced models
+    if k==1
+        model=modelOrig;
+    else
+        model=redModel;
+    end
+    for i=1:length(model)
+        %[model{i}.J,model{i}.B,model{i}.C,~,~,model{i}.Q] = canonize(model{i}.J,model{i}.B,model{i}.C,[],model{i}.Q,[],[]);
+        fastFlag=false;
+        Nd=size(model{i}.D,2);
+        [Xs,Ps,Pt,Xf,Pf,Xp,Pp,rejSamples]=statKalmanSmoother(model{i}.Y_,model{i}.J,model{i}.C,model{i}.Q,model{i}.R,[],[],model{i}.B,model{i}.D,U(1:Nd,:),false,fastFlag);
+        model{i}.Xs=Xs; %Smoothed data
+        model{i}.Ps=Ps;
+        model{i}.Pp=Pp; %One-step ahead uncertainty from filtered data.
+        model{i}.Pf=Pf;
+        model{i}.Xf=Xf; %Filtered data
+        model{i}.Xp=Xp; %Predicted data
+        model{i}.out=model{i}.C*model{i}.Xs+model{i}.D*U(1:Nd,:); %Discarding input components at the end
+        model{i}.outF=model{i}.C*model{i}.Xf+model{i}.D*U(1:Nd,:); %Discarding input components at the end
+        model{i}.res=model{i}.Y_-model{i}.out;
+        model{i}.oneAheadStates=model{i}.J*model{i}.Xs(:,1:end-1)+model{i}.B*U(1:Nd,1:end-1);
+        model{i}.oneAheadOut=model{i}.C*(model{i}.oneAheadStates)+model{i}.D*U(1:Nd,2:end);
+        model{i}.oneAheadOutF=model{i}.C*(model{i}.Xp(:,2:end-1))+model{i}.D*U(1:Nd,2:end);
+        [Y2,X2]=fwdSim(U(1:Nd,:),model{i}.J,model{i}.B,model{i}.C,model{i}.D,model{i}.Xs(:,1),[],[]); %Simulating from MLE initial state
+        model{i}.smoothStates=X2;
+        model{i}.smoothOut=Y2;
+        model{i}.logLtest=dataLogLikelihood(model{i}.Y_,U(1:Nd,:),model{i}.J,model{i}.B,model{i}.C,model{i}.D,model{i}.Q,model{i}.R,[],[],'approx');
+        [bic,aic,bic2]= bicaic(model{i},model{i}.Y_,numel(Y)*model{i}.logLtest);
+        model{i}.BIC=bic/(2*numel(Y)); %To put in the same scale as logL
+        model{i}.BIC2=bic2/(2*numel(Y)); %To put in the same scale as logL
+        model{i}.AIC=aic/(2*numel(Y));
+    end
+    if k==1
+        modelOrig=model;
+    else
+        redModel=model;
+    end
+end
+model=modelOrig;
 %% Define colormap:
 ex1=[1,0,0];
 ex2=[0,0,1];
@@ -69,8 +90,8 @@ for kk=1:maxK
     end
     ylabel(['PC ' num2str(kk) ', ' num2str(aa(kk)/sum(aa)) '%'])
 end
-%% Measures of output error:
 
+%% Measures of output error:
 binw=11;
 for ll=1:3
     subplot(Nx,Ny,2+(ll-1)*Ny)
@@ -81,8 +102,8 @@ for ll=1:3
                 aux1=sqrt(sum((Y-model{k}.smoothOut).^2));
                 title('Smooth output error (RMSE, mov. avg.)')
             case 2 % MLE state output error
-                aux1=sqrt(sum((Y-model{k}.outF).^2));
-                title('KF-state output error (RMSE, mov. avg.)')
+                aux1=sqrt(sum((Y(:,2:end)-model{k}.oneAheadOut).^2));
+                title('KS one-ahead output error (RMSE, mov. avg.)')
             case 3 %One ahead error
                 aux1=sqrt(sum((Y(:,2:end)-model{k}.oneAheadOutF).^2));
                 title('KF prediction output error (RMSE, mov. avg.)')
@@ -92,69 +113,51 @@ for ll=1:3
         aux2=conv(aux1,ones(1,binw)/binw,'valid');
         p1=plot(idx((binw-1)/2+1:end-(binw-1)/2),aux2,'LineWidth',1);
         RMSE=sqrt(mean([aux1].^2)); %Normalized Frobenius norm
-        bar2=bar([yoff+k*100],RMSE,'EdgeColor','none','BarWidth',100,'FaceColor',p1.Color);
-        text(yoff+(k)*100-50,RMSE*(1+k*.2),[num2str(RMSE)],'Color','k')
+        bar2=bar([yoff+k*200],RMSE,'EdgeColor','none','BarWidth',200,'FaceColor',p1.Color);
+        text(yoff+(k-1)*200+100,.9*RMSE,[num2str(RMSE,4)],'Color','w','FontSize',7)
     end
     axis tight
     grid on
     set(gca,'YScale','log')
 end
 
-%LogL and BIC
-subplot(Nx,2*Ny,6*Ny+3)
-hold on
-[N,Nz]=size(Y);
-Mm=length(model);
-for k=1:Mm
-    set(gca,'ColorOrderIndex',k)
-    bar2=bar([k*100],model{k}.logLtest,'EdgeColor','none','BarWidth',100);
-    text((k)*100-50,1.001*(model{k}.logLtest+1e-3),[num2str(model{k}.logLtest,6)],'Color','k','FontSize',6)
+%LogL, BIC, AIC
+for kl=1%:2
+    switch kl
+        case 1
+            mdl=model;
+        case 2
+            mdl=redModel; %To do: used reduced model
+    end
+    for kj=1:3 %logL, BIC, aic
+        switch kj
+            case 1
+                yy=cellfun(@(x) x.logLtest,mdl);
+                nn='logL';
+            case 2
+                yy=cellfun(@(x) x.BIC,mdl);
+                nn='BIC';
+            case 3
+                yy=cellfun(@(x) x.AIC,mdl);
+                nn='AIC';
+        end
+        subplot(Nx,3*Ny,9*Ny+3+kj+(kl-1)*3*Ny)
+        hold on
+        [N,Nz]=size(Y);
+        Mm=length(mdl);
+        for k=1:Mm
+            set(gca,'ColorOrderIndex',k)
+            bar2=bar([k*100],yy(k),'EdgeColor','none','BarWidth',100);
+            text((k)*100,.982*(yy(k)),[num2str(yy(k),6)],'Color','w','FontSize',8,'Rotation',90)
+        end
+        title(['Model comparison: ' nn])
+        grid on
+        set(gca,'XTick',100*(Mm+1)*.5,'XTickLabel',nn)
+        axis tight;
+        aa=axis;
+        axis([aa(1:2) .98*min(yy) max(yy)])
+    end
 end
-title('Model comparison: logL')
-grid on
-set(gca,'YScale','log','XTick',100*(Mm+1)*[.5:1:3],'XTickLabel',{'logL','BIC','AIC'})
-
-subplot(Nx,2*Ny,6*Ny+4)
-hold on
-[N,Nz]=size(Y);
-Mm=length(model);
-for k=1:Mm
-    set(gca,'ColorOrderIndex',k)
-bic=model{k}.BIC;
-bar2=bar([(Mm+1+k)*100],bic,'EdgeColor','none','BarWidth',100);
-text((Mm+1+k)*100-50,1.001*bic,[num2str(bic,6)],'Color','k','FontSize',6);
-end
-title('Model comparison: BIC')
-grid on
-set(gca,'YScale','log','XTick',100*(Mm+1)*[.5:1:3],'XTickLabel',{'logL','BIC','AIC'})
-
-subplot(Nx,2*Ny,8*Ny+3)
-hold on
-[N,Nz]=size(Y);
-Mm=length(model);
-for k=1:Mm
-    set(gca,'ColorOrderIndex',k)
-aic=model{k}.AIC;
-bar2=bar([(2*Mm+2+k)*100],aic,'EdgeColor','none','BarWidth',100);
-text((2*Mm+2+k)*100-50,1.001*aic,[ num2str(aic,6)],'Color','k','FontSize',6);
-end
-title('Model comparison: AIC')
-grid on
-set(gca,'YScale','log','XTick',100*(Mm+1)*[.5:1:3],'XTickLabel',{'logL','BIC','AIC'})
-
-%subplot(Nx,2*Ny,8*Ny+4)
-%hold on
-%[N,Nz]=size(Y);
-%Mm=length(model);
-%for k=1:Mm
-%    set(gca,'ColorOrderIndex',k)
-%bic=model{k}.BIC2;
-%bar2=bar([(Mm+1+k)*100],bic,'EdgeColor','none','BarWidth',100);
-%text((Mm+1+k)*100-50,1.001*bic,[num2str(bic,6)],'Color','k','FontSize',6);
-%end
-%title('Model comparison: BIC alt')
-%grid on
-%set(gca,'YScale','log','XTick',100*(Mm+1)*[.5:1:3],'XTickLabel',{'logL','BIC','AIC'})
 
 %% Plot STATES
 clear p
@@ -172,11 +175,14 @@ for k=1:length(model)
         set(gca,'ColorOrderIndex',k)
         p(k,i)=plot(model{k}.smoothStates(i,:),'LineWidth',2,'DisplayName',nn);
         %MLE states:
-        plot(model{k}.Xf(i,:),'LineWidth',1,'DisplayName',nn,'Color',p(k).Color);
-        patch([1:size(model{k}.Xf,2),size(model{k}.Xf,2):-1:1]',[model{k}.Xf(i,:)+sqrt(squeeze(model{k}.Pf(i,i,:)))', fliplr(model{k}.Xf(i,:)-sqrt(squeeze(model{k}.Pf(i,i,:)))')]',p(k).Color,'EdgeColor','none','FaceAlpha',.3)
+        %plot(model{k}.Xf(i,:),'LineWidth',1,'DisplayName',nn,'Color',p(k).Color);
+        %patch([1:size(model{k}.Xf,2),size(model{k}.Xf,2):-1:1]',[model{k}.Xf(i,:)+sqrt(squeeze(model{k}.Pf(i,i,:)))', %fliplr(model{k}.Xf(i,:)-sqrt(squeeze(model{k}.Pf(i,i,:)))')]',p(k).Color,'EdgeColor','none','FaceAlpha',.3)
+        plot(model{k}.Xs(i,:),'LineWidth',1,'DisplayName',nn,'Color',p(k).Color);
+        patch([1:size(model{k}.Xs,2),size(model{k}.Xs,2):-1:1]',[model{k}.Xs(i,:)+sqrt(squeeze(model{k}.Ps(i,i,:)))', fliplr(model{k}.Xs(i,:)-sqrt(squeeze(model{k}.Ps(i,i,:)))')]',p(k).Color,'EdgeColor','none','FaceAlpha',.3)
+        %plot(model{k}.Xp(i,:),'LineWidth',1,'DisplayName',nn,'Color','k');
         if k==length(model)
             legend(findobj(gca,'Type','Line','LineWidth',2),'Location','SouthEast')
-            title('(Filtered) States')
+            title('(Smoothed) States')
             ylabel(['State ' num2str(i)])
         end
         axis tight

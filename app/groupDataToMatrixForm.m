@@ -1,14 +1,16 @@
-function [Y,Ysym,Ycom,U]=groupDataToMatrixForm(sqrtFlag)
+function [Y,Ysym,Ycom,U]=groupDataToMatrixForm(sqrtFlag,remove79flag)
 %% Load real data:
-load dynamicsData300blocks.mat
+load dynamicsData300blocksALTnormalization.mat
 addpath(genpath('./fun/'))
 
 % Some pre-proc
 %B=nanmean(allDataEMG{1}(end-45:end-5,:,:)); %Baseline: last 40, exempting 5
 clear data
-subjIdx=2:16; %No C01
-%muscPhaseIdx=[1:(180-24),(180-11:180)];
-%muscPhaseIdx=[muscPhaseIdx,muscPhaseIdx+180]; %Excluding PER
+if nargin>1 & remove79flag
+  subjIdx=[2:6,8,10:16]; %No C01,C07,C09 so I can have 600 strides of Pos
+else
+  subjIdx=2:16; %Excluding C01 outlier only
+end
 muscPhaseIdx=1:360;
 for i=1:5 %B,A1,A2,A3,P
     %Remove baseline
@@ -33,7 +35,8 @@ for i=1:5 %B,A1,A2,A3,P
     %Remove subj:
     data{i}=data{i}(:,muscPhaseIdx,subjIdx);
     if nargin>0
-        data{i}(data{i}<0)=0;
+      %sum(data{i}(:)<0)
+      %  data{i}(data{i}<0)=0;
       data{i}=sqrt(data{i});
     end
 
