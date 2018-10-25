@@ -10,3 +10,7 @@ EM/robCov\.png
 *.png
 
 *.fig
+
+robustCov
+
+app/old/

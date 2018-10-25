@@ -1,13 +1,13 @@
 function [Y,Ysym,Ycom,U]=groupDataToMatrixForm(sqrtFlag,remove79flag)
 %% Load real data:
-load dynamicsData300blocksALTnormalization.mat
+load dynamicsData300blocksALTnormalization_longBaseFIXED.mat
 addpath(genpath('./fun/'))
 
 % Some pre-proc
 %B=nanmean(allDataEMG{1}(end-45:end-5,:,:)); %Baseline: last 40, exempting 5
 clear data
 if nargin>1 & remove79flag
-  subjIdx=[2:6,8,10:16]; %No C01,C07,C09 so I can have 600 strides of Pos
+  subjIdx=[2:6,8,10:16]; %No C01,C07,C09 so I can have 600 strides of Post
 else
   subjIdx=2:16; %Excluding C01 outlier only
 end
