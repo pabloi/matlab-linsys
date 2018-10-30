@@ -3,9 +3,11 @@ addpath(genpath('./'))
 %%
 clear all
 %% Load real data:
-[Y,Yf,Ycom,Uf]=groupDataToMatrixForm(true,true);
-Yf=Yf-nanmedian(Yf(1:150,:,:)); %Subtracting Baseline
+[Y,Yf,Ycom,Uf]=groupDataToMatrixForm(false,true);
+%NO baseline subtraction
 Yf=nanmedian(Yf,3)'; %Median across subjects, using nanmedian to exploit fast mode (less than 10 missing strides)
+%% Adding constant and linear Inputs
+Uf=[Uf;ones(size(Uf))]; %3-input system
 %% Split data:
 Yff{1}=Yf(:,1:900); %150 of Base + 750 of Adapt
 Uff{1}=Uf(:,1:900);
@@ -19,6 +21,7 @@ model{1,1}.name='Static, CV1';
 [J,B,C,D,Q,R]=getFlatModel(Yff{2},Uff{2});
 model{1,2}=autodeal(J,B,C,D,Q,R);
 model{1,2}.name='Static, CV2';
+
 %%
 for D1=1:4
 %% Identify
@@ -27,6 +30,8 @@ for D1=1:4
     opts.outlierReject=false;
     opts.fastFlag=true;
     opts.logFlag=true;
+    opts.indB=1;
+    opts.indD=1:2;
     for k=1:2
         [fAh,fBh,fCh,D,fQh,R,fXh,fPh,logL,outLog]=randomStartEM(Yff{k},Uff{k},D1,20,opts); %Slow/true EM
         model{D1+1}.runtime=toc;
@@ -35,8 +40,13 @@ for D1=1:4
         model{D1+1,k}.name=['EM (' num2str(D1) ', CV' num2str(k) ')']; %Robust mode does not do fast filtering
     end
 end
-%%
-save ./app/data/EMrealDim_CV_AP.mat
+%% add extra elements in B for viz
+for k=1:2
+    for j=1:5
+        model{j,k}.B=[model{j,k}.B zeros(size(model{j,k}.B,1),1)];
+    end
+end
+save ./app/data/EMrealDim_CV_APaltNoSqrt.mat
 %% COmpare
 %%Train set:
 for k=1:2

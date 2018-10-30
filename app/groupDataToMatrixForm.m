@@ -34,7 +34,7 @@ for i=1:5 %B,A1,A2,A3,P
 
     %Remove subj:
     data{i}=data{i}(:,muscPhaseIdx,subjIdx);
-    if nargin>0
+    if nargin>0 && sqrtFlag
       %sum(data{i}(:)<0)
       %  data{i}(data{i}<0)=0;
       data{i}=sqrt(data{i});

@@ -36,7 +36,7 @@ for D1=1:5
     end
 end
 %%
-save ./app/data/EMrealDim_CV2_AP.mat
+save ./app/data/EMrealDim_CV2.mat
 %% COmpare
 %%Train set:
 for k=1:2

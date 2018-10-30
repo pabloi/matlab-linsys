@@ -41,7 +41,7 @@ for D1=1:4
     end
 end
 %%
-save EMrealDimCompare1500CV3sqrt.mat
+save ./app/data/EMrealDim_CV3.mat
 %% COmpare
 %%Train set:
 for k=1:3
