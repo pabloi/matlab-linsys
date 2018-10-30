@@ -16,8 +16,10 @@ Nc=size(Y,1);
 if nargin<3
     U=[zeros(Nu,100) ones(Nu,1000)]; %Step response
 end
+rotationMethod='canonical';
+%rotationMethod='orthonormal';
 for i=1:length(model)
-    [model{i}.J,model{i}.B,model{i}.C,~,~,model{i}.Q] = canonizev5(900,model{i}.J,model{i}.B,model{i}.C,[],model{i}.Q);
+    [model{i}.J,model{i}.B,model{i}.C,~,~,model{i}.Q] = canonize(model{i}.J,model{i}.B,model{i}.C,[],model{i}.Q,[],rotationMethod);
     [Y2,X2]=fwdSim(U,model{i}.J,model{i}.B,model{i}.C,model{i}.D,[],[],[]); %Simulating from MLE initial state
     model{i}.smoothStates=X2;
     model{i}.smoothOut=Y2;
@@ -44,15 +46,17 @@ ex1=[1,0,0];
 ex2=[0,0,1];
 mid=ones(1,3);
 N=100;
-map=[ex1.*[N:-1:1]'/N + mid.*[0:N-1]'/N; mid; ex2.*[0:N-1]'/N + mid.*[N:-1:1]'/N];
+gamma=1.5; %gamma > 1 expands the white (mid) part of the map, 'hiding' low values. Gamma<1 does the opposite
+gamma=1;
+map=[flipud(mid+ (ex1-mid).*([1:N]'/N).^gamma); mid; (mid+ (ex2-mid).*([1:N]'/N).^gamma)];
 
 %% Plo
 ytl={'GLU','TFL','ADM','HIP','RF','VL','VM','SMT','SMB','BF','MG','LG','SOL','PER','TA'};
 yt=1:15;
 fs=7;
 % STATES
-CD=[model{i}.C model{i}.D];
-CDiR=CD'*inv(model{i}.R);
+CD=[model{1}.C model{1}.D];
+CDiR=CD'*inv(model{1}.R);
 CDiRCD=CDiR*CD;
 projY=CDiRCD\CDiR*Y;
 %projY=CD\Y;
@@ -107,7 +111,9 @@ for i=1:M
     %title('(Smoothed) Step-response states')
     p(i)=plot(model{1}.Xf(i,:),'LineWidth',2,'DisplayName',['\tau=' num2str(-1./log(model{1}.J(i,i)),3)],'Color','k');
     patch([1:size(model{1}.Xf,2),size(model{1}.Xf,2):-1:1]',[model{1}.Xf(i,:)+sqrt(squeeze(model{1}.Pf(i,i,:)))', fliplr(model{1}.Xf(i,:)-sqrt(squeeze(model{1}.Pf(i,i,:)))')]',p(i).Color,'EdgeColor','none','FaceAlpha',.3)
-    legend(p(i),'Location','SouthWest')
+    if strcmp(rotationMethod,'canonical')
+        legend(p(i),'Location','SouthWest')
+    end
     ax=gca;
     ax.Position=ax.Position+[0 .045 0 0];
 
@@ -129,13 +135,13 @@ for i=1:M
     hold on
     aa=axis;
     plot([0.1 1.9]+.5, [16 16],'k','LineWidth',2,'Clipping','off')
-    text(.7,17,'DS','FontSize',7)
+    text(1,17,'DS','FontSize',7)
     plot([2.1 5.9]+.5, [16 16],'k','LineWidth',2,'Clipping','off')
-    text(2.7,17,'STANCE','FontSize',7)
+    text(3,17,'STANCE','FontSize',7)
     plot([6.1 7.9]+.5, [16 16],'k','LineWidth',2,'Clipping','off')
-    text(6.7,17,'DS','FontSize',7)
+    text(7,17,'DS','FontSize',7)
     plot([8.1 11.9]+.5, [16 16],'k','LineWidth',2,'Clipping','off')
-    text(8.7,17,'SWING','FontSize',7)
+    text(9,17,'SWING','FontSize',7)
     axis(aa)
     %if i==M
 %        pp=get(gca,'Position');
@@ -168,12 +174,11 @@ if nargin<2
 else %IF DATA PRESENT:
 N=size(Y,2);
 viewPoints=[1,40,51,151,251,651,940,951,1001,1101,N-11]+5;
-viewPoints=[51,934,951]+8;
-binw=14;
+viewPoints=[151,1044,1051,1075,1251]+3;
+binw=4; %Plus minus 2
 viewPoints(viewPoints>N-binw/2)=[];
 Ny=length(viewPoints);
 M=length(model);
-aC=max(abs(model{1}.C(:)));
 for k=1:3
     for i=1:Ny
         switch k
@@ -186,7 +191,6 @@ for k=1:3
         case 3 % Fifth row:  data residuals (checkerboards)
             dd=model{1}.oneAheadRes(:,viewPoints(i)+[-(binw/2):(binw/2)]);
             nn='Residual';
-            aC=max(abs(model{1}.C(:)));; %2x magnification of residuals
         end
 
         subplot(Nx,Ny,i+(1+2*k)*Ny+[0,Ny])
@@ -207,7 +211,7 @@ for k=1:3
         axis tight
         if k==1
             %title(['Output at t=' num2str(viewPoints(i))])
-            txt={'Early Adap','Late Adap','Early Post'};
+            txt={'Early Adap','Late Adap','Early Post (1-5)','Early(ish) Post (26-30)','Mid post (201-205)'};
             title(txt{i})
             ax=gca;
             ax.Title.FontSize=10;

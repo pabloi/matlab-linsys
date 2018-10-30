@@ -11,9 +11,9 @@ else
   canon='canonical';
 end
 %% Compute output and residuals
-U=[zeros(Md,100) ones(Md,1000)];
+U=[zeros(Md,100) ones(Md,900)];
 for i=1:length(model)
-    [model{i}.J,model{i}.B,model{i}.C,~,~,model{i}.Q] = canonize(model{i}.J,model{i}.B,model{i}.C,[],model{i}.Q,[],canon);
+    [model{i}.J,model{i}.B,model{i}.C,~,~,model{i}.Q] = canonize(model{i}.J,model{i}.B,model{i}.C,[],model{i}.Q,[],canon,900);
     [Y2,X2]=fwdSim(U,model{i}.J,model{i}.B,model{i}.C,model{i}.D,[],[],[]);
     model{i}.smoothStates=X2;
     model{i}.smoothOut=Y2;

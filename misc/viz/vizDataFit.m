@@ -88,7 +88,7 @@ for kk=1:maxK
     if kk==1
         title('Output projection over main PCs')
     end
-    ylabel(['PC ' num2str(kk) ', ' num2str(aa(kk)/sum(aa)) '%'])
+    ylabel(['PC ' num2str(kk) ', ' num2str(100*aa(kk)/sum(aa)) '%'])
 end
 
 %% Measures of output error:
