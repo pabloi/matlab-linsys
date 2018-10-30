@@ -16,16 +16,12 @@ function [A,B,C,D,Q,R,X,P,Pt,logL]=initEM(Y,U,X,opts,P)
       end
       [A,B,C,D,X,Q,R]=subspaceIDv2(Y2,U,d); %Works if no missing data
   end
-      %[X,P,Pt]=statKalmanSmoother(Y,A,C,Q,R,[],[],B,D,U);
-      %logL=dataLogLikelihood(Y,U,A,B,C,D,Q,R,X(:,1),P(:,:,1),'approx');
-  %else %Initial state guess was given, using that to estimate params
-      [P,Pt]=initCov(X,U,P); %Initialize Pt, and P if not given
-      [A,B,C,D,Q,R,x0,P0,logL]=initParams(Y,U,X,opts,P);
-  %end
+  [A,B,C,D,Q,R,X,P,logL,Pt]=initParams(Y,U,X,opts,P);
+  %logL=dataLogLikelihood(Y,U(opts.indD,:),A,B,C,D,Q,R,X(:,1),P(:,:,1),'approx',U(opts.indB,:))
 end
 
 
-function [A1,B1,C1,D1,Q1,R1,x01,P01,logL]=initParams(Y,U,X,opts,Pguess)
+function [A1,B1,C1,D1,Q1,R1,X1,P1,logL,Pt]=initParams(Y,U,X,opts,Pguess)
   if isa(Y,'cell')
       [P,Pt]=cellfun(@(x) initCov(x,U,Pguess),X,'UniformOutput',false);
   else
@@ -43,10 +39,14 @@ function [A1,B1,C1,D1,Q1,R1,x01,P01,logL]=initParams(Y,U,X,opts,Pguess)
 
 %Initialize guesses of A,B,C,D,Q,R
 [A1,B1,C1,D1,Q1,R1,x01,P01]=estimateParams(Y,U,X,P,Pt,opts);
+%logL=dataLogLikelihood(Y,U(opts.indD,:),A1,B1,C1,D1,Q1,R1,x01,P01,'approx',U(opts.indB,:))
 %Make sure scaling is appropriate:
+[~,~,~,X1,~,~,P1] = canonize(A1,B1,C1,X,Q1,P);
+[~,~,~,~,~,~,Pt] = canonize(A1,B1,C1,x01,Q1,Pt);
 [A1,B1,C1,x01,~,Q1,P01] = canonize(A1,B1,C1,x01,Q1,P01);
 %Compute logL:
-logL=dataLogLikelihood(Y,U,A1,B1,C1,D1,Q1,R1,x01,P01,'approx');
+logL=dataLogLikelihood(Y,U(opts.indD,:),A1,B1,C1,D1,Q1,R1,x01,P01,'approx',U(opts.indB,:));
+%logL=dataLogLikelihood(Y,U(opts.indD,:),A1,B1,C1,D1,Q1,R1,X1(:,1),P1(:,:,1),'approx',U(opts.indB,:))
 end
 
 function [P,Pt]=initCov(X,U,P)

@@ -1,7 +1,7 @@
-function [opts] = processEMopts(opts)
+function [opts] = processEMopts(opts,nu)
 
 if ~isfield(opts,'Niter')
-    opts.Niter=1e4; %Max number of iters
+    opts.Niter=1e3; %Max number of iters
 end
 
 if ~isfield(opts,'robustFlag')
@@ -9,7 +9,7 @@ if ~isfield(opts,'robustFlag')
 end
 
 if ~isfield(opts,'fastFlag')
-    opts.fastFlag=0; %statKF/KS auto-select fast samples
+    opts.fastFlag=1; %statKF/KS auto-select fast samples by default
 end
 
 if ~isfield(opts,'convergenceTol')
@@ -36,13 +36,13 @@ end
 if ~isfield(opts,'outlierReject')
     opts.outlierReject=false;
 end
-if ~isfield(opts,'indD')
-  opts.indD=[]; %This means ALL inputs apply to the output equation (D estimate)
+if ~isfield(opts,'indD') || isempty(opts.indD)
+  opts.indD=1:nu;%[]; %This means ALL inputs apply to the output equation (D estimate)
   %If given, it should be a logical vector of size 1 x size(U,1), where 1 means include and 0 means exclude
   %Alternatively, it can be a list of included indexes only (e.g. [1,3,4])
 end
-if ~isfield(opts,'indB')
-  opts.indB=[]; %This means ALL inputs apply to the dynamics equation (B estimate)
+if ~isfield(opts,'indB') || isempty(opts.indD)
+  opts.indB=1:nu; %This means ALL inputs apply to the dynamics equation (B estimate)
   %If given, it should be a logical vector of size 1 x size(U,1), where 1 means include and 0 means exclude
   %Alternatively, it can be a list of included indexes only (e.g. [1,3,4])
 end

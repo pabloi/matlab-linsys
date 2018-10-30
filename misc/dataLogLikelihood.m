@@ -1,4 +1,4 @@
-function logLperSamplePerDim=dataLogLikelihood(Y,U,A,B,C,D,Q,R,X0,P0,method)
+function logLperSamplePerDim=dataLogLikelihood(Y,U,A,B,C,D,Q,R,X0,P0,method,Ub)
 %Evaluates the likelihood of the data under a given model
 
 if nargin<11 || isempty(method)
@@ -7,6 +7,10 @@ end
 if nargin<10 || isempty(X0) || isempty(P0)
     X0=[];
     P0=[];
+end
+Ud=U;
+if nargin<12
+  Ub=U; %Allowing different inputs to dynamics and output equations
 end
 
 %Check if R is psd, and do cholesky decomp:
@@ -18,24 +22,26 @@ if r~=size(R,1)
 end
 
 if isa(Y,'cell') %Case where input/output data corresponds to many realizations of system, requires Y,U,x0,P0 to be cells of same size
-    logLperSamplePerDim=cellfun(@(y,u,x0,p0) dataLogLikelihood(y,u,A,B,C,D,Q,R,x0,p0,method),Y,U,X0,P0);
+    logLperSamplePerDim=cellfun(@(y,ud,x0,p0,ub) dataLogLikelihood(y,ud,A,B,C,D,Q,R,x0,p0,method,ub),Y,Ud,X0,P0,Ub);
     sampleSize=cellfun(@(y) size(y,2),Y);
     logLperSamplePerDim=(logLperSamplePerDim*sampleSize')/sum(sampleSize);
 else
 
     if size(X0,2)<=1 %True init state guess
         fastFlag=false;
-        [~,~,Xp,Pp,~]=statKalmanFilter(Y,A,C,Q,R,X0,P0,B,D,U,[],fastFlag);
+        [~,~,Xp,Pp,~]=statKalmanFilter(Y,A,C,Q,R,X0,P0,B,D,Ud,[],fastFlag,Ub);
     else %whole filtered priors are provided, not just t=0
         Xp=X0;
         Pp=P0;
     end
 
     %'Incomplete' logLikelihood: p({y}|params) [Albert and Shadmehr 2017, eq. A1.25]
-    predY=C*Xp(:,1:end-1)+D*U; %Prediction from one step ahead
+    predY=C*Xp(:,1:end-1)+D*Ud; %Prediction from one step ahead
     z=Y-predY; %If this values are too high, it may be convenient to just set logL=-Inf, for numerical reasons
     idx=~any(isnan(Y));
     z=z(:,idx); %Removing NaN samples
+    Paux=Pp(:,:,1:end-1); %Uncertainty of one-step ahead state prediction
+    Pp=Pp(:,:,idx); %Keeping only the ones not associated with NaN samples
 
     switch method
         case 'approx'

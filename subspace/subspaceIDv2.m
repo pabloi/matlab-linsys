@@ -4,6 +4,7 @@ function [A,B,C,D,X,Q,R]=subspaceIDv2(Y,U,d)
 %error('This is shit. None of the methods returns better behavior than subspaceID, despite that method being very biased. Especially bad in the presence of non-zero Q. Trying to correct for bias makes everything worse. For some reason estimateTransitionMatrix works well but this does not. Correlated noise?')
 [Ny,N]=size(Y);
 
+warning('off') %Disable underrank warnings
 i=40; %Should always be even
 j=N-2*i;
 
@@ -62,4 +63,5 @@ B=(X_ip2-A*X_ip1)/U_ip1;
 %Residuals:
 z=X_ip2-A*X_ip1-B*U_ip1;
 Q=z*z'/N;
+warning('on')
 end

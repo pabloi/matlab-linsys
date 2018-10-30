@@ -11,20 +11,13 @@ function [A,B,C,D,Q,R,x0,P0]=estimateParams(Y,U,X,P,Pt,opts)
 
 %
 [No,N]=size(Y);
-Nu=size(U,1);
-%
-[opts] = processEMopts(opts);
-if isempty(opts.indD)
-  opts.indD=true(1,Nu);
-end
-if isempty(opts.indB)
-  opts.indB=true(1,Nu);
-end
-
 %
 if all(U(:)==0)  %Can't estimate B,D if input is null/empty
     U=zeros(0,N);
 end
+Nu=size(U,1);
+%
+[opts] = processEMopts(opts,Nu);
 
 %Define vars:
 [yx,yu,xx,uu,xu,SP,SPt,xx_,uu_,xu_,xx1,xu1,SP_,S_P]=computeRelevantMatrices(Y,X,U,P,Pt,opts.robustFlag);
@@ -57,7 +50,7 @@ if isempty(U)
 end
 
 %Estimate Q,R: %Adaptation of Shumway and Stoffer 1982: (there B=D=0 and C is fixed), but consistent with Ghahramani and Hinton 1996, and Cheng and Sabes 2006
-[w,z]=computeResiduals(Y,U,X,A,B,C,D);
+[w,z]=computeResiduals(Y,U,X,A,B,C,D,opts);
 
 % MLE estimator of Q, under the given assumptions:
 aux=mycholcov(SP_); %Enforce symmetry
@@ -135,7 +128,7 @@ else
     [x0,P0]=estimateInit(X,P,A,Q);
 end
 
-[A,B,C,x0,~,Q,P0] = canonizev2(A,B,C,x0,Q,P0);
+%[A,B,C,x0,~,Q,P0] = canonize(A,B,C,x0,Q,P0); %Avoid run-away parameters to ill-conditioned situations
 end
 
 function [x0,P0]=estimateInit(X,P,A,Q)
@@ -237,7 +230,7 @@ end
 
 end
 
-function [w,z]=computeResiduals(Y,U,X,A,B,C,D)
+function [w,z]=computeResiduals(Y,U,X,A,B,C,D,opts)
 
 if isa(X,'cell') %Case where data is many realizations of same system
     [w,z]=cellfun(@(y,u,x) computeResiduals(y,u,x,A,B,C,D),Y(:),U(:),X(:),'UniformOutput',false); %Ensures column cell-array output
@@ -246,9 +239,9 @@ if isa(X,'cell') %Case where data is many realizations of same system
 else
     N=size(X,2);
     idx=~any(isnan(Y));
-    z=Y-C*X-D*U;
+    z=Y-C*X-D*U(opts.indD,:);
     z=z(:,idx);
-    w=X(:,2:N)-A*X(:,1:N-1)-B*U(:,1:N-1);
+    w=X(:,2:N)-A*X(:,1:N-1)-B*U(opts.indB,1:N-1);
 end
 
 end

@@ -15,7 +15,10 @@ end
 outLog=[];
 
 %Process opts:
-[opts] = processEMopts(opts);
+[opts] = processEMopts(opts,size(U,1));
+if any(isnan(Y(:)))
+  opts.fastFlag=0; %No fast-filtering in nan-filled data
+end
 if opts.logFlag
   %diary(num2str(round(now*1e5)))
   outLog.opts=opts;
@@ -31,8 +34,7 @@ warning ('off','statKSfast:unstable');
 % Init params:
  [A1,B1,C1,D1,Q1,R1,X1,P1,Pt1,bestLogL]=initEM(Y,U,Xguess,opts,Pguess);
  x01=X1(:,1); P01=P1(:,:,1);
-%[A1,B1,C1,D1,Q1,R1,x01,P01,bestLogL]=initParams(Y,U,X,opts,Pguess);
-
+%logL=dataLogLikelihood(Y,U(opts.indD,:),A1,B1,C1,D1,Q1,R1,x01,P01,'approx',U(opts.indB,:))
 %Initialize log-likelihood register & current best solution:
 logl=nan(opts.Niter,1);
 logl(1)=bestLogL;
@@ -50,12 +52,7 @@ end
 breakFlag=false;
 disp(['Iter = 1, target logL = ' num2str(opts.targetLogL,8) ', current logL=' num2str(bestLogL,8) ', \tau =' num2str(-1./log(sort(eig(A)))')])
 for k=1:opts.Niter-1
-	%E-step: compute the expectation of latent variables given current parameter estimates
-    %Note this is an approximation of true E-step in E-M algorithm. The
-    %E-step requires to compute the expectation of the likelihood of the data under the
-    %latent variables = E(L(Y,X|params)), to then maximize it
-    %whereas here we are computing E(X|params) to then maximize L(Y,E(X)|params)
-    %logl(k,2)=dataLogLikelihood(Y,U,A,B,C,D,Q,R,X);
+	%E-step: compute the distribution of latent variables given current parameter estimates
 	%M-step: find parameters A,B,C,D,Q,R that maximize likelihood of data
 
     %Save to log:
@@ -68,53 +65,54 @@ for k=1:opts.Niter-1
 
     %E-step:
     if isa(Y,'cell') %Data is many realizations of same system
-        [X1,P1,Pt1,~,~,Xp,Pp,rejSamples]=cellfun(@(y,x0,p0,u) statKalmanSmoother(y,A1,C1,Q1,R1,x0,p0,B1,D1,u,opts.outlierReject,opts.fastFlag),Y,x01,P01,U,'UniformOutput',false);
+        [X1,P1,Pt1,~,~,Xp,Pp,rejSamples]=cellfun(@(y,x0,p0,u) statKalmanSmoother(y,A1,C1,Q1,R1,x0,p0,B1,D1,u,opts.outlierReject,opts.fastFlag),Y,x01,P01,U(opts.indD,:),'UniformOutput',false,U(opts.indB,:));
         if any(cellfun(@(x) any(imag(x(:))~=0),X1))
-            error('Complex states')
+          msg='Complex states detected, stopping.';
+          breakFlag=true;
         elseif any(cellfun(@(x) isnan(sum(x(:))),X1))
-            error('EM:NaNdetected','States are NaN, aborting');
+          msg='States are NaN, stopping.';
+          breakFlag=true;
         end
     else
-        [X1,P1,Pt1,~,~,Xp,Pp,rejSamples]=statKalmanSmoother(Y,A1,C1,Q1,R1,x01,P01,B1,D1,U,opts.outlierReject,opts.fastFlag);
+        [X1,P1,Pt1,~,~,Xp,Pp,rejSamples]=statKalmanSmoother(Y,A1,C1,Q1,R1,x01,P01,B1,D1,U(opts.indD,:),opts.outlierReject,opts.fastFlag,U(opts.indB,:));
         if any(imag(X1(:))~=0)
-            error('Complex states')
+            msg='Complex states detected, stopping.';
+            breakFlag=true;
         elseif isnan(sum(X1(:)))
-            error('EM:NaNdetected','States are NaN, aborting');
+            msg='States are NaN, stopping.';
+            breakFlag=true;
         end
     end
 
 
     %Check improvements:
     Y2=Y;
-    %Y2(:,rejSamples)=NaN; %Computing logL without rejected samples
-    %sum(rejSamples)
-    %find(rejSamples)
-    l=dataLogLikelihood(Y2,U,A1,B1,C1,D1,Q1,R1,Xp,Pp,'approx'); %Passing the Kalman-filtered states and uncertainty makes the computation more efficient
+    l=dataLogLikelihood(Y2,U(opts.indD,:),A1,B1,C1,D1,Q1,R1,Xp,Pp,'approx',U(opts.indB,:)); %Passing the Kalman-filtered states and uncertainty makes the computation more efficient
     logl(k+1)=l;
     delta=l-logl(k,1);
     improvement=delta>=0;
     targetRelImprovement50=(l-logl(max(k-50,1),1))/(opts.targetLogL-logl(max(k-50,1),1));
     belowTarget=max(l,bestLogL)<opts.targetLogL;
-    relImprovementLast50=1-logl(max(k-50,1),1)/abs(l); %Assessing the relative improvement on logl over the last 10 iterations (or less if there aren't as many)
+    relImprovementLast50=(l-logl(max(k-50,1),1))/abs(l); %Assessing the relative improvement on logl over the last 50 iterations (or less if there aren't as many)
 
     %Check for warning conditions:
     if any(abs(eig(A1))>1)
         %No need to break for unstable systems, usually they converge to a
         %stable system or lack of improvement in logl makes the iteration stop
-        %fprintf(['Unstable system detected. Stopping. ' num2str(k) ' iterations.\n'])
         %warning('EM:unstableSys','Unstable system detected');
     elseif ~improvement %This should never happen, except that our loglikelihood is approximate, so there can be some error
-        if abs(delta)>1e-6 %Drops of about 1e-6 can be expected because we are
-          %computing an approximate logl and because of numerical precision. Report
-          %only if drops are larger than this. This value probably is sample-size dependent, so may need adjusting.
-          % warning('EM:logLdrop',['logL decreased at iteration ' num2str(k) ', drop = ' num2str(delta)])
+        if abs(delta)>1e-5 %Drops of about 1e-5 can be expected because:
+          %1) we are computing an approximate logl (which differs from the exact one, especially at the early stages of EM)
+          %2) logL is only guaranteed to increase if there is no structural model mismatch (e.g. data having non-gaussian observation noise). Although it may work in other circumstances. Need to prove.
+          %3)numerical precision.
+          %Report only if drops are larger than this. This value probably is sample-size dependent, so may need adjusting.
+          warning('EM:logLdrop',['logL decreased at iteration ' num2str(k) ', drop = ' num2str(delta)])
         end
     end
 
     %Check for failure conditions:
     if imag(l)~=0 %This does not happen
         msg='Complex logL, probably ill-conditioned matrices involved. Stopping.';
-        %fprintf(['Complex logL, probably ill-conditioned matrices involved. Stopping after ' num2str(k) ' iterations.\n'])
         breakFlag=true;
     else %There was improvement
         if l>=bestLogL
@@ -129,15 +127,11 @@ for k=1:opts.Niter-1
     %Check if we should stop early (to avoid wasting time):
     if k>50 && (belowTarget && (targetRelImprovement50)<opts.targetTol) && ~opts.robustFlag%Breaking if improvement less than tol of distance to targetLogL
        msg='Unlikely to reach target value. Stopping.';
-        %fprintf([ num2str(k) ' iterations.\n'])
        breakFlag=true;
     elseif k>50 && (relImprovementLast50)<opts.convergenceTol && ~opts.robustFlag %Considering the system stalled if relative improvement on logl is <tol
         msg='Increase is within tolerance (local max). Stopping.';
-        %fprintf(['increase is within tolerance (local max). '  num2str(k) ' iterations.\n'])
-        %disp(['LogL as % of target:' num2str(round(l*100000/targetLogL)/1000)])
         breakFlag=true;
     elseif k==opts.Niter-1
-        %fprintf(['max number of iterations reached. '  num2str(k) ' iterations.\n'])
         msg='Max number of iterations reached. Stopping.';
         breakFlag=true;
     end
@@ -148,7 +142,7 @@ for k=1:opts.Niter-1
         pOverTarget=100*((l-opts.targetLogL)/abs(opts.targetLogL));
         if k>=step && ~breakFlag
             lastChange=l-logl(k+1-step,1);
-            disp(['Iter = ' num2str(k) ', \Delta logL = ' num2str(lastChange) ', % over target = ' num2str(pOverTarget) ', \tau =' num2str(-1./log(sort(eig(A)))')])
+            disp(['Iter = ' num2str(k)  ', logL = ' num2str(l,8) ', \Delta logL = ' num2str(lastChange) ', % over target = ' num2str(pOverTarget) ', \tau =' num2str(-1./log(sort(eig(A1)))')])
             %sum(rejSamples)
         else %k==1 || breakFlag
             l=bestLogL;
@@ -166,9 +160,9 @@ for k=1:opts.Niter-1
     [A1,B1,C1,D1,Q1,R1,x01,P01]=estimateParams(Y,U,X1,P1,Pt1,opts);
     if mod(k,step)==0
         [A1,B1,C1,x01,~,Q1,P01] = canonize(A1,B1,C1,x01,Q1,P01); %Regularizing the solution to avoid ill-conditioned situations
-        %This is necessary because it is
-        %possible that the EM algorithm will runaway towards a numerically
-        %unstable representation of an otherwise stable system
+        %This is necessary because it is possible that the EM algorithm will
+        %runaway towards a numerically unstable representation of an otherwise
+        %stable system
     end
 end
 
@@ -186,4 +180,10 @@ if opts.logFlag
   outLog.bestLogL=bestLogL;
   %diary('off')
 end
+%% Re-assign B,D according to opts.indD, opts.indB
+B1=zeros(size(A,1),size(U,1));
+D1=zeros(size(C,1),size(U,1));
+B1(:,opts.indB)=B;
+D1(:,opts.indD)=D;
+B=B1; D=D1;
 end
