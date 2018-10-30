@@ -1,4 +1,4 @@
-function [X,P,Xp,Pp,rejSamples]=statKalmanFilter(Y,A,C,Q,R,x0,P0,B,D,U,outlierRejection,fastFlag)
+function [X,P,Xp,Pp,rejSamples]=statKalmanFilter(Y,A,C,Q,R,x0,P0,B,D,U,outlierRejection,fastFlag,Ub)
 %filterStationary implements a Kalman filter assuming
 %stationary (fixed) noise matrices and system dynamics
 %The model is: x[k+1]=A*x[k]+b+v[k], v~N(0,Q)
@@ -25,7 +25,7 @@ function [X,P,Xp,Pp,rejSamples]=statKalmanFilter(Y,A,C,Q,R,x0,P0,B,D,U,outlierRe
 % turn, this is always the case if R is invertible, as P is positive semidef.
 % There may exist situations where w is well defined even if R+C*P*C' is
 % not invertible (which implies R is non inv). %This requires both: the
-% projection of y and of the columns of C onto the 'uninvertible' subspace 
+% projection of y and of the columns of C onto the 'uninvertible' subspace
 % to be  always 0. In that case the output space can be 'compressed' to a
 % smaller dimensional one by eliminating nuisance dimensions. This can be done because
 % neither the state projects onto those dims, nor the observations fall in it.
@@ -59,9 +59,9 @@ end
 if nargin<11 || isempty(outlierRejection)
     outlierRejection=false;
 end
-if nargin<12 || isempty(fastFlag) || fastFlag==0
+if nargin<12 || isempty(fastFlag) || fastFlag==0 || fastFlag>=N
     M=N; %Do true filtering for all samples
-elseif any(any(isnan(Y))) || outlierRejection 
+elseif any(any(isnan(Y))) || outlierRejection
   warning('statKFfast:NaNsamples','Requested fast KF but some samples are NaN, not using fast mode.')
   M=N;
 elseif fastFlag==1
@@ -69,12 +69,16 @@ elseif fastFlag==1
     M1=ceil(3*max(-1./log(abs(eig(A))))); %This many strides ensures ~convergence of gains before we assume steady-state
     M=max(M1,M2);
     M=min(M,N); %Prevent more than N, if this happens, we are not doing fast filtering
-else
-    M=min(ceil(abs(fastFlag)),N); %If fastFlag is a number but not 0 or 1, use that as number of samples
+else  %If fastFlag is a number but not 0 or 1, use that as number of samples
+    M=min(ceil(abs(fastFlag)),N);
     M1=ceil(3*max(-1./log(abs(eig(A))))); %This many strides ensures ~convergence of gains before we assume steady-state
     if M<N-1 && M<M1
         warning('statKSfast:fewSamples','Number of samples for fast filtering were provided, but system time-constants indicate more are needed')
     end
+end
+Ud=U;
+if nargin<13 %Allowing for different inputs to output and dynamics equations
+  Ub=U;
 end
 
 %Special case: deterministic system, no filtering needed. This can also be
@@ -121,8 +125,8 @@ Xp(:,1)=x0;
 Pp(:,:,1)=P0;
 
 %Re-define observations to account for input effect:
-Y_D=Y-D*U;
-BU=B*U;
+Y_D=Y-D*Ud;
+BU=B*Ub;
 
 %If D2>D1, then it is speedier to do a coordinate transform of the output:
 %(it may also be convenient to do something if C is not full rank,as that
@@ -130,13 +134,13 @@ BU=B*U;
 %invertible, and may be safe in other situations, provided that
 %observations never fall on the null-space of R.
 if D2>D1
-%Pre-computing for speed: 
+%Pre-computing for speed:
 
 %First, invert R:
 %Opt 1:
- [icR]=pinvchol(R); %This works if R is semidefinite, but in general 
-%semidefinite R is unworkable, as R+C*P*C' needs to be invertible. 
-%Even assuming P invertible at each update, it still requires R to be 
+ [icR]=pinvchol(R); %This works if R is semidefinite, but in general
+%semidefinite R is unworkable, as R+C*P*C' needs to be invertible.
+%Even assuming P invertible at each update, it still requires R to be
 %invertible for all vectors orthogonal to the span of C at least)
 
 %Opt 2:
@@ -164,7 +168,7 @@ for i=1:M
   %First, do the update given the output at this step:
   y=Y_D(:,i);
   if ~any(isnan(y)) %If measurement is NaN, skip update.
-      if outlierRejection 
+      if outlierRejection
           [prevXt,prevPt,K,z]=KFupdate(C,R,y,prevX,prevP);
           if z<rejThreshold %zprctile is above outlier threshold
               prevP=prevPt;    prevX=prevXt;
@@ -172,7 +176,7 @@ for i=1:M
               rejSamples(i)=true;
           end
       else %This is here because it is more efficient to not compute the z-score if we dont need it
-          if D2>D1 %This never happens if Opt 2 was used to reduce the problem 
+          if D2>D1 %This never happens if Opt 2 was used to reduce the problem
               [prevX,prevP]=KFupdateAlt(CtRinvY(:,i),CtRinvC,prevX,prevP);
               K=prevP*CtRinv;
           else
@@ -189,22 +193,22 @@ for i=1:M
   end
 end
 
-%Do the fast filtering for any remaining steps: 
+%Do the fast filtering for any remaining steps:
 %(from here on, we assume stady-state behavior to improve speed).
-if M<N 
+if M<N
     %Steady-state matrices:
     Psteady=P(:,:,M); %Steady-state UPDATED uncertainty matrix
     prevX=X(:,M);
     Ksteady=K; %Steady-state Kalman gain
     Gsteady=eye(size(Ksteady,1))-Ksteady*C; %I-K*C,
-    
+
     %Pre-compute matrices to reduce computing time:
     GBU_KY=Gsteady*BU(:,M:N-1)+Ksteady*Y_D(:,M+1:N); %The off-ordering is because we are doing predict (which depends on U(:,i-1)) and update (which depends on Y(:,i)
     GA=Gsteady*A;
-    
+
     %Assign all UPDATED uncertainty matrices:
     P(:,:,M+1:end)=repmat(P(:,:,M),1,1,N-M);
-    
+
     %Loop for remaining steps to compute x:
     if outlierRejection
         %TODO: reject outliers by replacing with NaN in KBUY, this needs to be done in-loop
@@ -214,8 +218,8 @@ if M<N
         gbu_ky=GBU_KY(:,i-M);
         if ~any(isnan(gbu_ky))
             prevX=GA*prevX+gbu_ky; %Predict+Update, in that order.
-            %TODO: evaluate if this is good: because we dont compute y-C*X first 
-            %and then multiply by, K, we may be accumulating numerical errors in 
+            %TODO: evaluate if this is good: because we dont compute y-C*X first
+            %and then multiply by, K, we may be accumulating numerical errors in
             %cases where (y-C*x)==0
         else %Reading is NaN, just update. Should never happen since data with NaNs prevents fast filtering.
             %prevX=A*prevX+BU(:,i); %Just predict
@@ -224,7 +228,7 @@ if M<N
         X(:,i)=prevX;
     end
     if nargout>2 %Compute Xp, Pp only if requested:
-        Xp(:,2:end)=A*X+B*U;
+        Xp(:,2:end)=A*X+B*Ub;
         Pp(:,:,M+2:end)=repmat(A*Psteady*A'+Q,1,1,size(Y,2)-M);
     end
 end

@@ -1,4 +1,4 @@
-function [Xs,Ps,Pt,Xf,Pf,Xp,Pp,rejSamples]=statKalmanSmoother(Y,A,C,Q,R,x0,P0,B,D,U,outRejFlag,fastFlag)
+function [Xs,Ps,Pt,Xf,Pf,Xp,Pp,rejSamples]=statKalmanSmoother(Y,A,C,Q,R,x0,P0,B,D,U,outRejFlag,fastFlag,Ub)
 %Implements a Kalman smoother for a stationary system
 %INPUT:
 %Y: D1xN observed data
@@ -36,7 +36,7 @@ end
 if nargin<11 || isempty(outRejFlag)
   outRejFlag=0; %No outlier rejection
 end
-if nargin<12 || isempty(fastFlag) || fastFlag==0
+if nargin<12 || isempty(fastFlag) || fastFlag==0 || fastFlag>=(N-1)
     M=N-1; %Do true filtering for all samples
 elseif fastFlag==1
     M2=20; %Default for fast filtering: 20 samples
@@ -44,14 +44,18 @@ elseif fastFlag==1
     M=max(M1,M2);
     M=min(M,N-1); %Prevent more than N-1, if this happens, we are not doing fast filtering
 else
-    M=min(ceil(abs(fastFlag)),N-1); %If fastFlag is a number but not 0, use that as number of samples, issue warning if
+    M=min(ceil(abs(fastFlag)),N-1); %If fastFlag is a number but not 0 or 1, use that as number of samples
     M1=ceil(3*max(-1./log(abs(eig(A))))); %This many strides ensures ~convergence of gains before we assume steady-state
-    if M<N-1 && M<M1 %If number of samples provided is not ALL of them, but eigenvalues suggest the system is slower than provided number
+    if M<(N-1) && M<M1 %If number of samples provided is not ALL of them, but eigenvalues suggest the system is slower than provided number
         warning('statKSfast:fewSamples','Number of samples for fast filtering were provided, but system time-constants indicate more are needed')
     end
 end
+Ud=U;
+if nargin<13 %Allowing for different inputs to output and dynamics equations
+  Ub=U;
+end
 
-if M<N && any(abs(eig(A))>1)
+if M<(N-1) && any(abs(eig(A))>1)
     %If the system is unstable, there is no guarantee that the kalman gain
     %converges, and the fast filtering will lead to divergence of estimates
     warning('statKSfast:unstable','Doing steady-state (fast) filtering on an unstable system. States will diverge. Doing traditional filtering instead.')
@@ -62,7 +66,7 @@ end
 %TODO
 
 %Step 1: forward filter
-[Xf,Pf,Xp,Pp,rejSamples]=statKalmanFilter(Y,A,C,Q,R,x0,P0,B,D,U,outRejFlag,M+1);
+[Xf,Pf,Xp,Pp,rejSamples]=statKalmanFilter(Y,A,C,Q,R,x0,P0,B,D,Ud,outRejFlag,M+1,Ub);
 
 %Step 2: backward pass: (following the Rauch-Tung-Striebel implementation:
 %https://en.wikipedia.org/wiki/Kalman_filter#Fixed-interval_smoothers)
