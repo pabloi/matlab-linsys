@@ -2,11 +2,8 @@
 D1=5;
 D2=100; %CS 2006 gets progressively slower for larger D2 (linear execution time with D2 for large D2). This implementation grows linearly too but with the SMALLEST of D1,D2
 N=1000;
-A=randn(D1);
-A=.98*A./max(abs(eig(A))); %Setting the max eigenvalue to .98
-%A=[.95,0;0,.99]; %Can use if D1=2
-[V,A]=eig(A); %Using A in its jordan canonical form so we can compare identified systems, WLOG
-A=real(A);
+A=diag(rand(D1,1));
+A=.9999*A; %Setting the max eigenvalue to .9999
 %B=3*randn(D1,1);
 %B=B./sign(B); %Forcing all elements of B to be >0, WLOG
 B=(eye(size(A))-A)*ones(size(A,1),1); %WLOG, arbitrary scaling so all states asymptote at 1
@@ -14,7 +11,7 @@ U=[zeros(300,1);ones(N,1);zeros(N/2,1)]'; %Step input and then removed
 C=randn(D2,D1);
 D=randn(D2,1);
 Q=eye(D1)*1e-4;
-R=eye(D2)*1e-4; %CS2006 performance degrades (larger state estimation errors) for very small R
+R=10*eye(D2); %CS2006 performance degrades (larger state estimation errors) for very small R
 
 %% Simulate
 NN=size(U,2);
@@ -25,11 +22,11 @@ x0=zeros(D1,1);
 %% Do kalman smoothing with true params
 tic
 fastFlag=[];
-fastFlag=0;
-[Xs,Ps,Pt,Xf,Pf,Xp,Pp]=statKalmanSmoother(Y,A,C,Q,R,[],[],B,D,U,false,fastFlag); %Kalman smoother estimation of states, given the true parameters (this is the best possible estimation of states)
+opts.fastFlag=0;
+[Xs,Ps,Pt,Xf,Pf,Xp,Pp]=statKalmanSmoother(Y,A,C,Q,R,[],[],B,D,U,opts); %Kalman smoother estimation of states, given the true parameters (this is the best possible estimation of states)
 tf=toc;
 %% Use Cheng & Sabes code:
-addpath(genpath('../ext/lds-1.0/'))
+addpath(genpath('../../../ext/lds-1.0/'))
 LDS.A=A;
 LDS.B=B;
 LDS.C=C;
@@ -81,3 +78,4 @@ for i=1:2
 end
 title('Residuals')
 axis([0 3000 -.02 .02])
+axis tight

@@ -13,7 +13,7 @@ if ~isfield(opts,'fastFlag')
 end
 
 if ~isfield(opts,'convergenceTol')
-    opts.convergenceTol=1e-7; % 1e-7 minimum relative improvement in logL every 50 strides
+    opts.convergenceTol=1e-7; % 1e-7 minimum improvement in logL every 50 strides
 end
 
 if ~isfield(opts,'targetTol')
