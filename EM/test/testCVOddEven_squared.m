@@ -43,11 +43,7 @@ for D1=1:7%1:3%:6
     end
 end
 %%
-if squareFlag
-  save ./EM/testEMsynth_CV2_squared.mat
-else
-  save ./EM/test/EMsynth_CV2.mat
-end
+save ./EM/testEMsynth_CV2_squared.mat
 
 %% Visualize: (test data)
 for k=1:Nfolds

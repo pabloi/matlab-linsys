@@ -12,7 +12,7 @@ D=(2*rand(ny,1)-1);
 D=.5*(D.^2).*sign(D);
 D(:)=conv2(reshape(D,12,15),ones(3,3)/9,'same');
 U=[zeros(1,150) ones(1,900) zeros(1,600)];
-Q=.03*randn(nx);
+Q=B.*randn(nx); %So that noise scales gracefully with the terms in B
 Q=Q*Q';
 R=.001*randn(ny);
 R=R*R';
@@ -23,7 +23,7 @@ Yoff(:)=conv2(reshape(Yoff,12,15),ones(3,3)/9,'same');
 Ym=C*X(:,1:end-1)+D*U+Yoff;
 cR=mycholcov(R);
   Ysquared=Ym + sign(Ym).*(cR'*(randn(size(C,1),size(X,2)-1).^2 -1)/sqrt(2)); %Signed, de-meaned (shifted), squared-gaussian noise
-  Y=Ym+cR'*randn(size(C,1),size(X,2)-1); %Gaussian noise
+  Y=Ym+cR'*randn(size(C,1),size(X,2)-1); %Gaussian noise ~N(0,R)
 
 %See that data has a 'mean' of Ym, and only noise changed
 %figure; plot(Y(1:10,:)'); hold on; set(gca,'ColorOrderIndex',1); plot(Ym(1:10,:)');

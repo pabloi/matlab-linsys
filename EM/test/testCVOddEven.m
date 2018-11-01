@@ -6,8 +6,7 @@ J=A;
 B=[B zeros(size(B))];
 D=[D, Yoff];
 trueModel=autodeal(J,B,C,D,Q,R,x0,Y,U);
-trueModel.name='True';
-trueModel=autodeal(J,B,C,D,Q,R,x0,Y,U);
+trueModel.Name='True';
 %%
 Nfolds=2;
 %%
@@ -43,21 +42,22 @@ for D1=1:5%6:7%1:3%:6
     end
 end
 %%
-  %save ./EM/test/EMsynth_CV2.mat
+  save ./EM/test/EMsynth_CV2.mat
 
 %% Visualize: (test data)
 for k=1:Nfolds
   Yaux=Y;
   Yaux(:,[k:Nfolds:end])=nan;
-  vizDataFit(model(2:8,k),Yaux,U)
+  vizDataFit(model(2:6,k),Yaux,U)
   set(gcf,'Name',['Test CV odd/even, testing data, fold ' num2str(k)])
 end
 %% Visualize: (train data)
 for k=1:Nfolds
   Yaux=nan(size(Y));
   Yaux(:,[k:Nfolds:end])=Y(:,[k:Nfolds:end]);
-  vizDataFit(model(2:8,k),Yaux,U)
+  vizDataFit(model(2:6,k),Yaux,U)
   set(gcf,'Name',['Test CV odd/even, training data, fold ' num2str(k)])
 end
 %%
+vizDataFit([{trueModel},model(4,1:2)],Y,U)
 vizModels([{trueModel},model(4,1:2)])

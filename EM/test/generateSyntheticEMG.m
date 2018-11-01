@@ -11,18 +11,24 @@ end
 if nargin<4
   B=1-diag(A); %All states tend to 1 under input response, WLOG.
 end
+if nargin<10
+  Yoff=rand(ny,1);
+  Yoff(:)=conv2(reshape(Yoff,12,15),ones(3,3)/9,'same');
+end
 if nargin<5
   ny=180;
-  C=.5*rand(ny,nx)-.25; %All values in -.25,.25
+  C=(.5*rand(ny,nx)-.25); %All values in -.25,.25
   for i=1:nx
     C(:,i)=reshape(conv2(reshape(C(:,i),12,15),ones(3,3)/9,'same'),ny,1); %To get some structure in columns of C
   end
+  C=Yoff.*C;
 else
   ny=size(C,1);
 end
 if nargin<6
   D=.5*rand(ny,1)-.25; %All values in -.25, .25
   D(:)=conv2(reshape(D,12,15),ones(3,3)/9,'same');
+  D=Yoff.*D;
 end
 if nargin<1
   U=[zeros(1,150) ones(1,900) zeros(1,600)];
@@ -37,9 +43,6 @@ if nargin<8
 end
 if nargin<9
   x0=zeros(nx,1);
-end
-if nargin<10
-  Yoff=randn(ny,1);
 end
 %Basic method: gaussian noise
 [~,X]=fwdSim([U;ones(size(U))],A,B,C,D,Yoff,x0,Q,[]); %Legs modeled with opposite trajectories and independent observation noises.
