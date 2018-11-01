@@ -66,7 +66,7 @@ XU=[model{1}.Xs;U];
 rotMed='orthonormal';
 rotMed='orthomax';
 %rotMed='promax';
-rotMed='quartimax';
+%rotMed='quartimax';
 %rotMed='pablo';
 %rotMed='none';
 [CDrot,XUrot]=rotateFac(CD,XU,rotMed);
@@ -78,14 +78,14 @@ else
     latentName=strcat('Latent ',num2str([1:size(CD,2)]'));
 end
 %
-aC=prctile(abs(Y(:)),99);
+aC=prctile(abs(Y(:)),98);
 CiR=CDrot'*inv(model{1}.R);
 CiRC=CiR*CDrot;
 projY=CiRC\CiR*Y; %Minimum variance projection, kalman-like
 Nd=size(model{1}.J,1);
-
+clear ph
 for k=1:size(CDrot,2)
-    subplot(Nx,Ny,k) %passthrough term
+    ph(k)=subplot(Nx,Ny,k); %passthrough term
     hold on
     if nargin>1 %Adding data projection onto dim
         scatter(1:size(Y,2),projY(k,:),5,.7*ones(1,3),'filled')
@@ -95,6 +95,7 @@ for k=1:size(CDrot,2)
     ax=gca;
     ax.Position=ax.Position+[0 .02 0 0];
     grid on
+    axis tight
 
     subplot(Nx,Ny,Ny+k+[0,Ny])
     try
@@ -118,7 +119,7 @@ for k=1:size(CDrot,2)
     ax.YAxis.Label.FontWeight='bold';
     title(factorName(k,:))
 end
-
+linkaxes(ph,'y');
 %Covariances
 if strcmp(rotMed,'none') %If things are rotated, this matrix cannot be associated to specific states
     subplot(Nx,Ny,Ny)

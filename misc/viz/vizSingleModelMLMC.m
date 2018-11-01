@@ -7,7 +7,8 @@ if nargin>1
 else
     Nx=4;
 end
-Ny=M+1;
+Nu=size(singleModel.B,2);
+Ny=M+1+Nu;
 model{1}=singleModel;
 Nu=size(model{1}.B,2);
 Nc=size(Y,1);
@@ -56,72 +57,47 @@ yt=1:15;
 fs=7;
 % STATES
 CD=[model{1}.C model{1}.D];
-CDiR=CD'*inv(model{1}.R);
-CDiRCD=CDiR*CD;
+XU=[model{1}.Xs;U];
+rotMed='orthonormal';
+rotMed='orthomax';
+%rotMed='promax';
+%rotMed='quartimax';
+%rotMed='pablo';
+%rotMed='none';
+[CDrot,XUrot]=rotateFac(CD,XU,rotMed);
+if strcmp(rotMed,'none')
+    factorName=[strcat('C_',num2str([1:size(model{1}.C,2)]'));strcat('D_',num2str([1:size(model{1}.D,2)]'))];
+    latentName=[strcat('State ',' ', num2str([1:size(model{1}.C,2)]'));strcat('Input ',' ', num2str([1:size(model{1}.D,2)]'))];
+else
+    factorName=strcat('Factor ',num2str([1:size(CD,2)]'));
+    latentName=strcat('Latent ',num2str([1:size(CD,2)]'));
+end
+aC=prctile(abs(Y(:)),98);
+CDiR=CDrot'*inv(model{1}.R);
+CDiRCD=CDiR*CDrot;
 projY=CDiRCD\CDiR*Y;
-%projY=CD\Y;
-subplot(Nx,Ny,1) %passthrough term
-hold on
-if nargin>1
-    scatter(1:size(Y,2),projY(M+1,:),5,.7*ones(1,3),'filled')
-end
-p(i)=plot(U,'k','LineWidth',2,'DisplayName',['Passthrough term, \tau=0']);
-title('Input')
-ax=gca;
-ax.Position=ax.Position+[0 .045 0 0];
-subplot(Nx,Ny,Ny+1+[0,Ny])
-try
-    imagesc((reshape(model{1}.D,12,Nc/12)'))
-catch
-    imagesc((model{1}.D))
-end
-set(gca,'XTick',[],'YTick',yt,'YTickLabel',ytl,'FontSize',fs)
-colormap(flipud(map))
-aC=max(abs(CD(:)));
-caxis([-aC aC])
-axis tight
-ylabel({'Contribution';'to output'})
-ax=gca;
-ax.YAxis.Label.FontSize=12;
-ax.YAxis.Label.FontWeight='bold';
-title('D')
-ax=gca;
-ax.Position=ax.Position+[0 .03 0 0];
-hold on
-aa=axis;
-plot([0.1 1.9]+.5, [16 16],'k','LineWidth',2,'Clipping','off')
-text(.7,17,'DS','FontSize',7)
-plot([2.1 5.9]+.5, [16 16],'k','LineWidth',2,'Clipping','off')
-text(2.7,17,'STANCE','FontSize',7)
-plot([6.1 7.9]+.5, [16 16],'k','LineWidth',2,'Clipping','off')
-text(6.7,17,'DS','FontSize',7)
-plot([8.1 11.9]+.5, [16 16],'k','LineWidth',2,'Clipping','off')
-text(8.7,17,'SWING','FontSize',7)
-axis(aa)
-
-for i=1:M
-    subplot(Nx,Ny,i+1) %TOP row: states temporal evolution and data projection
+for i=1:size(CD,2)
+    ph(i)=subplot(Nx,Ny,i); %TOP row: states temporal evolution and data projection
     hold on
     if nargin>1
         scatter(1:size(Y,2),projY(i,:),5,.7*ones(1,3),'filled')
     end
     set(gca,'ColorOrderIndex',1)
     %p(i)=plot(model{1}.smoothStates(i,:),'LineWidth',2,'DisplayName',['Deterministic state, \tau=' num2str(-1./log(model{1}.J(i,i)),3)]);
-    title(['State ' num2str(i)])
+    title(latentName(i,:))
     %title('(Smoothed) Step-response states')
-    p(i)=plot(model{1}.Xf(i,:),'LineWidth',2,'DisplayName',['\tau=' num2str(-1./log(model{1}.J(i,i)),3)],'Color','k');
-    patch([1:size(model{1}.Xf,2),size(model{1}.Xf,2):-1:1]',[model{1}.Xf(i,:)+sqrt(squeeze(model{1}.Pf(i,i,:)))', fliplr(model{1}.Xf(i,:)-sqrt(squeeze(model{1}.Pf(i,i,:)))')]',p(i).Color,'EdgeColor','none','FaceAlpha',.3)
-    if strcmp(rotationMethod,'canonical')
-        legend(p(i),'Location','SouthWest')
-    end
+    p(i)=plot(XUrot(i,:),'LineWidth',2,'Color','k');
+    %patch([1:size(model{1}.Xf,2),size(model{1}.Xf,2):-1:1]',[model{1}.Xf(i,:)+sqrt(squeeze(model{1}.Pf(i,i,:)))', fliplr(model{1}.Xf(i,:)-sqrt(squeeze(model{1}.Pf(i,i,:)))')]',p(i).Color,'EdgeColor','none','FaceAlpha',.3)
     ax=gca;
     ax.Position=ax.Position+[0 .045 0 0];
+    axis tight
+    grid on
 
-    subplot(Nx,Ny,Ny+i+1+[0,Ny])% Second row: checkerboards
+    subplot(Nx,Ny,Ny+i+[0,Ny])% Second row: checkerboards
     try
-        imagesc((reshape(model{1}.C(:,i),12,Nc/12)'))
+        imagesc((reshape(CDrot(:,i),12,Nc/12)'))
     catch
-        imagesc((model{1}.C(:,i)))
+        imagesc((CDrot(:,i)))
     end
     set(gca,'XTick',[],'YTick',yt,'YTickLabel',[],'FontSize',fs)
     ax=gca;
@@ -129,7 +105,7 @@ for i=1:M
     colormap(flipud(map))
     caxis([-aC aC])
     axis tight
-    title(['C_' num2str(i)])
+    title(factorName(i,:))
     ax=gca;
     ax.Position=ax.Position+[0 .03 0 0];
     hold on
@@ -143,14 +119,9 @@ for i=1:M
     plot([8.1 11.9]+.5, [16 16],'k','LineWidth',2,'Clipping','off')
     text(9,17,'SWING','FontSize',7)
     axis(aa)
-    %if i==M
-%        pp=get(gca,'Position');
-%        colorbar
-%        set(gca,'Position',pp);
-%    end
 
 end
-
+linkaxes(ph,'y')
 %Covariances
 %subplot(Nx,Ny,Ny)
 %imagesc(model{1}.Q)
@@ -179,6 +150,9 @@ binw=4; %Plus minus 2
 viewPoints(viewPoints>N-binw/2)=[];
 Ny=length(viewPoints);
 M=length(model);
+dd=Y(:,1:150);
+dd=dd-mean(dd,2);
+meanVar=mean(sum(dd.^2,1),2);
 for k=1:3
     for i=1:Ny
         switch k
@@ -215,6 +189,9 @@ for k=1:3
             title(txt{i})
             ax=gca;
             ax.Title.FontSize=10;
+        end
+        if k==3
+            title(['Residual=' num2str(mean(sum(dd.^2,1),2)/meanVar)])
         end
         if i==1
             ylabel(nn)

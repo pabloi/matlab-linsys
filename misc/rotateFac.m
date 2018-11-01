@@ -9,13 +9,13 @@ if nargin<4
   gamma=1;
 end
 %Orthonormalizing first:
-r=size(CD,2);
 Y=CD*XU;
+if ~strcmp(method,'none')
+r=size(CD,2);
 [U,D,V]=svd(Y);
 CD=U(:,1:r); %Orthonormal
 XU=D(1:r,1:r)*V(:,1:r)';
-%norm(Y-CD*XU,'fro')
-%(CD'*CD)
+end
   switch method
   case 'orthonormal' %PCA style rotation: columns of CD will be orthonormal, and presented in decreasing order of variance explained of the original matrix
     CDrot=CD;
@@ -45,6 +45,9 @@ XU=D(1:r,1:r)*V(:,1:r)';
       [~,idx]=sort(scale,'descend');
       CDrot=CDrot(:,idx);
       XUrot=XUrot(idx,:);
+    case 'none'
+      CDrot=CD;
+      XUrot=XU;
     otherwise
       warning('Unrecognized rotation method, orthonormalizing.')
       CDrot=CD;
