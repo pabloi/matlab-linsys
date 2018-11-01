@@ -1,5 +1,5 @@
 function [x0,P0,B,D,U,Ud,Ub,opts]=processKalmanOpts(D1,N,aux)
-%Argument order: N,x0,P0,B,D,U,opts
+%Argument order: D1, N, x0,P0,B,D,U,opts
 %outlierRejection,fastFlag,Ub)
 
 %Defaults:
@@ -10,7 +10,7 @@ defaultArgs={x0, P0, B, D, U, opts};
 emptyIdx=cellfun(@isempty,aux);
 auxIdx=1:length(aux);
 defaultArgs(auxIdx(~emptyIdx))=aux(~emptyIdx); %Replacing defaults with whatever was given
-[x0,P0,B,D,opts]=defaultArgs{[1:4,6]};
+[x0,P0,B,D,U,opts]=defaultArgs{[1:6]};
 
 if ~isfield(opts,'fastFlag') || isempty(opts.fastFlag)
   opts.fastFlag=0;
