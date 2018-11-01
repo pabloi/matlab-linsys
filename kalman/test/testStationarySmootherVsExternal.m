@@ -25,11 +25,11 @@ x0=zeros(D1,1);
 %% Do kalman smoothing with true params
 tic
 fastFlag=[];
-fastFlag=0;
-[Xs,Ps,Pt,Xf,Pf,Xp,Pp]=statKalmanSmoother(Y,A,C,Q,R,[],[],B,D,U,false,fastFlag); %Kalman smoother estimation of states, given the true parameters (this is the best possible estimation of states)
+opts.fastFlag=0;
+[Xs,Ps,Pt,Xf,Pf,Xp,Pp]=statKalmanSmoother(Y,A,C,Q,R,[],[],B,D,U,opts); %Kalman smoother estimation of states, given the true parameters (this is the best possible estimation of states)
 tf=toc;
 %% Use Cheng & Sabes code:
-addpath(genpath('../ext/lds-1.0/'))
+addpath(genpath('../../../ext/lds-1.0/'))
 LDS.A=A;
 LDS.B=B;
 LDS.C=C;

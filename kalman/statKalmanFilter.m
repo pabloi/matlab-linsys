@@ -1,4 +1,4 @@
-function [X,P,Xp,Pp,rejSamples]=statKalmanFilter(Y,A,C,Q,R,x0,P0,B,D,U,outlierRejection,fastFlag,Ub)
+function [X,P,Xp,Pp,rejSamples]=statKalmanFilter(Y,A,C,Q,R,varargin)
 %filterStationary implements a Kalman filter assuming
 %stationary (fixed) noise matrices and system dynamics
 %The model is: x[k+1]=A*x[k]+b+v[k], v~N(0,Q)
@@ -13,11 +13,6 @@ function [X,P,Xp,Pp,rejSamples]=statKalmanFilter(Y,A,C,Q,R,x0,P0,B,D,U,outlierRe
 %OUTPUTS:
 %
 %See also: statKalmanSmoother, statKalmanFilterConstrained, KFupdate, KFpredict
-
-%TODO: check relative size of R,P and use the more efficient kalman update
-%for each case. Will need to check if P is invertible, which will generally
-%be the case if Q is invertible. If not, probably need to do the
-%conventional update too.
 
 % For the filter to be well-defined, it is necessary that the quantity w=C'*inv(R+C*P*C')*y
 % be well defined, for all observations y with some reasonable definition of inv().
@@ -38,70 +33,16 @@ function [X,P,Xp,Pp,rejSamples]=statKalmanFilter(Y,A,C,Q,R,x0,P0,B,D,U,outlierRe
 % rank(C)<dim(R), compression is always possible.
 
 
-[D2,N]=size(Y);
-D1=size(A,1);
+[D2,N]=size(Y); D1=size(A,1);
 %Init missing params:
-if nargin<6 || isempty(x0)
-  x0=zeros(D1,1); %Column vector
-end
-if nargin<7 || isempty(P0)
-  P0=1e8 * eye(size(A));
-end
-if nargin<8 || isempty(B)
-  B=0;
-end
-if nargin<9 || isempty(D)
-  D=0;
-end
-if nargin<10 || isempty(U)
-  U=zeros(size(B,2),size(X,2));
-end
-if nargin<11 || isempty(outlierRejection)
-    outlierRejection=false;
-end
-if nargin<12 || isempty(fastFlag) || fastFlag==0 || fastFlag>=N
-    M=N; %Do true filtering for all samples
-elseif any(any(isnan(Y))) || outlierRejection
-  warning('statKFfast:NaNsamples','Requested fast KF but some samples are NaN, not using fast mode.')
-  M=N;
-elseif fastFlag==1
-    M2=20; %Default for fast filtering: 20 samples
-    M1=ceil(3*max(-1./log(abs(eig(A))))); %This many strides ensures ~convergence of gains before we assume steady-state
-    M=max(M1,M2);
-    M=min(M,N); %Prevent more than N, if this happens, we are not doing fast filtering
-else  %If fastFlag is a number but not 0 or 1, use that as number of samples
-    M=min(ceil(abs(fastFlag)),N);
-    M1=ceil(3*max(-1./log(abs(eig(A))))); %This many strides ensures ~convergence of gains before we assume steady-state
-    if M<N-1 && M<M1
-        warning('statKSfast:fewSamples','Number of samples for fast filtering were provided, but system time-constants indicate more are needed')
-    end
-end
-Ud=U;
-if nargin<13 %Allowing for different inputs to output and dynamics equations
-  Ub=U;
-end
+[x0,P0,B,D,U,Ud,Ub,opts]=processKalmanOpts(D1,N,varargin);
+M=processFastFlag(opts.fastFlag,A,N);
 
-%Special case: deterministic system, no filtering needed. This can also be
+%TODO: Special case: deterministic system, no filtering needed. This can also be
 %the case if Q << C'*R*C, and the system is stable
-% if all(Q(:)==0)
-%     [~,Xp]=fwdSim(U,A,B,C,D,x0,[],[]);
-%     Ndim=size(x0,1);
-%     Pp=zeros(Ndim,Ndim,N+1);
-%     X=Xp(:,1:end-1);
-%     P=zeros(Ndim,Ndim,N);
-%     rejSamples=[];
-%     return
-% end
 
 %Size checks:
 %TODO
-
-if M<N && any(abs(eig(A))>1)
-    %If the system is unstable, there is no guarantee that the kalman gain
-    %converges, and the fast filtering will lead to divergence of estimates
-    warning('statKSfast:unstable','Doing steady-state (fast) filtering on an unstable system. States will diverge. Doing traditional filtering instead.')
-    M=N;
-end
 
 %Init arrays:
 if isa(Y,'gpuArray') %For code to work on gpu
@@ -119,69 +60,39 @@ else
 end
 
 %Priors:
-prevX=x0;
-prevP=P0;
-Xp(:,1)=x0;
-Pp(:,:,1)=P0;
+prevX=x0; prevP=P0; Xp(:,1)=x0; Pp(:,:,1)=P0;
 
 %Re-define observations to account for input effect:
-Y_D=Y-D*Ud;
-BU=B*Ub;
+Y_D=Y-D*Ud; BU=B*Ub;
 
 %If D2>D1, then it is speedier to do a coordinate transform of the output:
 %(it may also be convenient to do something if C is not full rank,as that
 %means the output is also compressible). This is always safe if R is
 %invertible, and may be safe in other situations, provided that
 %observations never fall on the null-space of R.
-if D2>D1
-%Pre-computing for speed:
-
-%First, invert R:
-%Opt 1:
- [icR]=pinvchol(R); %This works if R is semidefinite, but in general
-%semidefinite R is unworkable, as R+C*P*C' needs to be invertible.
-%Even assuming P invertible at each update, it still requires R to be
-%invertible for all vectors orthogonal to the span of C at least)
-
-%Opt 2:
-% Rinv=pinv(R,1e-8);
-% icR=mycholcov(Rinv)';
-
-%Second, reduce the dimensionality problem:
-J=C'*icR; %Cholesky-like decomp of C'*inv(R)*C
-%Opt 1: %This will call on KFupdateAlt() for updates
-% CtRinv=J*icR';
-% CtRinvC=J*J';
-% CtRinvY=CtRinv*Y_D;
-
-%Opt 2: %This will NOT call on KFupdateAlt, and will use KFupdate()
-R=J*J';
-Y_D=J*icR'*Y_D;
-C=R;
-D2=D1;
+if D2>D1 %Reducing dimension of problem for speed
+  %First, invert R:
+   [icR]=pinvchol(R); %This works if R is semidefinite, but in general
+  %semidefinite R is unworkable, as R+C*P*C' needs to be invertible.
+  %Even assuming P invertible at each update, it still requires R to be
+  %invertible for all vectors orthogonal to the span of C at least)
+  %Second, reduce the dimensionality problem:
+  J=C'*icR; %Cholesky-like decomp of C'*inv(R)*C
+  R=J*J'; Y_D=J*icR'*Y_D; C=R; D2=D1;
 end
 
 %Do the true filtering for M steps
 rejSamples=false(N,1);
 rejThreshold=chi2inv(.99,D2);
 for i=1:M
+  y=Y_D(:,i); %Output at this step
+
   %First, do the update given the output at this step:
-  y=Y_D(:,i);
   if ~any(isnan(y)) %If measurement is NaN, skip update.
-      if outlierRejection
-          [prevXt,prevPt,K,z]=KFupdate(C,R,y,prevX,prevP);
-          if z<rejThreshold %zprctile is above outlier threshold
-              prevP=prevPt;    prevX=prevXt;
-          else
-              rejSamples(i)=true;
-          end
+      if opts.outlierFlag
+          [prevX,prevP,K,z,rejSamples(i)]=KFupdate(C,R,y,prevX,prevP,rejThreshold)
       else %This is here because it is more efficient to not compute the z-score if we dont need it
-          if D2>D1 %This never happens if Opt 2 was used to reduce the problem
-              [prevX,prevP]=KFupdateAlt(CtRinvY(:,i),CtRinvC,prevX,prevP);
-              K=prevP*CtRinv;
-          else
-              [prevX,prevP,K]=KFupdate(C,R,y,prevX,prevP);
-          end
+          [prevX,prevP,K]=KFupdate(C,R,y,prevX,prevP);
       end
   end
   X(:,i)=prevX;  P(:,:,i)=prevP; %Store results
@@ -193,12 +104,10 @@ for i=1:M
   end
 end
 
-%Do the fast filtering for any remaining steps:
+if M<N %Do the fast filtering for any remaining steps:
 %(from here on, we assume stady-state behavior to improve speed).
-if M<N
     %Steady-state matrices:
-    Psteady=P(:,:,M); %Steady-state UPDATED uncertainty matrix
-    prevX=X(:,M);
+    prevX=X(:,M); Psteady=P(:,:,M); %Steady-state UPDATED state and uncertainty matrix
     Ksteady=K; %Steady-state Kalman gain
     Gsteady=eye(size(Ksteady,1))-Ksteady*C; %I-K*C,
 
@@ -209,27 +118,22 @@ if M<N
     %Assign all UPDATED uncertainty matrices:
     P(:,:,M+1:end)=repmat(P(:,:,M),1,1,N-M);
 
-    %Loop for remaining steps to compute x:
-    if outlierRejection
-        %TODO: reject outliers by replacing with NaN in KBUY, this needs to be done in-loop
-       warning('Outlier rejection not implemented')
+    %Check that no outlier or fast flags are enabled
+    if opts.outlierFlag || any(isnan(GBU_KY(:)))%Should never happen in fast mode
+       error('KFfilter:outlierRejectFast','Outlier rejection is incompatible with fast mode.')
     end
+
+    %Loop for remaining steps to compute x:
     for i=M+1:N
         gbu_ky=GBU_KY(:,i-M);
-        if ~any(isnan(gbu_ky))
-            prevX=GA*prevX+gbu_ky; %Predict+Update, in that order.
-            %TODO: evaluate if this is good: because we dont compute y-C*X first
-            %and then multiply by, K, we may be accumulating numerical errors in
-            %cases where (y-C*x)==0
-        else %Reading is NaN, just update. Should never happen since data with NaNs prevents fast filtering.
-            %prevX=A*prevX+BU(:,i); %Just predict
-            error('Skipping update for a NaN sample, but uncertainty does not get updated accordingly in fast mode. FIX.')
-        end
+        prevX=GA*prevX+gbu_ky; %Predict+Update, in that order.
+        %TODO: evaluate if this is good: because we dont compute y-C*X first
+        %and then multiply by, K, we may be accumulating numerical errors in
+        %cases where (y-C*x)==0
         X(:,i)=prevX;
     end
     if nargout>2 %Compute Xp, Pp only if requested:
-        Xp(:,2:end)=A*X+B*Ub;
-        Pp(:,:,M+2:end)=repmat(A*Psteady*A'+Q,1,1,size(Y,2)-M);
+        Xp(:,2:end)=A*X+B*Ub; Pp(:,:,M+2:end)=repmat(A*Psteady*A'+Q,1,1,size(Y,2)-M);
     end
 end
 end

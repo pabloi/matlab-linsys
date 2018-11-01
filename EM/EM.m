@@ -65,7 +65,7 @@ for k=1:opts.Niter-1
 
     %E-step:
     if isa(Y,'cell') %Data is many realizations of same system
-        [X1,P1,Pt1,~,~,Xp,Pp,rejSamples]=cellfun(@(y,x0,p0,u) statKalmanSmoother(y,A1,C1,Q1,R1,x0,p0,B1,D1,u,opts.outlierReject,opts.fastFlag),Y,x01,P01,U(opts.indD,:),'UniformOutput',false,U(opts.indB,:));
+        [X1,P1,Pt1,~,~,Xp,Pp,rejSamples]=cellfun(@(y,x0,p0,u) statKalmanSmoother(y,A1,C1,Q1,R1,x0,p0,B1,D1,u,opts),Y,x01,P01,U,'UniformOutput',false);
         if any(cellfun(@(x) any(imag(x(:))~=0),X1))
           msg='Complex states detected, stopping.';
           breakFlag=true;
@@ -74,7 +74,7 @@ for k=1:opts.Niter-1
           breakFlag=true;
         end
     else
-        [X1,P1,Pt1,~,~,Xp,Pp,rejSamples]=statKalmanSmoother(Y,A1,C1,Q1,R1,x01,P01,B1,D1,U(opts.indD,:),opts.outlierReject,opts.fastFlag,U(opts.indB,:));
+        [X1,P1,Pt1,~,~,Xp,Pp,rejSamples]=statKalmanSmoother(Y,A1,C1,Q1,R1,x01,P01,B1,D1,U,opts);
         if any(imag(X1(:))~=0)
             msg='Complex states detected, stopping.';
             breakFlag=true;

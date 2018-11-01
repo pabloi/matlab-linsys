@@ -1,4 +1,4 @@
-function [Xs,Ps,Pt,Xf,Pf,Xp,Pp,rejSamples]=statKalmanSmoother(Y,A,C,Q,R,x0,P0,B,D,U,outRejFlag,fastFlag,Ub)
+function [Xs,Ps,Pt,Xf,Pf,Xp,Pp,rejSamples]=statKalmanSmoother(Y,A,C,Q,R,varargin)
 %Implements a Kalman smoother for a stationary system
 %INPUT:
 %Y: D1xN observed data
@@ -6,7 +6,7 @@ function [Xs,Ps,Pt,Xf,Pf,Xp,Pp,rejSamples]=statKalmanSmoother(Y,A,C,Q,R,x0,P0,B,
 %A,C,Q,R,B,D: system parameters, B,D,U are optional (default=0)
 %x0,P0: initial guess of state and covariance, optional
 %outRejFlag: flag to indicate if outlier rejection should be performed
-%fastFlag: flag to indicate if fast smoothing should be performed. Default is no. Empty flag means no, any other value is yes.
+%fastFlag: flag to indicate if fast smoothing should be performed. Default is no. Empty flag or 0 means no, any other value is yes.
 %OUTPUT:
 %Xs: D1xN, MLE estimate of state after smoothing
 %Ps: D1xD1xN, covariance of state after smoothing
@@ -16,78 +16,27 @@ function [Xs,Ps,Pt,Xf,Pf,Xp,Pp,rejSamples]=statKalmanSmoother(Y,A,C,Q,R,x0,P0,B,
 %See also:
 % statKalmanFilter, filterStationary_wConstraint, EM
 
-[D2,N]=size(Y);
-%Init missing params:
-if nargin<6 || isempty(x0)
-x0=zeros(size(A,1),1); %Column vector
-end
-if nargin<7 || isempty(P0)
-P0=1e8 * eye(size(A));
-end
-if nargin<8 || isempty(B)
-B=0;
-end
-if nargin<9 || isempty(D)
-D=0;
-end
-if nargin<10 || isempty(U)
- U=zeros(1,size(Y,2));
-end
-if nargin<11 || isempty(outRejFlag)
-  outRejFlag=0; %No outlier rejection
-end
-if nargin<12 || isempty(fastFlag) || fastFlag==0 || fastFlag>=(N-1)
-    M=N-1; %Do true filtering for all samples
-elseif fastFlag==1
-    M2=20; %Default for fast filtering: 20 samples
-    M1=ceil(3*max(-1./log(abs(eig(A))))); %This many strides ensures ~convergence of gains before we assume steady-state
-    M=max(M1,M2);
-    M=min(M,N-1); %Prevent more than N-1, if this happens, we are not doing fast filtering
-else
-    M=min(ceil(abs(fastFlag)),N-1); %If fastFlag is a number but not 0 or 1, use that as number of samples
-    M1=ceil(3*max(-1./log(abs(eig(A))))); %This many strides ensures ~convergence of gains before we assume steady-state
-    if M<(N-1) && M<M1 %If number of samples provided is not ALL of them, but eigenvalues suggest the system is slower than provided number
-        warning('statKSfast:fewSamples','Number of samples for fast filtering were provided, but system time-constants indicate more are needed')
-    end
-end
-Ud=U;
-if nargin<13 %Allowing for different inputs to output and dynamics equations
-  Ub=U;
-end
+[D2,N]=size(Y); D1=size(A,1);
 
-if M<(N-1) && any(abs(eig(A))>1)
-    %If the system is unstable, there is no guarantee that the kalman gain
-    %converges, and the fast filtering will lead to divergence of estimates
-    warning('statKSfast:unstable','Doing steady-state (fast) filtering on an unstable system. States will diverge. Doing traditional filtering instead.')
-    M=N-1;
-end
+%Init missing params:
+aux=varargin;
+[x0,P0,B,D,U,Ud,Ub,opts]=processKalmanOpts(D1,N,aux);
+M=processFastFlag(opts.fastFlag,A,N);
+opts.fastFlag=M+1;
 
 %Size checks:
 %TODO
 
 %Step 1: forward filter
-[Xf,Pf,Xp,Pp,rejSamples]=statKalmanFilter(Y,A,C,Q,R,x0,P0,B,D,Ud,outRejFlag,M+1,Ub);
+[Xf,Pf,Xp,Pp,rejSamples]=statKalmanFilter(Y,A,C,Q,R,x0,P0,B,D,U,opts);
 
-%Step 2: backward pass: (following the Rauch-Tung-Striebel implementation:
-%https://en.wikipedia.org/wiki/Kalman_filter#Fixed-interval_smoothers)
-
-%Special case: deterministic system, no filtering needed. This can also be the case if Q << C'*R*C, and the system is stable
-% if all(Q(:)==0)
-%     Xs=Xf;
-%     Ps=Pf;
-%     Pt=Ps;
-%     return
-% end
+%Step 2: backward pass:
+%TODO: Special case: deterministic system, no filtering needed. This can also be the case if Q << C'*R*C, and the system is stable
 
 D1=size(A,1);
-
 %Initialize last sample:
-Xs=nan(size(Xf));
-Ps=nan(size(Pf));
-prevPs=Pf(:,:,N);
-prevXs=Xf(:,N);
-Ps(:,:,N)=prevPs;
-Xs(:,N)=prevXs;
+Xs=nan(size(Xf)); prevXs=Xf(:,N);   Xs(:,N)=prevXs;
+Ps=nan(size(Pf)); prevPs=Pf(:,:,N); Ps(:,:,N)=prevPs;
 
 if isa(Xs,'gpuArray') %For code to work on gpu
     Pt=nan(D1,D1,N-1,'gpuArray'); %Transition covariance matrix
@@ -96,13 +45,9 @@ else
 end
 
 %Separate samples into fast and normal filtering intervals:
-M1=M;
-M2=M;
-Nfast=N-1-(M1+M2);
-if Nfast<0 %No fast filtering at all
-    M1=N-1;
-    M2=0;
-    Nfast=0;
+M1=M; M2=M; Nfast=N-1-(M1+M2);
+if Nfast<=0 %No fast filtering at all
+    M1=N-1; M2=0; Nfast=0;
 end
 
 %Do true smoothing for last M1 samples:
@@ -117,16 +62,14 @@ for i=N-1:-1:N-M1
   [prevPs,prevXs,newPt]=backStep(pp,pf,prevPs,xp,xf,prevXs,A);
 
   %Store estimates:
-  Xs(:,i)=prevXs;
-  Pt(:,:,i)=newPt;
-  Ps(:,:,i)=prevPs;
+  Xs(:,i)=prevXs;  Pt(:,:,i)=newPt;  Ps(:,:,i)=prevPs;
 end
 
 %Fast smoothing for the middle (N-2*M) samples
 if Nfast>0 %Assume steady-state:
     [icP,~]=pinvchol(pp);
-    H=(pf*(A'*icP))*icP'; %TODO: check for stability efficiently
-     if any(abs(eig(H))>1)
+    H=(pf*(A'*icP))*icP';
+     if any(abs(eig(H))>1) %TODO: check for stability efficiently
          warning('statKS:unstableSmooth','Unstable smoothing, skipping the backward pass.')
          H=zeros(size(H));
      end
@@ -138,9 +81,9 @@ if Nfast>0 %Assume steady-state:
     %Compute covariances if requested:
     if nargout>2
         Ps(:,:,M2+1:N-M1-1)=repmat(prevPs,1,1,Nfast);
-    end
-    if nargout>3
-        Pt(:,:,M2+1:N-M1-1)=repmat(newPt,1,1,Nfast);
+        if nargout>3
+            Pt(:,:,M2+1:N-M1-1)=repmat(newPt,1,1,Nfast);
+        end
     end
 end
 
@@ -156,15 +99,15 @@ for i=M2:-1:1
   [prevPs,prevXs,newPt]=backStep(pp,pf,prevPs,xp,xf,prevXs,A);
 
   %Store estimates:
-  Xs(:,i)=prevXs;
-  Pt(:,:,i)=newPt;
-  Ps(:,:,i)=prevPs;
+  Xs(:,i)=prevXs;  Pt(:,:,i)=newPt;  Ps(:,:,i)=prevPs;
 end
 
 end
 
 function [newPs,newXs,newPt]=backStep(pp,pf,ps,xp,xf,prevXs,A)
   %Implements the Rauch-Tung-Striebel backward recursion
+  %https://en.wikipedia.org/wiki/Kalman_filter#Fixed-interval_smoothers)
+
   %First, compute gain:
   [icP,~]=pinvchol(pp);
   H=(pf*(A'*icP))*icP'; %H=AP'/pp; %Faster, although worse conditioned, matters a lot when smoothing
