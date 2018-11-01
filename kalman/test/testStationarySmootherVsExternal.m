@@ -11,7 +11,7 @@ U=[zeros(300,1);ones(N,1);zeros(N/2,1)]'; %Step input and then removed
 C=randn(D2,D1);
 D=randn(D2,1);
 Q=eye(D1)*1e-4;
-R=eye(D2)*1e-4; %CS2006 performance degrades (larger state estimation errors) for very small R
+R=10*eye(D2); %CS2006 performance degrades (larger state estimation errors) for very small R
 
 %% Simulate
 NN=size(U,2);
@@ -78,3 +78,4 @@ for i=1:2
 end
 title('Residuals')
 axis([0 3000 -.02 .02])
+axis tight

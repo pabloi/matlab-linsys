@@ -80,7 +80,7 @@ if D2>D1 %Reducing dimension of problem for speed
   J=C'*icR; %Cholesky-like decomp of C'*inv(R)*C
   R=J*J'; Y_D=J*icR'*Y_D; C=R; D2=D1;
 end
-
+cR=mycholcov(R);
 %Do the true filtering for M steps
 rejSamples=false(N,1);
 rejThreshold=chi2inv(.99,D2);
@@ -90,9 +90,9 @@ for i=1:M
   %First, do the update given the output at this step:
   if ~any(isnan(y)) %If measurement is NaN, skip update.
       if opts.outlierFlag
-          [prevX,prevP,K,z,rejSamples(i)]=KFupdate(C,R,y,prevX,prevP,rejThreshold)
+          [prevX,prevP,K,z,rejSamples(i)]=KFupdate(C,R,y,prevX,prevP,rejThreshold,cR)
       else %This is here because it is more efficient to not compute the z-score if we dont need it
-          [prevX,prevP,K]=KFupdate(C,R,y,prevX,prevP);
+          [prevX,prevP,K]=KFupdate(C,R,y,prevX,prevP,[],cR);
       end
   end
   X(:,i)=prevX;  P(:,:,i)=prevP; %Store results

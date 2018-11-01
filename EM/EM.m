@@ -89,18 +89,14 @@ for k=1:opts.Niter-1
     Y2=Y;
     l=dataLogLikelihood(Y2,U(opts.indD,:),A1,B1,C1,D1,Q1,R1,Xp,Pp,'approx',U(opts.indB,:)); %Passing the Kalman-filtered states and uncertainty makes the computation more efficient
     logl(k+1)=l;
-    delta=l-logl(k,1);
+    delta=l-logl(k);
     improvement=delta>=0;
     targetRelImprovement50=(l-logl(max(k-50,1),1))/(opts.targetLogL-logl(max(k-50,1),1));
     belowTarget=max(l,bestLogL)<opts.targetLogL;
-    relImprovementLast50=(l-logl(max(k-50,1),1))/abs(l); %Assessing the relative improvement on logl over the last 50 iterations (or less if there aren't as many)
+    relImprovementLast50=l-logl(max(k-50,1)); %Assessing the improvement on logl over the last 50 iterations (or less if there aren't as many)
 
     %Check for warning conditions:
-    if any(abs(eig(A1))>1)
-        %No need to break for unstable systems, usually they converge to a
-        %stable system or lack of improvement in logl makes the iteration stop
-        %warning('EM:unstableSys','Unstable system detected');
-    elseif ~improvement %This should never happen, except that our loglikelihood is approximate, so there can be some error
+    if ~improvement %This should never happen, except that our loglikelihood is approximate, so there can be some error
         if abs(delta)>1e-5 %Drops of about 1e-5 can be expected because:
           %1) we are computing an approximate logl (which differs from the exact one, especially at the early stages of EM)
           %2) logL is only guaranteed to increase if there is no structural model mismatch (e.g. data having non-gaussian observation noise). Although it may work in other circumstances. Need to prove.
@@ -114,14 +110,12 @@ for k=1:opts.Niter-1
     if imag(l)~=0 %This does not happen
         msg='Complex logL, probably ill-conditioned matrices involved. Stopping.';
         breakFlag=true;
-    else %There was improvement
-        if l>=bestLogL
+    elseif l>=bestLogL %There was improvement
             %If everything went well and these parameters are the best ever:
             %replace parameters  (notice the algorithm may continue even if
             %the logl dropped, but in that case we do not save the parameters)
             A=A1; B=B1; C=C1; D=D1; Q=Q1; R=R1; x0=x01; P0=P01; X=X1; P=P1; Pt=Pt1;
             bestLogL=l;
-        end
     end
 
     %Check if we should stop early (to avoid wasting time):
@@ -149,7 +143,7 @@ for k=1:opts.Niter-1
             pOverTarget=100*((l-opts.targetLogL)/abs(opts.targetLogL));
             disp(['Iter = ' num2str(k) ', logL = ' num2str(l,8) ', % over target = ' num2str(pOverTarget) ', \tau =' num2str(-1./log(sort(eig(A)))')])
             if breakFlag
-            fprintf([msg ' \n'])
+              fprintf([msg ' \n'])
             end
         end
     end
@@ -164,7 +158,7 @@ for k=1:opts.Niter-1
         %runaway towards a numerically unstable representation of an otherwise
         %stable system
     end
-end
+end %for loop
 
 %%
 if opts.fastFlag==0 %Re-enable disabled warnings
@@ -186,4 +180,5 @@ D1=zeros(size(C,1),size(U,1));
 B1(:,opts.indB)=B;
 D1(:,opts.indD)=D;
 B=B1; D=D1;
-end
+
+end %Function
