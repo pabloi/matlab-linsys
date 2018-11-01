@@ -6,6 +6,10 @@ function [A,B,C,D,Q,R,X,P,bestLogL,outLog]=EM(Y,U,Xguess,opts,Pguess)
 %Xguess - Either the number of states for the system (if scalar) or a guess
 %at the initial states of the system (if D1 x N matrix)
 
+%Scaling:
+scale=sqrt(nanmean(Y.^2,2));
+Y=Y./scale;
+
 if nargin<4
     opts=[];
 end
@@ -186,4 +190,8 @@ D1=zeros(size(C,1),size(U,1));
 B1(:,opts.indB)=B;
 D1(:,opts.indD)=D;
 B=B1; D=D1;
+%Restore scale:
+C=C.*scale;
+D=D.*scale;
+R=scale.*R.*scale';
 end
