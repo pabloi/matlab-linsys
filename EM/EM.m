@@ -115,11 +115,11 @@ for k=1:opts.Niter-1
         msg='Complex logL, probably ill-conditioned matrices involved. Stopping.';
         breakFlag=true;
     elseif l>=bestLogL %There was improvement
-            %If everything went well and these parameters are the best ever:
-            %replace parameters  (notice the algorithm may continue even if
-            %the logl dropped, but in that case we do not save the parameters)
-            A=A1; B=B1; C=C1; D=D1; Q=Q1; R=R1; x0=x01; P0=P01; X=X1; P=P1; Pt=Pt1;
-            bestLogL=l;
+        %If everything went well and these parameters are the best ever:
+        %replace parameters  (notice the algorithm may continue even if
+        %the logl dropped, but in that case we do not save the parameters)
+        A=A1; B=B1; C=C1; D=D1; Q=Q1; R=R1; x0=x01; P0=P01; X=X1; P=P1; Pt=Pt1;
+        bestLogL=l;
     end
 
     %Check if we should stop early (to avoid wasting time):
@@ -146,9 +146,7 @@ for k=1:opts.Niter-1
             l=bestLogL;
             pOverTarget=100*((l-opts.targetLogL)/abs(opts.targetLogL));
             disp(['Iter = ' num2str(k) ', logL = ' num2str(l,8) ', % over target = ' num2str(pOverTarget) ', \tau =' num2str(-1./log(sort(eig(A)))')])
-            if breakFlag
-              fprintf([msg ' \n'])
-            end
+            if breakFlag; fprintf([msg ' \n']); end
         end
     end
     if breakFlag && ~opts.robustFlag
@@ -188,6 +186,4 @@ B=B1; D=D1;
 C=C.*scale;
 D=D.*scale;
 R=scale.*R.*scale';
-end
-
-end %Function
+end  %Function

@@ -44,7 +44,7 @@ for i=1:Nreps
     R1=z*z'/size(z,2) + C1*Q1*C1'; %Reasonable estimate of R
     %Alt R:
     %R1=(abs(randn)+1e-4)*eye(size(Y,1)); %Needs to be psd
-    [Xguess]=statKalmanSmoother(Y,A1,C1,Q1,R1,x01,P01,B1,D1,U(opts.indD,:),[],0,U(opts.indB,:));
+    [Xguess]=statKalmanSmoother(Y,A1,C1,Q1,R1,x01,P01,B1,D1,U(opts.indD,:),opts);
     Xguess=medfilt1(Xguess,9,[],2); %Some smoothing to avoid starting with very ugly estimates
 
     %Optimize:

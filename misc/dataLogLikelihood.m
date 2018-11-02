@@ -29,8 +29,10 @@ else
 
     if size(X0,2)<=1 %True init state guess
         opts.fastFlag=false;
-        Dalt=zeros(size(D));
-        [~,~,Xp,Pp,~]=statKalmanFilter(Y-D*Ud,A,C,Q,R,X0,P0,B,Dalt,Ub,opts);
+        Dalt=zeros(size(D,1),0);
+        opts1=opts;
+        opts1.indD=[];
+        [~,~,Xp,Pp,~]=statKalmanFilter(Y-D*Ud,A,C,Q,R,X0,P0,B,Dalt,Ub,opts1);
     else %whole filtered priors are provided, not just t=0
         Xp=X0;
         Pp=P0;
