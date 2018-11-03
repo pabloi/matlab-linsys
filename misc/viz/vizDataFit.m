@@ -22,9 +22,9 @@ for k=1%:2 %Original or reduced models
     end
     for i=1:length(model)
         %[model{i}.J,model{i}.B,model{i}.C,~,~,model{i}.Q] = canonize(model{i}.J,model{i}.B,model{i}.C,[],model{i}.Q,[],[]);
-        fastFlag=false;
+        opts.fastFlag=false;
         Nd=size(model{i}.D,2);
-        [Xs,Ps,Pt,Xf,Pf,Xp,Pp,rejSamples]=statKalmanSmoother(model{i}.Y_,model{i}.J,model{i}.C,model{i}.Q,model{i}.R,[],[],model{i}.B,model{i}.D,U(1:Nd,:),false,fastFlag);
+        [Xs,Ps,Pt,Xf,Pf,Xp,Pp,rejSamples]=statKalmanSmoother(model{i}.Y_,model{i}.J,model{i}.C,model{i}.Q,model{i}.R,[],[],model{i}.B,model{i}.D,U,opts);
         model{i}.Xs=Xs; %Smoothed data
         model{i}.Ps=Ps;
         model{i}.Pp=Pp; %One-step ahead uncertainty from filtered data.
@@ -136,10 +136,10 @@ for kl=1%:2
                 nn='logL';
             case 2
                 yy=cellfun(@(x) x.BIC,mdl);
-                nn='BIC';
+                nn='-BIC';
             case 3
                 yy=cellfun(@(x) x.AIC,mdl);
-                nn='AIC';
+                nn='-AIC';
         end
         subplot(Nx,3*Ny,9*Ny+3+kj+(kl-1)*3*Ny)
         hold on
@@ -150,9 +150,9 @@ for kl=1%:2
             bar2=bar([k*100],yy(k),'EdgeColor','none','BarWidth',100);
             text((k)*100,.982*(yy(k)),[num2str(yy(k),6)],'Color','w','FontSize',8,'Rotation',90)
         end
-        title(['Model comparison: ' nn])
+        title([nn])
         grid on
-        set(gca,'XTick',100*(Mm+1)*.5,'XTickLabel',nn)
+        %set(gca,'XTick',100*(Mm+1)*.5,'XTickLabel',nn)
         axis tight;
         aa=axis;
         axis([aa(1:2) .98*min(yy) max(yy)])
