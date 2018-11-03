@@ -1,4 +1,4 @@
-function [x,P,K,z,zprctile,rejectedSample]=KFupdate(C,R,y,x,P,rejectZthreshold,cR)
+function [x,P,K,logL,rejectedSample]=KFupdate(C,R,y,x,P,rejectZ2threshold,cR)
 %Computes the update step of the Kalman filter
 %C arbitrary matrix
 %R observation noise covariance. %Needs to be only PSD, but PD is HIGHLY recommended
@@ -6,7 +6,7 @@ function [x,P,K,z,zprctile,rejectedSample]=KFupdate(C,R,y,x,P,rejectZthreshold,c
 %R +C*P*C' should be strictly PD. Numerical issues some time prevent this computation being done accurately
 
 rejectFlag=true;
-if nargin<6 || isempty(rejectZthreshold)
+if nargin<6 || isempty(rejectZ2threshold)
     rejectFlag=false;
     rejectedSample=false;
 end
@@ -20,22 +20,16 @@ end
 PCicS=P*C'*icS;
 K=PCicS*icS'; %K=P*C'/S;
 
-%If we wanted to check sanity of the update, by evaluating if the
-%innovation (of the state) is within reason given the prior expectations:
-%Get z-score and evaluate if sample is an outlier:
-if nargout>4 || rejectFlag
-    [zprctile,z]=z2prctile(y,[],C*x,icS');
-    if rejectFlag && z>rejectZthreshold
-        %Sample rejected, no update
-        rejectedSample=true;
-        K=zeros(size(C))';
+innov=y-C*x;
+if nargout>3 || rejectFlag %Compute log-likelihood of observation given prior:
+    [logL,z2]=logLnormal(innov,[],icS');
+    if rejectFlag && z2>rejectZ2threshold %Reject sample, no update
+        rejectedSample=true;    K=zeros(size(C))';
         return
     end
-elseif nargout>3
-    z=z2score(y,[],C*x,icS');
 end
 
-x=x+K*(y-C*x);
+x=x+K*innov;
 I_KC=eye(size(P))-K*C; %P=P-PCicS*PCicS';%=P-K*C*P;
 %This expression may lead to non-psd covariance, since it is the subtraction of two psd matrices
 I_KCcP=I_KC*cP';

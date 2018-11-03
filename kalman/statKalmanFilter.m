@@ -1,4 +1,4 @@
-function [X,P,Xp,Pp,rejSamples]=statKalmanFilter(Y,A,C,Q,R,varargin)
+function [X,P,Xp,Pp,rejSamples,logL]=statKalmanFilter(Y,A,C,Q,R,varargin)
 %filterStationary implements a Kalman filter assuming
 %stationary (fixed) noise matrices and system dynamics
 %The model is: x[k+1]=A*x[k]+b+v[k], v~N(0,Q)
@@ -72,28 +72,41 @@ Y_D=Y-D*Ud; BU=B*Ub;
 %observations never fall on the null-space of R.
 if D2>D1 %Reducing dimension of problem for speed
   %First, invert R:
-   [icR]=pinvchol(R); %This works if R is semidefinite, but in general
+  dimMargin=D2-D1;
+  [icR]=pinvchol(R); %This works if R is semidefinite, but in general
   %semidefinite R is unworkable, as R+C*P*C' needs to be invertible.
   %Even assuming P invertible at each update, it still requires R to be
   %invertible for all vectors orthogonal to the span of C at least)
   %Second, reduce the dimensionality problem:
   J=C'*icR; %Cholesky-like decomp of C'*inv(R)*C
   R=J*J'; Y_D=J*icR'*Y_D; C=R; D2=D1;
+  cR=mycholcov(R);
+  logDetMargin=sum(log(diag(cR)))+sum(log(diag(icR)));
+  %Some matrix determinant lemma matrix allows us to show that for any P:
+  %det(R+C'*P*C)*det(R) = det(J*J' + (J*J')'*P*(J*J'))*det(J*J')
+  %Thus, the difference between log(det(R+C'*P*C)) with the original and reduceModel
+  %values is: deltaLog = log(det(R))-log(det(Rnew)). This permits to compute the logL
+  %in the kalman filter on the reduced model, and then correct it by adding a constant
+  %term, instead of recomputing it.
+else
+  cR=mycholcov(R);
+  logDetMargin=0;
+  dimMargin=0;
 end
-cR=mycholcov(R);
 %Do the true filtering for M steps
 rejSamples=false(N,1);
-rejThreshold=chi2inv(.99,D2);
+logL=nan(N,1);
+if opts.outlierFlag
+  rejThreshold=chi2inv(.99,D2);
+else
+  rejThreshold=[];
+end
 for i=1:M
   y=Y_D(:,i); %Output at this step
 
   %First, do the update given the output at this step:
   if ~any(isnan(y)) %If measurement is NaN, skip update.
-      if opts.outlierFlag
-          [prevX,prevP,K,z,rejSamples(i)]=KFupdate(C,R,y,prevX,prevP,rejThreshold,cR)
-      else %This is here because it is more efficient to not compute the z-score if we dont need it
-          [prevX,prevP,K]=KFupdate(C,R,y,prevX,prevP,[],cR);
-      end
+      [prevX,prevP,K,logL(i),rejSamples(i)]=KFupdate(C,R,y,prevX,prevP,rejThreshold,cR);
   end
   X(:,i)=prevX;  P(:,:,i)=prevP; %Store results
 
@@ -136,4 +149,6 @@ if M<N %Do the fast filtering for any remaining steps:
         Xp(:,2:end)=A*X+B*Ub; Pp(:,:,M+2:end)=repmat(A*Psteady*A'+Q,1,1,size(Y,2)-M);
     end
 end
+log2Pi=1.83787706640934529;
+logL=nanmean(logL+logDetMargin-.5*dimMargin*log2Pi)/size(Y,1);
 end

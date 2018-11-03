@@ -1,4 +1,4 @@
-function [Xs,Ps,Pt,Xf,Pf,Xp,Pp,rejSamples]=statKalmanSmoother(Y,A,C,Q,R,varargin)
+function [Xs,Ps,Pt,Xf,Pf,Xp,Pp,rejSamples,logL]=statKalmanSmoother(Y,A,C,Q,R,varargin)
 %Implements a Kalman smoother for a stationary system
 %INPUT:
 %Y: D1xN observed data
@@ -28,7 +28,7 @@ opts.fastFlag=M+1;
 %TODO
 
 %Step 1: forward filter
-[Xf,Pf,Xp,Pp,rejSamples]=statKalmanFilter(Y,A,C,Q,R,x0,P0,B,D,U,opts);
+[Xf,Pf,Xp,Pp,rejSamples,logL]=statKalmanFilter(Y,A,C,Q,R,x0,P0,B,D,U,opts);
 
 %Step 2: backward pass:
 %TODO: Special case: deterministic system, no filtering needed. This can also be the case if Q << C'*R*C, and the system is stable
