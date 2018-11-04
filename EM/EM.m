@@ -69,7 +69,7 @@ for k=1:opts.Niter-1
 
     %E-step:
     if isa(Y,'cell') %Data is many realizations of same system
-        [X1,P1,Pt1,~,~,Xp,Pp,rejSamples]=cellfun(@(y,x0,p0,u) statKalmanSmoother(y,A1,C1,Q1,R1,x0,p0,B1,D1,u,opts),Y,x01,P01,U,'UniformOutput',false);
+        [X1,P1,Pt1,~,~,Xp,Pp,rejSamples,l]=cellfun(@(y,x0,p0,u) statKalmanSmoother(y,A1,C1,Q1,R1,x0,p0,B1,D1,u,opts),Y,x01,P01,U,'UniformOutput',false);
         if any(cellfun(@(x) any(imag(x(:))~=0),X1))
           msg='Complex states detected, stopping.';
           breakFlag=true;
@@ -78,7 +78,7 @@ for k=1:opts.Niter-1
           breakFlag=true;
         end
     else
-        [X1,P1,Pt1,~,~,Xp,Pp,rejSamples]=statKalmanSmoother(Y,A1,C1,Q1,R1,x01,P01,B1,D1,U,opts);
+        [X1,P1,Pt1,~,~,Xp,Pp,rejSamples,l]=statKalmanSmoother(Y,A1,C1,Q1,R1,x01,P01,B1,D1,U,opts);
         if any(imag(X1(:))~=0)
             msg='Complex states detected, stopping.';
             breakFlag=true;
@@ -91,7 +91,8 @@ for k=1:opts.Niter-1
 
     %Check improvements:
     Y2=Y;
-    l=dataLogLikelihood(Y2,U(opts.indD,:),A1,B1,C1,D1,Q1,R1,Xp,Pp,'approx',U(opts.indB,:)); %Passing the Kalman-filtered states and uncertainty makes the computation more efficient
+    l2=dataLogLikelihood(Y2,U(opts.indD,:),A1,B1,C1,D1,Q1,R1,Xp,Pp,'exact',U(opts.indB,:)); %Passing the Kalman-filtered states and uncertainty makes the computation more efficient
+    disp(['newLogL: ' num2str(l) ', old: ' num2str(l2) ',diff: ' num2str(l-l2)])
     logl(k+1)=l;
     delta=l-logl(k);
     improvement=delta>=0;

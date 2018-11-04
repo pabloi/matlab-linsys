@@ -150,5 +150,5 @@ if M<N %Do the fast filtering for any remaining steps:
     end
 end
 log2Pi=1.83787706640934529;
-logL=nanmean(logL+logDetMargin-.5*dimMargin*log2Pi)/size(Y,1);
+logL=(nanmean(logL)+logDetMargin-.5*dimMargin*(log2Pi+1))/size(Y,1); %No idea why the +1 term is needed, but it is for the reduced dimension case to return the same value as the non-reduced case. WTF?
 end
