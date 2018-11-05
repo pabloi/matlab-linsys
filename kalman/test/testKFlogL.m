@@ -1,6 +1,9 @@
 %test kalmanFilter logL
+if isOctave
 pkg load statistics %Needed in octave to use nanmean()
-addpath('../misc/')
+end
+[folder,fname,ext]=fileparts(mfilename('fullpath'));
+addpath([folder '/../../misc/'])
 %% Create model:
 D1=2;
 D2=100;
@@ -25,14 +28,24 @@ x0=zeros(D1,1);
 tic
 opts.noReduceFlag=false;
 [Xf,Pf,Xp,Pp,rejectedSamples,logL]=statKalmanFilter(Y,A,C,Q,R,[],[],B,D,U,opts); %Kalman smoother estimation of states, given the true parameters (this is the best possible estimation of states)
-toc
-logL
+tc=toc;
+disp(['KF logL, no reduced model: ' num2str(logL) ', runtime: ' num2str(tc) 's.'])
 tic
 opts.noReduceFlag=true;
 [Xf1,Pf1,Xp1,Pp1,rejectedSamples,logL1]=statKalmanFilter(Y,A,C,Q,R,[],[],B,D,U,opts); %Kalman smoother estimation of states, given the true parameters (this is the best possible estimation of states)
-toc
-logL1
-logL1-logL
+tc=toc;
+disp(['KF logL, reduced model: ' num2str(logL1) ', runtime: ' num2str(tc) 's.'])
+disp(['KF logL difference: ' num2str(logL1-logL)])
 
-logLperSamplePerDim=dataLogLikelihood(Y,U,A,B,C,D,Q,R,Xp,Pp,'exact')
-logLperSamplePerDim=dataLogLikelihood(Y,U,A,B,C,D,Q,R,Xp1,Pp1,'exact')
+tic
+logLperSamplePerDim=dataLogLikelihood(Y,U,A,B,C,D,Q,R,Xp,Pp,'exact');
+tc=toc;
+disp(['logL exact, legacy computation, non-reduced filtered data: ' num2str(logLperSamplePerDim) ', runtime: ' num2str(tc) 's.'])
+tic
+logLperSamplePerDim=dataLogLikelihood(Y,U,A,B,C,D,Q,R,Xp1,Pp1,'exact');
+tc=toc;
+disp(['logL exact, legacy computation, reduced filtered data: ' num2str(logLperSamplePerDim) ', runtime: ' num2str(tc) 's.'])
+tic
+logLperSamplePerDim=dataLogLikelihood(Y,U,A,B,C,D,Q,R,Xp1,Pp1,'approx');
+tc=toc;
+disp(['logL approx, legacy computation, reduced filtered data: ' num2str(logLperSamplePerDim) ', runtime: ' num2str(tc) 's.'])

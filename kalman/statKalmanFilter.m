@@ -71,31 +71,15 @@ Y_D=Y-D*Ud; BU=B*Ub;
 %invertible, and may be safe in other situations, provided that
 %observations never fall on the null-space of R.
 if D2>D1 && ~opts.noReduceFlag %Reducing dimension of problem for speed
-  %First, invert R:
-  dimMargin=D2-D1;
-  [icR]=pinvchol(R); %This works if R is semidefinite, but in general
-  %semidefinite R is unworkable, as R+C*P*C' needs to be invertible.
-  %Even assuming P invertible at each update, it still requires R to be
-  %invertible for all vectors orthogonal to the span of C at least)
-  %Second, reduce the dimensionality problem:
-  J=C'*icR; %Cholesky-like decomp of C'*inv(R)*C
-  R=J*J'; Y_D=J*icR'*Y_D; C=R; D2=D1;
-  cR=mycholcov(R);
-  logDetMargin=sum(log(diag(cR)))+sum(log(diag(icR)));
-  %Some matrix determinant lemma matrix allows us to show that for any P:
-  %det(R+C'*P*C)*det(R) = det(J*J' + (J*J')'*P*(J*J'))*det(J*J')
-  %Thus, the difference between log(det(R+C'*P*C)) with the original and reduceModel
-  %values is: deltaLog = log(det(R))-log(det(Rnew)). This permits to compute the logL
-  %in the kalman filter on the reduced model, and then correct it by adding a constant
-  %term, instead of recomputing it.
+  [C,R,Y_D,cR,logLmargin]=reduceModel(C,R,Y_D);
+  D2=D1;
 else
   cR=mycholcov(R);
-  logDetMargin=0;
-  dimMargin=0;
+  logLmargin=0;
 end
 %Do the true filtering for M steps
 rejSamples=false(N,1);
-logL=nan(N,1);
+logL=nan(1,N); %Row vector
 if opts.outlierFlag
   rejThreshold=chi2inv(.99,D2);
 else
@@ -149,6 +133,5 @@ if M<N %Do the fast filtering for any remaining steps:
         Xp(:,2:end)=A*X+B*Ub; Pp(:,:,M+2:end)=repmat(A*Psteady*A'+Q,1,1,size(Y,2)-M);
     end
 end
-log2Pi=1.83787706640934529;
-logL=(nanmean(logL)+logDetMargin-.5*dimMargin*(log2Pi+1))/size(Y,1); %No idea why the +1 term is needed, but it is for the reduced dimension case to return the same value as the non-reduced case. WTF?
+logL=nanmean(logL+logLmargin)/size(Y,1); %Corrected, averaged log-likelihood
 end

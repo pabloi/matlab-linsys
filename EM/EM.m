@@ -91,8 +91,8 @@ for k=1:opts.Niter-1
 
     %Check improvements:
     Y2=Y;
-    l2=dataLogLikelihood(Y2,U(opts.indD,:),A1,B1,C1,D1,Q1,R1,Xp,Pp,'exact',U(opts.indB,:)); %Passing the Kalman-filtered states and uncertainty makes the computation more efficient
-    disp(['newLogL: ' num2str(l) ', old: ' num2str(l2) ',diff: ' num2str(l-l2)])
+    %l2=dataLogLikelihood(Y2,U(opts.indD,:),A1,B1,C1,D1,Q1,R1,Xp,Pp,'exact',U(opts.indB,:)); %Passing the Kalman-filtered states and uncertainty makes the computation more efficient
+    %disp(['KF logL: ' num2str(l) ', legacy: ' num2str(l2) ',diff: ' num2str(l-l2)])
     logl(k+1)=l;
     delta=l-logl(k);
     improvement=delta>=0;
