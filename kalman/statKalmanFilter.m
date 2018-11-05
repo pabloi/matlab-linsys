@@ -70,7 +70,7 @@ Y_D=Y-D*Ud; BU=B*Ub;
 %means the output is also compressible). This is always safe if R is
 %invertible, and may be safe in other situations, provided that
 %observations never fall on the null-space of R.
-if D2>D1 %Reducing dimension of problem for speed
+if D2>D1 && ~opts.noReduceFlag %Reducing dimension of problem for speed
   %First, invert R:
   dimMargin=D2-D1;
   [icR]=pinvchol(R); %This works if R is semidefinite, but in general

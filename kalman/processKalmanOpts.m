@@ -18,6 +18,9 @@ end
 if ~isfield(opts,'outlierFlag') || isempty(opts.outlierFlag)
   opts.outlierFlag=false;
 end
+if ~isfield(opts,'noReduceFlag') || isempty(opts.noReduceFlag)
+  opts.noReduceFlag=false;
+end
 if ~isfield(opts,'indD') %Leave empty as empty
   opts.indD=1:size(U,1);
 end
