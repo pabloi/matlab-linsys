@@ -65,10 +65,11 @@ Y_D=Y-D*Ud; BU=B*Ub;
 %means the output is also compressible). This is always safe if R is
 %invertible, and may be safe in other situations, provided that
 %observations never fall on the null-space of R.
+[CtRinvC,~,CtRinvY,cholCtRinvC,logLmargin]=reduceModel(C,R,Y_D); 
 if D2>D1 && ~opts.noReduceFlag %Reducing dimension of problem for speed
-  [C,R,Y_D,cR,logLmargin]=reduceModel(C,R,Y_D);   D2=D1; 
+    C=CtRinvC; R=CtRinvC; Y_D=CtRinvY;  D2=D1; cR=cholCtRinvC;
 else
-  cR=mycholcov(R);  logLmargin=0;
+    cR=mycholcov(R);  logLmargin=0;
 end
 if nargout>5
     K=nan(D1,D2,N);
@@ -88,7 +89,7 @@ for i=1:M
 
   %First, do the update given the output at this step:
   if ~any(isnan(y)) %If measurement is NaN, skip update.
-      [prevX,prevP,prevK,logL(i),rejSamples(i),icS]=KFupdate(C,R,y,prevX,prevP,rejThreshold,cR);
+     [prevX,prevP,prevK,logL(i),rejSamples(i),icS]=KFupdate(C,R,y,prevX,prevP,rejThreshold,cR);
   end
   X(:,i)=prevX;  P(:,:,i)=prevP; %Store results
 

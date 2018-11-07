@@ -28,7 +28,8 @@ opts.fastFlag=M+1;
 %TODO
 
 %Step 1: forward filter
-[Xf,Pf,Xp,Pp,rejSamples,logL,invSchol]=statKalmanFilter(Y,A,C,Q,R,x0,P0,B,D,U,opts);
+[Xf,Pf,Xp,Pp,rejSamples,logL]=statKalmanFilter(Y,A,C,Q,R,x0,P0,B,D,U,opts);
+%[Xf,Pf,Xp,Pp,rejSamples,logL,invSchol]=statKalmanFilter(Y,A,C,Q,R,x0,P0,B,D,U,opts);
 
 %Step 2: backward pass:
 %TODO: Special case: deterministic system, no filtering needed. This can also be the case if Q << C'*R*C, and the system is stable
@@ -51,7 +52,6 @@ if Nfast<=0 %No fast filtering at all
 end
 
 %Do true smoothing for last M1 samples:
-I=eye(size(C,2));
 if D2>D1 && ~opts.noReduceFlag %Reducing dimension of problem for speed
   [C,~,Y]=reduceModel(C,R,Y-D*Ud); 
 end
@@ -67,21 +67,19 @@ for i=N-1:-1:N-M1
   pp=Pp(:,:,i+1); %Covariance of next step based on post estimate of this step
 
   %Backward pass:
-  %[prevPs,prevXs,newPt]=backStep(pp,pf,prevPs,xp,xf,prevXs,A);
-  %Alt:
-  innov=Innov(:,i);
-  [prevPs,prevXs,newPt,prevDelta,prevLambda]=backStep2(xf,pf,innov,pp,prevpp,A,C,invSchol(:,:,i),prevDelta,prevLambda);
+  [prevPs,prevXs,newPt]=backStepRTS(pp,pf,prevPs,xp,xf,prevXs,A);
+  %Alt: Bryson-Frazier recursion. Faster, but error-prone
+  %innov=Innov(:,i);
+  %[prevPs,prevXs,newPt,prevDelta,prevLambda]=backStepBF(xf,pf,innov,pp,prevpp,A,C,invSchol(:,:,i),prevDelta,prevLambda);
 
   %Store estimates:
   Xs(:,i)=prevXs;  Pt(:,:,i)=newPt;  Ps(:,:,i)=prevPs;
 end
 
 %Fast smoothing for the middle (N-2*M) samples (using the
-%Rauch-Tung-Striebel equations, since the modified Bryson-Frazier do not
-%seem to have a steady-state)
+%Rauch-Tung-Striebel equations, should see how to do the BF equations)
 if Nfast>0 %Assume steady-state:
-    [icP,~]=pinvchol(pp);
-    H=(pf*(A'*icP))*icP';
+    [~,~,newPt,H]=backStepRTS(pp,pf,prevPs,Xp(:,i+1),xf,prevXs,A); %Get gain H
      if any(abs(eig(H))>1) %TODO: check for stability efficiently
          warning('statKS:unstableSmooth','Unstable smoothing, skipping the backward pass.')
          H=zeros(size(H));
@@ -92,11 +90,8 @@ if Nfast>0 %Assume steady-state:
         Xs(:,i)=prevXs;
     end
     %Compute covariances if requested:
-    if nargout>2
-        Ps(:,:,M2+1:N-M1-1)=repmat(prevPs,1,1,Nfast);
-        if nargout>3
-            Pt(:,:,M2+1:N-M1-1)=repmat(newPt,1,1,Nfast);
-        end
+    if nargout>2; Ps(:,:,M2+1:N-M1-1)=repmat(prevPs,1,1,Nfast);
+        if nargout>3; Pt(:,:,M2+1:N-M1-1)=repmat(newPt,1,1,Nfast); end
     end
 end
 
@@ -106,10 +101,14 @@ for i=M2:-1:1
   xf=Xf(:,i); %Previous posterior estimate of covariance at this step
   pf=Pf(:,:,i); %Previous posterior estimate of covariance at this time step
   xp=Xp(:,i+1); %Prediction of next step based on post estimate of this step
+  prevpp=pp;
   pp=Pp(:,:,i+1); %Covariance of next step based on post estimate of this step
 
   %Backward pass:
-  [prevPs,prevXs,newPt]=backStep(pp,pf,prevPs,xp,xf,prevXs,A);
+  [prevPs,prevXs,newPt]=backStepRTS(pp,pf,prevPs,xp,xf,prevXs,A);
+  %Alt:
+  %innov=Innov(:,i);
+  %[prevPs,prevXs,newPt,prevDelta,prevLambda]=backStepBF(xf,pf,innov,pp,prevpp,A,C,invSchol(:,:,i),prevDelta,prevLambda);
 
   %Store estimates:
   Xs(:,i)=prevXs;  Pt(:,:,i)=newPt;  Ps(:,:,i)=prevPs;
@@ -117,12 +116,12 @@ end
 
 end
 
-function [newPs,newXs,newPt]=backStep(pp,pf,ps,xp,xf,prevXs,A)
+function [newPs,newXs,newPt,H]=backStepRTS(pp,pf,ps,xp,xf,prevXs,A)
   %Implements the Rauch-Tung-Striebel backward recursion
   %https://en.wikipedia.org/wiki/Kalman_filter#Fixed-interval_smoothers)
 
   %First, compute gain:
-  [icP,cP]=pinvchol(pp);
+  [icP]=pinvchol(pp);
   H=(pf*(A'*icP))*icP'; %H=AP'/pp; %Faster, although worse conditioned, matters a lot when smoothing
 
   %Unstable smoothing warning: in general, the back step can be unstable for a few strides, but if it happens always, there is probably something wrong:
@@ -145,7 +144,7 @@ function [newPs,newXs,newPt]=backStep(pp,pf,ps,xp,xf,prevXs,A)
   newXs=xf + H*(prevXs-xp);
 end
 
-function [newPs,newXs,newPt,newDelta,newLambda]=backStep2(xf,Pf,innov,Pp,prevPp,A,C,icS,prevDelta,prevLambda)
+function [newPs,newXs,newPt,newDelta,newLambda]=backStepBF(xf,Pf,innov,Pp,prevPp,A,C,icS,prevDelta,prevLambda)
   %Implements the modified Bryson-Frazier smoother, which does not invert the covariances
   %Using Martin 2014 equations, in which Pt is derived (wikipedia does not have it)
   %Wikipedia:

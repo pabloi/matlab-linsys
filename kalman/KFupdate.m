@@ -14,12 +14,14 @@ end
 %cP=mycholcov(P); CcP=C*cP'; %Need P to be PSD only
 %[icS]=pinvchol(R+CcP*CcP'); %Equivalent to two lines above, but
 %slightly slower, because of overhead checks of invertibility
-[icS,cS]=pinvchol(R+C*P*C');
+[icS,cS]=pinvchol(R+C*P*C'); %Computing inv(S), with S=R+C*P*C'
 if size(icS,2)<size(R,1)
     warning('KFudpate:nonPDmatrix','R+C*P*C^t was not strictly definite. This can end badly.')
 end
-PCicS=P*C'*icS;
-K=PCicS*icS'; %K=P*C'/S;
+CicS=C'*icS;
+%CinvS=CicS*icS';
+PCicS=P*CicS;
+K=PCicS*icS'; %=P*CinvS; %K=P*C'/S; %No need to compute this
 
 innov=y-C*x;
 if nargout>3 || rejectFlag %Compute log-likelihood of observation given prior:
@@ -30,7 +32,8 @@ if nargout>3 || rejectFlag %Compute log-likelihood of observation given prior:
     end
 end
 
-newX=x+K*innov;
+%CtinvSinnov=CinvS*innov; %=C'*inv(S)
+newX=x+K*innov; %P*C'*inv(S) = K
 %I_KC=eye(size(P))-K*C; %P=P-PCicS*PCicS';%=P-K*C*P;
 %This expression may lead to non-psd covariance, since it is the subtraction of two psd matrices
 %I_KCcP=I_KC*cP';
@@ -40,6 +43,5 @@ newX=x+K*innov;
 %    KcR=cR*K'; %If chol decomp of R is given, this is cheaper
 %end
 %newP=I_KCcP*I_KCcP'+KcR'*KcR; = (I-KC)*P*(I-KC)' + K*R*K = P-K*(R+C*P*C')*K;
-KcS=K*cS';
-newP = P - KcS*KcS';
+newP = P - PCicS*PCicS';
 end

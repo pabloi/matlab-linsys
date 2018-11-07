@@ -1,6 +1,6 @@
 %% Create model:
 D1=5;
-D2=100; %CS 2006 gets progressively slower for larger D2 (linear execution time with D2 for large D2). This implementation grows linearly too but with the SMALLEST of D1,D2
+D2=5;%100; %CS 2006 gets progressively slower for larger D2 (linear execution time with D2 for large D2). This implementation grows linearly too but with the SMALLEST of D1,D2
 N=1000;
 A=diag(rand(D1,1));
 A=.9999*A; %Setting the max eigenvalue to .9999
@@ -10,8 +10,8 @@ B=(eye(size(A))-A)*ones(size(A,1),1); %WLOG, arbitrary scaling so all states asy
 U=[zeros(300,1);ones(N,1);zeros(N/2,1)]'; %Step input and then removed
 C=randn(D2,D1);
 D=randn(D2,1);
-Q=eye(D1)*1e-4;
-R=10*eye(D2); %CS2006 performance degrades (larger state estimation errors) for very small R
+Q=eye(D1)*1e-3;
+R=1*eye(D2); %CS2006 performance degrades (larger state estimation errors) for very small R
 
 %% Simulate
 NN=size(U,2);
@@ -26,7 +26,8 @@ opts.fastFlag=0;
 [Xs,Ps,Pt,Xf,Pf,Xp,Pp]=statKalmanSmoother(Y,A,C,Q,R,[],[],B,D,U,opts); %Kalman smoother estimation of states, given the true parameters (this is the best possible estimation of states)
 tf=toc;
 %% Use Cheng & Sabes code:
-addpath(genpath('../../../ext/lds-1.0/'))
+[folder]=fileparts(mfilename('fullpath'));
+addpath(genpath([folder '/../../../ext/lds-1.0/']))
 LDS.A=A;
 LDS.B=B;
 LDS.C=C;
