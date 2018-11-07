@@ -28,7 +28,7 @@ opts.fastFlag=M+1;
 %TODO
 
 %Step 1: forward filter
-[Xf,Pf,Xp,Pp,rejSamples,logL]=statKalmanFilter(Y,A,C,Q,R,x0,P0,B,D,U,opts);
+[Xf,Pf,Xp,Pp,rejSamples,logL,invSchol]=statKalmanFilter(Y,A,C,Q,R,x0,P0,B,D,U,opts);
 
 %Step 2: backward pass:
 %TODO: Special case: deterministic system, no filtering needed. This can also be the case if Q << C'*R*C, and the system is stable
@@ -51,21 +51,34 @@ if Nfast<=0 %No fast filtering at all
 end
 
 %Do true smoothing for last M1 samples:
+I=eye(size(C,2));
+if D2>D1 && ~opts.noReduceFlag %Reducing dimension of problem for speed
+  [C,~,Y]=reduceModel(C,R,Y-D*Ud); 
+end
+prevDelta=0; prevLambda=zeros(D1,1);
+Innov=Y-C*Xp(:,1:N);
+pp=Pp(:,:,end);
 for i=N-1:-1:N-M1
   %First, get estimates from forward pass:
   xf=Xf(:,i); %Previous posterior estimate of covariance at this step
   pf=Pf(:,:,i); %Previous posterior estimate of covariance at this time step
   xp=Xp(:,i+1); %Prediction of next step based on post estimate of this step
+  prevpp=pp;
   pp=Pp(:,:,i+1); %Covariance of next step based on post estimate of this step
 
   %Backward pass:
-  [prevPs,prevXs,newPt]=backStep(pp,pf,prevPs,xp,xf,prevXs,A);
+  %[prevPs,prevXs,newPt]=backStep(pp,pf,prevPs,xp,xf,prevXs,A);
+  %Alt:
+  innov=Innov(:,i);
+  [prevPs,prevXs,newPt,prevDelta,prevLambda]=backStep2(xf,pf,innov,pp,prevpp,A,C,invSchol(:,:,i),prevDelta,prevLambda);
 
   %Store estimates:
   Xs(:,i)=prevXs;  Pt(:,:,i)=newPt;  Ps(:,:,i)=prevPs;
 end
 
-%Fast smoothing for the middle (N-2*M) samples
+%Fast smoothing for the middle (N-2*M) samples (using the
+%Rauch-Tung-Striebel equations, since the modified Bryson-Frazier do not
+%seem to have a steady-state)
 if Nfast>0 %Assume steady-state:
     [icP,~]=pinvchol(pp);
     H=(pf*(A'*icP))*icP';
@@ -109,7 +122,7 @@ function [newPs,newXs,newPt]=backStep(pp,pf,ps,xp,xf,prevXs,A)
   %https://en.wikipedia.org/wiki/Kalman_filter#Fixed-interval_smoothers)
 
   %First, compute gain:
-  [icP,~]=pinvchol(pp);
+  [icP,cP]=pinvchol(pp);
   H=(pf*(A'*icP))*icP'; %H=AP'/pp; %Faster, although worse conditioned, matters a lot when smoothing
 
   %Unstable smoothing warning: in general, the back step can be unstable for a few strides, but if it happens always, there is probably something wrong:
@@ -119,20 +132,39 @@ function [newPs,newXs,newPt]=backStep(pp,pf,ps,xp,xf,prevXs,A)
 
   %Compute relevant covariances
   newPt=ps*H'; %This should be such that A*newPt' is hermitian
-  Hext=H*(mycholcov(pp-ps)');
 
   %Updates: Improved (smoothed) state estimate
-  newPs=pf-Hext*Hext'; %=pf + Hps*Hps' - Hcpp'*Hcpp;  %Would it be more precise/efficient to compute the sum of the last two terms as inv(inv(pf) +A'*inv(Q)*A) ?
-  cPs=mycholcov(newPs); %Ensure PSD
-  newPs=cPs'*cPs;
+  Hext=H*(mycholcov(pp-ps)');
+  newPs=pf-Hext*Hext';
+  %cS=mycholcov(ps);
+  %Hps=H*cS';
+  %Hpp=H*cP';
+  %newPs=pf +Hps*Hps' - Hpp*Hpp';
+  %cPs=mycholcov(newPs); %Ensure PSD
+  %newPs=cPs'*cPs;
   newXs=xf + H*(prevXs-xp);
 end
 
-function [newPs,newXs,newPt,newDelta,newLambda]=backStep2(xf,Pf,CtRinvC,I_KC,prevDelta,prevLambda,CtRinv)
+function [newPs,newXs,newPt,newDelta,newLambda]=backStep2(xf,Pf,innov,Pp,prevPp,A,C,icS,prevDelta,prevLambda)
   %Implements the modified Bryson-Frazier smoother, which does not invert the covariances
-  newDelta=A'*(CtRinvC +I_KC'*prevDelta*I_KC)*A;
-  newLambda=A'*(I_KC*prevLambda - CtRinv*innov);
-  newXs=xf-Pf*newLambda;
-  newPs=Pf-Pf*newDelta*Pf;
-  newPt=[]; %??
+  %Using Martin 2014 equations, in which Pt is derived (wikipedia does not have it)
+  %Wikipedia:
+  %newDelta=A'*(CtRinvC +I_KC'*prevDelta*I_KC)*A;
+  %newLambda=A'*(I_KC*prevLambda +CtRinvC*xp - CtRinvY);
+  %newXs=xf-Pf*newLambda;
+  %newPs=Pf-Pf*newDelta*Pf;
+  %newPt=[]; %??
+  %Martin 2014:
+  PfA=Pf*A';
+  newPs=Pf -PfA*prevDelta*PfA';
+  newXs=xf - PfA*prevLambda;
+  I=eye(size(Pp));
+  newPt=(I-Pp*prevDelta)*PfA';
+  CicS=C'*icS;
+  CtinvSC=CicS*CicS';
+  I_KC=I-prevPp*CtinvSC;
+  I_KCA=I_KC'*A';
+  newLambda=I_KCA*prevLambda - CicS*icS'*innov;
+  newDelta=I_KCA*prevDelta*I_KCA' + CtinvSC;
+  
 end

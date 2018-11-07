@@ -1,4 +1,4 @@
-function [x,P,K,logL,rejectedSample]=KFupdate(C,R,y,x,P,rejectZ2threshold,cR)
+function [newX,newP,K,logL,rejectedSample,icS]=KFupdate(C,R,y,x,P,rejectZ2threshold,~)
 %Computes the update step of the Kalman filter
 %C arbitrary matrix
 %R observation noise covariance. %Needs to be only PSD, but PD is HIGHLY recommended
@@ -11,9 +11,10 @@ if nargin<6 || isempty(rejectZ2threshold)
     rejectedSample=false;
 end
 
-cP=mycholcov(P); CcP=C*cP'; %Need P to be PSD only
-[icS]=pinvchol(R+CcP*CcP'); %Equivalent to two lines above, but
+%cP=mycholcov(P); CcP=C*cP'; %Need P to be PSD only
+%[icS]=pinvchol(R+CcP*CcP'); %Equivalent to two lines above, but
 %slightly slower, because of overhead checks of invertibility
+[icS,cS]=pinvchol(R+C*P*C');
 if size(icS,2)<size(R,1)
     warning('KFudpate:nonPDmatrix','R+C*P*C^t was not strictly definite. This can end badly.')
 end
@@ -29,14 +30,16 @@ if nargout>3 || rejectFlag %Compute log-likelihood of observation given prior:
     end
 end
 
-x=x+K*innov;
-I_KC=eye(size(P))-K*C; %P=P-PCicS*PCicS';%=P-K*C*P;
+newX=x+K*innov;
+%I_KC=eye(size(P))-K*C; %P=P-PCicS*PCicS';%=P-K*C*P;
 %This expression may lead to non-psd covariance, since it is the subtraction of two psd matrices
-I_KCcP=I_KC*cP';
-if nargin<7
-    KcR=mycholcov(K*R*K');
-else
-    KcR=cR*K'; %If chol decomp of R is given, this is cheaper
-end
-P=I_KCcP*I_KCcP'+KcR'*KcR;
+%I_KCcP=I_KC*cP';
+%if nargin<7
+%    KcR=mycholcov(K*R*K');
+%else
+%    KcR=cR*K'; %If chol decomp of R is given, this is cheaper
+%end
+%newP=I_KCcP*I_KCcP'+KcR'*KcR; = (I-KC)*P*(I-KC)' + K*R*K = P-K*(R+C*P*C')*K;
+KcS=K*cS';
+newP = P - KcS*KcS';
 end

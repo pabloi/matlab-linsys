@@ -1,7 +1,8 @@
 %%
-addpath(genpath('../EM/')) %Adding the matlab-sysID toolbox to path, just in case
-addpath(genpath('../kalman/'))
-addpath(genpath('../misc/'))
+[folder]=fileparts(mfilename);
+addpath(genpath([folder '/../EM/'])) %Adding the matlab-sysID toolbox to path, just in case
+addpath(genpath([folder '/../kalman/']))
+addpath(genpath([folder '/../misc/']))
 %%
 clear all
 %% Create model:
@@ -34,6 +35,7 @@ logL=dataLogLikelihood(Y,U,A,B,C,D,Q,R,Xs(:,1),Ps(:,:,1))
 %% Identify 1alt: trueEM starting from non-true solution
 opts.fastFlag=0;
 opts.robustFlag=false;
+opts.Niter=101;
 tic
 [fAh,fBh,fCh,fDh,fQh,fRh,fXh,fPh]=EM(Y,U,D1,opts);
 flogLh=dataLogLikelihood(Y,U,fAh,fBh,fCh,fDh,fQh,fRh,fXh(:,1),fPh(:,:,1))
@@ -42,8 +44,8 @@ toc
 
 %%
 tic
-[Ah1,Bh1,Ch1,Dh1,Qh1,Rh1,Xh1,Ph1]=randomStartEM(Y,U,2,5,opts);
-logLh1=dataLogLikelihood(Y,U,Ah1,Bh1,Ch1,Dh1,Qh1,Rh1,Xh1(:,1),Ph1(:,:,1))
+%[Ah1,Bh1,Ch1,Dh1,Qh1,Rh1,Xh1,Ph1]=randomStartEM(Y,U,2,5,opts);
+%logLh1=dataLogLikelihood(Y,U,Ah1,Bh1,Ch1,Dh1,Qh1,Rh1,Xh1(:,1),Ph1(:,:,1))
 toc
 [Ah1,Bh1,Ch1,Xh1,~,Qh1] = canonize(Ah1,Bh1,Ch1,Xh1,Qh1);
 

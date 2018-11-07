@@ -1,4 +1,4 @@
-function [X,P,Xp,Pp,rejSamples,logL]=statKalmanFilter(Y,A,C,Q,R,varargin)
+function [X,P,Xp,Pp,rejSamples,logL,invSchol]=statKalmanFilter(Y,A,C,Q,R,varargin)
 %statKalmanFilter implements a Kalman filter assuming
 %stationary (fixed) noise matrices and system dynamics
 %The model is: x[k+1]=A*x[k]+b+v[k], v~N(0,Q)
@@ -51,7 +51,7 @@ if isa(Y,'gpuArray') %For code to work on gpu
 else
     Xp=nan(D1,N+1);      X=nan(D1,N);
     Pp=nan(D1,D1,N+1);   P=nan(D1,D1,N);
-    rejSamples=zeros(D2,N);
+    rejSamples=zeros(D2,N); 
 end
 
 %Priors:
@@ -66,9 +66,15 @@ Y_D=Y-D*Ud; BU=B*Ub;
 %invertible, and may be safe in other situations, provided that
 %observations never fall on the null-space of R.
 if D2>D1 && ~opts.noReduceFlag %Reducing dimension of problem for speed
-  [C,R,Y_D,cR,logLmargin]=reduceModel(C,R,Y_D);   D2=D1;
+  [C,R,Y_D,cR,logLmargin]=reduceModel(C,R,Y_D);   D2=D1; 
 else
   cR=mycholcov(R);  logLmargin=0;
+end
+if nargout>5
+    K=nan(D1,D2,N);
+    if nargout>6
+        invSchol=nan(D2,D2,N);
+    end
 end
 %Do the true filtering for M steps
 rejSamples=false(N,1);
@@ -82,14 +88,17 @@ for i=1:M
 
   %First, do the update given the output at this step:
   if ~any(isnan(y)) %If measurement is NaN, skip update.
-      [prevX,prevP,K,logL(i),rejSamples(i)]=KFupdate(C,R,y,prevX,prevP,rejThreshold,cR);
+      [prevX,prevP,prevK,logL(i),rejSamples(i),icS]=KFupdate(C,R,y,prevX,prevP,rejThreshold,cR);
   end
   X(:,i)=prevX;  P(:,:,i)=prevP; %Store results
 
   %Then, predict next step:
   [prevX,prevP]=KFpredict(A,Q,prevX,prevP,BU(:,i));
   if nargout>2 %Store Xp, Pp if requested:
-      Xp(:,i+1)=prevX;   Pp(:,:,i+1)=prevP;
+      Xp(:,i+1)=prevX;   Pp(:,:,i+1)=prevP; 
+      if nargout>5
+         invSchol(:,:,i)=icS;
+      end
   end
 end
 
@@ -97,7 +106,7 @@ if M<N %Do the fast filtering for any remaining steps:
 %(from here on, we assume stady-state behavior to improve speed).
     %Steady-state matrices:
     prevX=X(:,M); Psteady=P(:,:,M); %Steady-state UPDATED state and uncertainty matrix
-    Ksteady=K; %Steady-state Kalman gain
+    Ksteady=prevK; %Steady-state Kalman gain
     Gsteady=eye(size(Ksteady,1))-Ksteady*C; %I-K*C,
 
     %Pre-compute matrices to reduce computing time:
@@ -123,6 +132,9 @@ if M<N %Do the fast filtering for any remaining steps:
     end
     if nargout>2 %Compute Xp, Pp only if requested:
         Xp(:,2:end)=A*X+B*Ub; Pp(:,:,M+2:end)=repmat(A*Psteady*A'+Q,1,1,size(Y,2)-M);
+        if nargout>5
+            invSchol(:,:,M+1:end)=repmat(icS,1,1,size(Y,2)-M);
+        end
     end
 end
 logL=nanmean(logL+logLmargin)/size(Y,1); %Corrected, averaged log-likelihood

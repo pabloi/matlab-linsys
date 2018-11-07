@@ -14,7 +14,8 @@ function [A,B,C,D,Q,R,X,P,Pt,logL]=initEM(Y,U,X,opts,P)
       else
         Y2=Y;
       end
-      [A,B,C,D,X,Q,R]=subspaceIDv2(Y2,U,d); %Works if no missing data
+      %[A,B,C,D,X,Q,R]=subspaceIDv2(Y2,U,d); %Works if no missing data
+      [X]=initGuessOld(Y2,U,d);
   end
   [A,B,C,D,Q,R,X,P,logL,Pt]=initParams(Y,U,X,opts,P);
   %logL=dataLogLikelihood(Y,U(opts.indD,:),A,B,C,D,Q,R,X(:,1),P(:,:,1),'approx',U(opts.indB,:))
