@@ -1,5 +1,5 @@
 function [X,P,Xp,Pp,rejSamples,logL]=statKalmanFilter(Y,A,C,Q,R,varargin)
-%filterStationary implements a Kalman filter assuming
+%statKalmanFilter implements a Kalman filter assuming
 %stationary (fixed) noise matrices and system dynamics
 %The model is: x[k+1]=A*x[k]+b+v[k], v~N(0,Q)
 %y[k]=C*x[k]+d+w[k], w~N(0,R)
@@ -9,7 +9,6 @@ function [X,P,Xp,Pp,rejSamples,logL]=statKalmanFilter(Y,A,C,Q,R,varargin)
 %Fast implementation by assuming that filter's steady-state is reached after 20 steps
 %INPUTS:
 %
-%fastFlag: flag to indicate if fast smoothing should be performed. Default is no. Empty flag means no, any other value is yes.
 %OUTPUTS:
 %
 %See also: statKalmanSmoother, statKalmanFilterConstrained, KFupdate, KFpredict
@@ -46,16 +45,12 @@ M=processFastFlag(opts.fastFlag,A,N);
 
 %Init arrays:
 if isa(Y,'gpuArray') %For code to work on gpu
-    Xp=nan(D1,N+1,'gpuArray');
-    X=nan(D1,N,'gpuArray');
-    Pp=nan(D1,D1,N+1,'gpuArray');
-    P=nan(D1,D1,N,'gpuArray');
+    Xp=nan(D1,N+1,'gpuArray');      X=nan(D1,N,'gpuArray');
+    Pp=nan(D1,D1,N+1,'gpuArray');   P=nan(D1,D1,N,'gpuArray');
     rejSamples=zeros(D2,N,'gpuArray');
 else
-    Xp=nan(D1,N+1);
-    X=nan(D1,N);
-    Pp=nan(D1,D1,N+1);
-    P=nan(D1,D1,N);
+    Xp=nan(D1,N+1);      X=nan(D1,N);
+    Pp=nan(D1,D1,N+1);   P=nan(D1,D1,N);
     rejSamples=zeros(D2,N);
 end
 
@@ -71,19 +66,16 @@ Y_D=Y-D*Ud; BU=B*Ub;
 %invertible, and may be safe in other situations, provided that
 %observations never fall on the null-space of R.
 if D2>D1 && ~opts.noReduceFlag %Reducing dimension of problem for speed
-  [C,R,Y_D,cR,logLmargin]=reduceModel(C,R,Y_D);
-  D2=D1;
+  [C,R,Y_D,cR,logLmargin]=reduceModel(C,R,Y_D);   D2=D1;
 else
-  cR=mycholcov(R);
-  logLmargin=0;
+  cR=mycholcov(R);  logLmargin=0;
 end
 %Do the true filtering for M steps
 rejSamples=false(N,1);
 logL=nan(1,N); %Row vector
+rejThreshold=[];
 if opts.outlierFlag
   rejThreshold=chi2inv(.99,D2);
-else
-  rejThreshold=[];
 end
 for i=1:M
   y=Y_D(:,i); %Output at this step
