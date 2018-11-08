@@ -1,12 +1,7 @@
 %% Create model:
 D1=2;
-D2=100;%100; 
-%CS 2006 gets progressively slower for larger D2 (linear execution time with D2 for large D2). 
-%This implementation grows linearly too but with the SMALLEST of D1,D2. For
-%small D2, CS2006 is slightly faster, as it does not enforce covariance
-%matrices to be PSD. This sometimes results in ugly filtering (especially
-%with large covariance matrices, the smoothing does not work well, even 
-%being less accurate than this implementation's filtering).
+D2=20;%100; %CS 2006 gets progressively slower for larger D2 (linear execution time with D2 for large D2). This implementation grows linearly too but with the SMALLEST of D1,D2
+N=1000;
 A=diag(rand(D1,1));
 A=.9999*A; %Setting the max eigenvalue to .9999
 %B=3*randn(D1,1);
@@ -32,39 +27,21 @@ opts.fastFlag=0;
 tf=toc;
 %% Use Info smoother:
 tic;
-[Xf,Pf]=statInfoSmoother(Y,A,C,Q,R,[],[],B,D,U,opts); 
-ts=toc;
-%% Use Cheng & Sabes code:
-[folder]=fileparts(mfilename('fullpath'));
-addpath(genpath([folder '/../../../ext/lds-1.0/']))
-LDS.A=A;
-LDS.B=B;
-LDS.C=C;
-LDS.D=D;
-LDS.Q=Q;
-LDS.R=R;
-LDS.x0=zeros(D1,1);
-LDS.V0=1e8 * eye(size(A)); %My filter uses Inf as initial uncertainty, but CS2006 does not support it, or anything too large
-warning('off')
-tic
-[Lik,Xcs,Pcs,Ptcs,Scs] = SmoothLDS(LDS,Y,U,U); %Mex version
-tc=toc;
-%tic
-%[Lik,Xcs,Pcs,Ptcs,Scs] = SmoothLDS_(LDS,Y,U,U); %Matlab version
-%tc=toc
+[Xcs,Ps,Pt,Xf,Pf,Xp,Pp,rejSamples,logL]=statInfoSmoother(Y,A,C,Q,R,[],[],B,D,U,opts); 
+tcs=toc;
 %% Visualize results
 figure
 for i=1:2
     subplot(3,1,i)
     plot(Xs(i,:),'DisplayName','Smoothed','LineWidth',2)
     hold on
-    plot(Xf(i,:),'DisplayName','InfoSmoothed','LineWidth',2)
-    plot(Xcs(i,:),'DisplayName','CS2006','LineWidth',2)
+    plot(Xf(i,:),'DisplayName','Filtered','LineWidth',2)
+    plot(Xcs(i,:),'DisplayName','InfoSmoothed','LineWidth',2)
     plot(X(i,:),'DisplayName','Actual','LineWidth',2)
 
     legend
     if i==1
-        title(['This runtime= ' num2str(tf) ', info runtime= ' num2str(ts) ', C&S2006 runtime= ' num2str(tc)]);
+        title(['This runtime= ' num2str(tf) ', Info runtime= ' num2str(tcs)]);
     end
 end
 subplot(3,1,3)
@@ -72,8 +49,8 @@ for i=1:2
      hold on
      set(gca,'ColorOrderIndex',1)
     plot(Xs(i,:)-X(i,1:end-1),'DisplayName','Smoothed')
-    plot(Xf(i,:)-X(i,1:end-1),'DisplayName','InfoSmoothed')
-    plot(Xcs(i,:)-X(i,1:end-1),'DisplayName','CS2006')
+    plot(Xf(i,:)-X(i,1:end-1),'DisplayName','Filtered')
+    plot(Xcs(i,:)-X(i,1:end-1),'DisplayName','InfoSmoothed')
         set(gca,'ColorOrderIndex',1)
         aux=sqrt(mean((X(i,1:end-1)-Xs(i,:)).^2));
     b1=bar(1900+400*i,aux,'BarWidth',100,'EdgeColor','None');

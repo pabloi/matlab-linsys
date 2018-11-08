@@ -135,12 +135,7 @@ function [newPs,newXs,newPt,H]=backStepRTS(pp,pf,ps,xp,xf,prevXs,A)
   %Updates: Improved (smoothed) state estimate
   Hext=H*(mycholcov(pp-ps)');
   newPs=pf-Hext*Hext';
-  %cS=mycholcov(ps);
-  %Hps=H*cS';
-  %Hpp=H*cP';
-  %newPs=pf +Hps*Hps' - Hpp*Hpp';
-  %cPs=mycholcov(newPs); %Ensure PSD
-  %newPs=cPs'*cPs;
+  %newPs=pf-H*(pp-ps)*H';  %Faster, but worse conditioned
   newXs=xf + H*(prevXs-xp);
 end
 

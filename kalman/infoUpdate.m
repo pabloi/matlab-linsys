@@ -5,7 +5,7 @@ function [new_i,newI,new_x,newP]=infoUpdate(CtRinvC,CtRinvY,x,P,oldI)
   newI=oldI + CtRinvC;
   new_i=oldI*x + CtRinvY;
   if nargout>2 %If new state and covariance were requested:
-    newP=pinv(newI);
+    [~,~,newP]=pinvchol(newI);
     new_x=newP*(oldI*x + CtRinvY);
   end
 end
