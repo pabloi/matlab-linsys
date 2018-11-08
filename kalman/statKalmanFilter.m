@@ -47,11 +47,11 @@ M=processFastFlag(opts.fastFlag,A,N);
 if isa(Y,'gpuArray') %For code to work on gpu
     Xp=nan(D1,N+1,'gpuArray');      X=nan(D1,N,'gpuArray');
     Pp=nan(D1,D1,N+1,'gpuArray');   P=nan(D1,D1,N,'gpuArray');
-    rejSamples=zeros(D2,N,'gpuArray');
+    rejSamples=false(D2,N,'gpuArray');
 else
     Xp=nan(D1,N+1);      X=nan(D1,N);
     Pp=nan(D1,D1,N+1);   P=nan(D1,D1,N);
-    rejSamples=zeros(D2,N); 
+    rejSamples=false(D2,N); 
 end
 
 %Priors:
@@ -60,31 +60,46 @@ prevX=x0; prevP=P0; Xp(:,1)=x0; Pp(:,:,1)=P0;
 %Re-define observations to account for input effect:
 Y_D=Y-D*Ud; BU=B*Ub;
 
-%If D2>D1, then it is speedier to do a coordinate transform of the output:
-%(it may also be convenient to do something if C is not full rank,as that
-%means the output is also compressible). This is always safe if R is
-%invertible, and may be safe in other situations, provided that
-%observations never fall on the null-space of R.
-[CtRinvC,~,CtRinvY,cholCtRinvC,logLmargin]=reduceModel(C,R,Y_D); 
-if D2>D1 && ~opts.noReduceFlag %Reducing dimension of problem for speed
-    C=CtRinvC; R=CtRinvC; Y_D=CtRinvY;  D2=D1; cR=cholCtRinvC;
-else
-    cR=mycholcov(R);  logLmargin=0;
-end
-if nargout>5
-    K=nan(D1,D2,N);
-    if nargout>6
-        invSchol=nan(D2,D2,N);
-    end
-end
-%Do the true filtering for M steps
-rejSamples=false(N,1);
+%Define constants for sample rejection:
 logL=nan(1,N); %Row vector
 rejThreshold=[];
 if opts.outlierFlag
   rejThreshold=chi2inv(.99,D2);
 end
-for i=1:M
+
+%Reduce model if convenient for efficiency:
+[CtRinvC,~,CtRinvY,cholCtRinvC,logLmargin]=reduceModel(C,R,Y_D); 
+if D2>D1 && ~opts.noReduceFlag %Reducing dimension of problem for speed
+    C=CtRinvC; R=CtRinvC; Y_D=CtRinvY;  D2=D1; cR=cholCtRinvC; rejSamples=rejSamples(1:D1,:);
+else
+    cR=mycholcov(R);  logLmargin=0;
+end
+if nargout>5
+    invSchol=nan(D2,D2,N);
+end
+
+%For the first steps do an information update if P0 contains infinite elements
+firstInd=1;
+infVariances=isinf(diag(prevP));
+while any(infVariances) %In practice, this only gets executed once at most.
+    %Define info matrix from cov matrix:
+    prevI=zeros(size(prevP));
+    aux=inv(prevP(~infVariances,~infVariances)); %This inverse needs to exist, no such thing as absolute certainty
+    prevI(~infVariances,~infVariances)=aux; %Computing inverse of the finite submatrix of P0
+    %prevI=diag(1./diag(P0)); %This information matrix ignores correlations, cheaper
+    %Update:
+    [~,~,prevX,prevP]=infoUpdate(CtRinvC,CtRinvY(:,1),prevX,[],prevI);
+    X(:,firstInd)=prevX;  P(:,:,firstInd)=prevP; %Store results
+    %Predict:
+    [prevX,prevP]=KFpredict(A,Q,prevX,prevP,BU(:,1));
+    firstInd=firstInd+1;
+    Xp(:,firstInd)=prevX;   Pp(:,:,2)=prevP; 
+    %New variances:
+    infVariances=isinf(diag(prevP));
+end
+
+%Run filter for remaining steps:
+for i=firstInd:M
   y=Y_D(:,i); %Output at this step
 
   %First, do the update given the output at this step:
@@ -97,9 +112,7 @@ for i=1:M
   [prevX,prevP]=KFpredict(A,Q,prevX,prevP,BU(:,i));
   if nargout>2 %Store Xp, Pp if requested:
       Xp(:,i+1)=prevX;   Pp(:,:,i+1)=prevP; 
-      if nargout>5
-         invSchol(:,:,i)=icS;
-      end
+      if nargout>5; invSchol(:,:,i)=icS; end
   end
 end
 
@@ -126,17 +139,15 @@ if M<N %Do the fast filtering for any remaining steps:
     for i=M+1:N
         gbu_ky=GBU_KY(:,i-M);
         prevX=GA*prevX+gbu_ky; %Predict+Update, in that order.
-        %TODO: evaluate if this is good: because we dont compute y-C*X first
-        %and then multiply by, K, we may be accumulating numerical errors in
-        %cases where (y-C*x)==0
         X(:,i)=prevX;
+        logL(i)=nan; %TODO
     end
     if nargout>2 %Compute Xp, Pp only if requested:
         Xp(:,2:end)=A*X+B*Ub; Pp(:,:,M+2:end)=repmat(A*Psteady*A'+Q,1,1,size(Y,2)-M);
-        if nargout>5
-            invSchol(:,:,M+1:end)=repmat(icS,1,1,size(Y,2)-M);
-        end
+        if nargout>5; invSchol(:,:,M+1:end)=repmat(icS,1,1,size(Y,2)-M); end
     end
 end
-logL=nanmean(logL+logLmargin)/size(Y,1); %Corrected, averaged log-likelihood
+
+%Compute mean log-L over samples and dimensions of the output:
+logL=nanmean(logL+logLmargin)/size(Y,1);
 end

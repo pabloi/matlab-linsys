@@ -3,7 +3,7 @@ function [x0,P0,B,D,U,Ud,Ub,opts]=processKalmanOpts(D1,N,aux)
 %outlierRejection,fastFlag,Ub)
 
 %Defaults:
-x0=zeros(D1,1); P0=1e8*eye(D1);  B=zeros(1,0);  D=zeros(1,0);  U=zeros(size(B,2),N); opts=[];
+x0=zeros(D1,1); P0=Inf*eye(D1);  B=zeros(1,0);  D=zeros(1,0);  U=zeros(size(B,2),N); opts=[];
 defaultArgs={x0, P0, B, D, U, opts};
 
 %Replace defaults if given and not empty
