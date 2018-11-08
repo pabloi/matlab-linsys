@@ -25,15 +25,17 @@ logL=dataLogLikelihood(Y,U,A,B,C,D,Q,R,Xs(:,1),Ps(:,:,1))
 
 %% randomStartEM - classic
 tic
-[Ah1,Bh1,Ch1,Dh1,Qh1,Rh1,Xh1,Ph1]=randomStartEM(Y,U,2,1,[]);
+opts.Niter=200;
+[Ah1,Bh1,Ch1,Dh1,Qh1,Rh1,Xh1,Ph1]=EM(Y,U,2,opts);
 logLh1=dataLogLikelihood(Y,U,Ah1,Bh1,Ch1,Dh1,Qh1,Rh1,Xh1(:,1),Ph1(:,:,1));
 toc
 [Ah1,Bh1,Ch1,Xh1,~,Qh1] = canonize(Ah1,Bh1,Ch1,Xh1,Qh1);
 
 %% randomStartEM - fast
 tic
-opts.fastFlag=true;
-[Ah2,Bh2,Ch2,Dh2,Qh2,Rh2,Xh2,Ph2]=randomStartEM(Y,U,2,1,opts);
+opts.fastFlag=true; %Self-selecting number of samples for transient (normal) filtering
+opts.fastFlag=30; %Doing normal filtering for 30 strides, and then assuming steady-state was reached
+[Ah2,Bh2,Ch2,Dh2,Qh2,Rh2,Xh2,Ph2]=EM(Y,U,2,opts);
 logLh2=dataLogLikelihood(Y,U,Ah2,Bh2,Ch2,Dh2,Qh2,Rh2,Xh2(:,1),Ph2(:,:,1));
 toc
 [Ah2,Bh2,Ch2,Xh2,~,Qh2] = canonize(Ah2,Bh2,Ch2,Xh2,Qh2);

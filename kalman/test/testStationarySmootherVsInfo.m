@@ -27,7 +27,7 @@ opts.fastFlag=0;
 tf=toc;
 %% Use Info smoother:
 tic;
-[Xcs,Ps,Pt,Xf,Pf,Xp,Pp,rejSamples,logL]=statInfoSmoother(Y,A,C,Q,R,[],[],B,D,U,opts); 
+[Xcs,Ps,Pt,Xf,Pf,Xp,Pp,rejSamples]=statInfoSmoother(Y,A,C,Q,R,[],[],B,D,U,opts); 
 tcs=toc;
 %% Visualize results
 figure

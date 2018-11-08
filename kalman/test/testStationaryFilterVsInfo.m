@@ -23,11 +23,11 @@ x0=zeros(D1,1);
 tic
 fastFlag=[];
 opts.fastFlag=0;
-[Xf,Pf,Xp,Pp]=statKalmanFilter(Y,A,C,Q,R,[],[],B,D,U,opts); %Kalman smoother estimation of states, given the true parameters (this is the best possible estimation of states)
+[Xf,Pf,Xp,Pp,rejSamples]=statKalmanFilter(Y,A,C,Q,R,[],[],B,D,U,opts); %Kalman smoother estimation of states, given the true parameters (this is the best possible estimation of states)
 tf=toc;
 %% Use Info smoother:
 tic;
-[Xcs,Pcs,Xp,Pp,rejSamples,logL]=statInfoFilter(Y,A,C,Q,R,[],[],B,D,U,opts); 
+[Xcs,Pcs,Xp,Pp,rejSamples]=statInfoFilter(Y,A,C,Q,R,[],[],B,D,U,opts); 
 tcs=toc;
 %% Visualize results
 figure
@@ -45,12 +45,13 @@ for i=1:2
 end
 subplot(3,1,3)
 for i=1:2
-     hold on
-     set(gca,'ColorOrderIndex',1)
-    plot(Xf(i,:)-X(i,1:end-1),'DisplayName','Filtered')
-    plot(Xcs(i,:)-X(i,1:end-1),'DisplayName','InfoFiltered')
-        set(gca,'ColorOrderIndex',1)
-        aux=sqrt(mean((X(i,1:end-1)-Xf(i,:)).^2));
+    hold on
+    set(gca,'ColorOrderIndex',1)
+    p(1)=plot(Xf(i,:)-X(i,1:end-1));
+    p(2)=plot(Xcs(i,:)-X(i,1:end-1));
+
+    set(gca,'ColorOrderIndex',1)
+    aux=sqrt(mean((X(i,1:end-1)-Xf(i,:)).^2));
     b1=bar(1900+400*i,aux,'BarWidth',100,'EdgeColor','None');
     text(1850+400*i,1.2*aux,num2str(aux,3),'Color',b1.FaceColor)
     aux=sqrt(mean((X(i,1:end-1)-Xcs(i,:)).^2));
@@ -58,6 +59,7 @@ for i=1:2
     text(1950+400*i,1.4*aux,num2str(aux,3),'Color',b1.FaceColor)
     grid on
 end
+    legend(p)
 title('Residuals')
 axis([0 3000 -.02 .02])
 axis tight

@@ -69,7 +69,7 @@ for i=1:M
 
   %First, do the update given the output at this step:
   if ~any(isnan(y)) %If measurement is NaN, skip update.
-     [~,~,prevX,prevP]=infoUpdate(CtRinvC,y,prevX,[],prevI);
+     [~,~,prevX,prevP,logL(i),rejSamples(i)]=infoUpdate(CtRinvC,y,prevX,prevP,prevI);
   end
   X(:,i)=prevX;  P(:,:,i)=prevP; %Store results
 

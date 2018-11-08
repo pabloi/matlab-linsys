@@ -6,7 +6,9 @@ opts=processEMopts(opts,size(U,1));
 outLog=struct();
 opt1=opts;
 opt1.fastFlag=true; %Enforcing fast filtering
+if opts.Niter>500
 opt1.Niter=500; %Very fast evaluation of initial case, just to get a benchmark.
+end
 [A,B,C,D,Q,R,X,P,bestLL,startLog]=EM(Y,U,nd,opt1);
 try
     if opts.logFlag

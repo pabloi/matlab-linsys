@@ -88,7 +88,7 @@ while any(infVariances) %In practice, this only gets executed once at most.
     prevI(~infVariances,~infVariances)=aux; %Computing inverse of the finite submatrix of P0
     %prevI=diag(1./diag(P0)); %This information matrix ignores correlations, cheaper
     %Update:
-    [~,~,prevX,prevP]=infoUpdate(CtRinvC,CtRinvY(:,1),prevX,[],prevI);
+    [~,~,prevX,prevP,logL(firstInd)]=infoUpdate(CtRinvC,CtRinvY(:,1),prevX,prevP,prevI);
     X(:,firstInd)=prevX;  P(:,:,firstInd)=prevP; %Store results
     %Predict:
     [prevX,prevP]=KFpredict(A,Q,prevX,prevP,BU(:,1));
@@ -128,7 +128,7 @@ if M<N %Do the fast filtering for any remaining steps:
     GA=Gsteady*A;
 
     %Assign all UPDATED uncertainty matrices:
-    P(:,:,M+1:end)=repmat(P(:,:,M),1,1,N-M);
+    P(:,:,M+1:end)=repmat(Psteady,1,1,N-M);
 
     %Check that no outlier or fast flags are enabled
     if opts.outlierFlag || any(isnan(GBU_KY(:)))%Should never happen in fast mode
@@ -140,11 +140,12 @@ if M<N %Do the fast filtering for any remaining steps:
         gbu_ky=GBU_KY(:,i-M);
         prevX=GA*prevX+gbu_ky; %Predict+Update, in that order.
         X(:,i)=prevX;
-        logL(i)=nan; %TODO
     end
     if nargout>2 %Compute Xp, Pp only if requested:
         Xp(:,2:end)=A*X+B*Ub; Pp(:,:,M+2:end)=repmat(A*Psteady*A'+Q,1,1,size(Y,2)-M);
-        if nargout>5; invSchol(:,:,M+1:end)=repmat(icS,1,1,size(Y,2)-M); end
+        if nargout>4; Innov=Y_D-C*Xp(:,1:end-1);  logL(M+1:end)=logLnormal(Innov(:,M+1:end),[],icS');
+            if nargout>5; invSchol(:,:,M+1:end)=repmat(icS,1,1,size(Y,2)-M); end
+        end
     end
 end
 
