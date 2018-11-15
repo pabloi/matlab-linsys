@@ -20,27 +20,35 @@ x0=zeros(D1,1);
 [Y1,X1]=fwdSim(U,A,B,C,D,x0,[],[]); %Noiseless simulation, for comparison
 
 %% Do kalman smoothing with true params
-tic
 fastFlag=[];
 opts.fastFlag=0;
-[Xf,Pf,Xp,Pp,rejSamples]=statKalmanFilter(Y,A,C,Q,R,[],[],B,D,U,opts); %Kalman smoother estimation of states, given the true parameters (this is the best possible estimation of states)
-tf=toc;
-%% Use Info smoother:
-tic;
-[Xcs,Pcs,Xp,Pp,rejSamples]=statInfoFilter(Y,A,C,Q,R,[],[],B,D,U,opts); 
-tcs=toc;
+opts.noReduceFlag=false;
+[Xf,Pf,Xp,Pp,rejSamples,logL]=statKalmanFilter(Y,A,C,Q,R,[],[],B,D,U,opts); %Kalman smoother estimation of states, given the true parameters (this is the best possible estimation of states)
+tf=timeit(@() statKalmanFilter(Y,A,C,Q,R,[],[],B,D,U,opts));
+%% Kalman classic with no reduce
+fastFlag=[];
+opts.fastFlag=0;
+opts.noReduceFlag=true;
+[XfNR,~,~,~,~,logLNR]=statKalmanFilter(Y,A,C,Q,R,[],[],B,D,U,opts); %Kalman smoother estimation of states, given the true parameters (this is the best possible estimation of states)
+tfNR=timeit(@() statKalmanFilter(Y,A,C,Q,R,[],[],B,D,U,opts));
+%% Use Info smoother: (there is no reduction here ever)
+[Xcs,Pcs,Xp,Pp,rejSamples,logLInfo]=statInfoFilter(Y,A,C,Q,R,[],[],B,D,U,opts); 
+tcs=timeit(@() statInfoFilter(Y,A,C,Q,R,[],[],B,D,U,opts));
 %% Visualize results
 figure
 for i=1:2
     subplot(3,1,i)
     hold on
     plot(Xf(i,:),'DisplayName','Filtered','LineWidth',2)
+    plot(XfNR(i,:),'DisplayName','Filtered','LineWidth',2)
     plot(Xcs(i,:),'DisplayName','InfoFiltered','LineWidth',2)
     plot(X(i,:),'DisplayName','Actual','LineWidth',2)
 
     legend
     if i==1
-        title(['This runtime= ' num2str(tf) ', Info runtime= ' num2str(tcs)]);
+        title(['This runtime= ' num2str(tf) ', NoReduce runtime= ' num2str(tfNR) ', Info runtime= ' num2str(tcs)]);
+    elseif i==2
+        title(['This log-L= ' num2str(logL) ', NoReduce log-L= ' num2str(logLNR)  ', Info log-L= ' num2str(logLInfo)]);
     end
 end
 subplot(3,1,3)

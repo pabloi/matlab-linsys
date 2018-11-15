@@ -1,5 +1,10 @@
 function [Xs,Ps,Pt,Xf,Pf,Xp,Pp,rejSamples,logL]=statInfoSmoother(Y,A,C,Q,R,varargin)
-%Implements a Kalman smoother for a stationary system
+%Implements the Information smoother formulation of the Kalman smoother for a stationary system
+%This implementation is faster (about 10%) than the classic Kalman smoother
+%with reduced model when dim(y)>dim(x), and much faster than an
+%implementation without the reduced model. The filter itself is slightly
+%slower (if the log-likelihood is requested), but the smoothing can be 
+%computed very efficiently with no matrix inversions required.
 %INPUT:
 %Y: D1xN observed data
 %U: D3xN input data

@@ -15,7 +15,7 @@ B=(eye(size(A))-A)*ones(size(A,1),1); %WLOG, arbitrary scaling so all states asy
 U=[zeros(300,1);ones(N,1);zeros(N/2,1)]'; %Step input and then removed
 C=randn(D2,D1);
 D=randn(D2,1);
-Q=eye(D1)*1e-3;
+Q=eye(D1)*1e-1;
 R=1*eye(D2); %CS2006 performance degrades (larger state estimation errors) for very small R
 
 %% Simulate

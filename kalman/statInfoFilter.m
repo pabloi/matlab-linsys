@@ -3,6 +3,12 @@ function [X,P,Xp,Pp,rejSamples,logL,Ip]=statInfoFilter(Y,A,C,Q,R,varargin)
 %assuming stationary (fixed) noise matrices and system dynamics
 %The model is: x[k+1]=A*x[k]+b+v[k], v~N(0,Q)
 %y[k]=C*x[k]+d+w[k], w~N(0,R)
+%This is NOT a pure information filter implementation. Rather it is a
+%hybrid that uses the information formulation for the measurement update,
+%but the classic formulation for the update. This results in a more
+%efficient filter. However, if the log-likelihood is to be computed, then
+%this formulation is NOT faster than the classic Kalman one using a reduced
+%model when dim(y)>dim(x). It is faster if log-L is not computed.
 %INPUTS:
 %
 %OUTPUTS:
@@ -47,7 +53,8 @@ end
 
 %Precompute for efficiency:
 [CtRinvC,~,CtRinvY,~,logLmargin]=reduceModel(C,R,Y_D); 
-
+[cholInvCRC,~,invCRC]=pinvchol(CtRinvC);
+logDetCRC=-2*sum(log(diag(cholInvCRC)));
 %For the first steps do an information update if P0 contains infinite elements
 infVariances=isinf(diag(prevP));
 if any(infVariances)
@@ -58,7 +65,6 @@ if any(infVariances)
 else
     prevI=inv(prevP); %This inverse needs to exist, no such thing as absolute certainty
 end
-
 %Run filter:
 if M<N %Do the fast filtering for any remaining steps:
     warning('Fast mode not implemented in information filter')
@@ -69,16 +75,15 @@ for i=1:M
 
   %First, do the update given the output at this step:
   if ~any(isnan(y)) %If measurement is NaN, skip update.
-     [~,~,prevX,prevP,logL(i),rejSamples(i)]=infoUpdate(CtRinvC,y,prevX,prevP,prevI);
+     [~,~,prevX,prevP,logL(i),rejSamples(i),prevI]=infoUpdate(CtRinvC,y,prevX,prevP,[],logDetCRC,invCRC);
   end
   X(:,i)=prevX;  P(:,:,i)=prevP; %Store results
-
+  
   %Then, predict next step:
   [prevX,prevP]=KFpredict(A,Q,prevX,prevP,BU(:,i));
-  [~,~,prevI]=pinvchol(prevP);
   if nargout>2 %Store Xp, Pp if requested:
       Xp(:,i+1)=prevX;   Pp(:,:,i+1)=prevP; 
-      if nargout>5; Ip(:,:,i+1)=prevI; end
+      if nargout>5; Ip(:,:,i)=prevI; end %Storing the value for the previous step
   end
 end
 

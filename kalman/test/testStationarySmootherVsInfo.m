@@ -1,6 +1,6 @@
 %% Create model:
 D1=2;
-D2=20;%100; %CS 2006 gets progressively slower for larger D2 (linear execution time with D2 for large D2). This implementation grows linearly too but with the SMALLEST of D1,D2
+D2=100;
 N=1000;
 A=diag(rand(D1,1));
 A=.9999*A; %Setting the max eigenvalue to .9999
@@ -11,7 +11,7 @@ U=[zeros(300,1);ones(N,1);zeros(N/2,1)]'; %Step input and then removed
 C=randn(D2,D1);
 D=randn(D2,1);
 Q=eye(D1)*1e-3;
-R=1*eye(D2); %CS2006 performance degrades (larger state estimation errors) for very small R
+R=1*eye(D2); 
 
 %% Simulate
 NN=size(U,2);
@@ -20,28 +20,35 @@ x0=zeros(D1,1);
 [Y1,X1]=fwdSim(U,A,B,C,D,x0,[],[]); %Noiseless simulation, for comparison
 
 %% Do kalman smoothing with true params
-tic
 fastFlag=[];
 opts.fastFlag=0;
-[Xs,Ps,Pt,Xf,Pf,Xp,Pp]=statKalmanSmoother(Y,A,C,Q,R,[],[],B,D,U,opts); %Kalman smoother estimation of states, given the true parameters (this is the best possible estimation of states)
-tf=toc;
+opts.noReduceFlag=false;
+[Xs,~,~,~,~,~,~,~,logL]=statKalmanSmoother(Y,A,C,Q,R,[],[],B,D,U,opts); %Kalman smoother estimation of states, given the true parameters (this is the best possible estimation of states)
+tf=timeit(@() statKalmanSmoother(Y,A,C,Q,R,[],[],B,D,U,opts));
+%% Kalman classic with no reduce
+fastFlag=[];
+opts.fastFlag=0;
+opts.noReduceFlag=true;
+[XsNR,~,~,~,~,~,~,~,logLNR]=statKalmanSmoother(Y,A,C,Q,R,[],[],B,D,U,opts); %Kalman smoother estimation of states, given the true parameters (this is the best possible estimation of states)
+tfNR=timeit(@() statKalmanSmoother(Y,A,C,Q,R,[],[],B,D,U,opts));
 %% Use Info smoother:
-tic;
-[Xcs,Ps,Pt,Xf,Pf,Xp,Pp,rejSamples]=statInfoSmoother(Y,A,C,Q,R,[],[],B,D,U,opts); 
-tcs=toc;
+[Xcs,~,~,Xf,~,~,~,~,logLInfo]=statInfoSmoother(Y,A,C,Q,R,[],[],B,D,U,opts); 
+tcs=timeit(@() statInfoSmoother(Y,A,C,Q,R,[],[],B,D,U,opts));
 %% Visualize results
 figure
 for i=1:2
     subplot(3,1,i)
     plot(Xs(i,:),'DisplayName','Smoothed','LineWidth',2)
     hold on
-    plot(Xf(i,:),'DisplayName','Filtered','LineWidth',2)
+    plot(XsNR(i,:),'DisplayName','Smoothed-NoReduce','LineWidth',2)
     plot(Xcs(i,:),'DisplayName','InfoSmoothed','LineWidth',2)
     plot(X(i,:),'DisplayName','Actual','LineWidth',2)
 
     legend
     if i==1
-        title(['This runtime= ' num2str(tf) ', Info runtime= ' num2str(tcs)]);
+        title(['This runtime= ' num2str(tf) ', NoReduce runtime= ' num2str(tfNR) ', Info runtime= ' num2str(tcs)]);
+    elseif i==2
+        title(['This log-L= ' num2str(logL) ', NoReduce log-L= ' num2str(logLNR)  ', Info log-L= ' num2str(logLInfo)]);
     end
 end
 subplot(3,1,3)
