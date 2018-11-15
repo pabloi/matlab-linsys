@@ -11,7 +11,6 @@ Q=eye(D1)*.0005;
 R=eye(D2)*.01;
 
 %% Simulate
-addpath(genpath('../aux/'))
 NN=size(U,2);
 x0=zeros(D1,1);
 [Y,X]=fwdSim(U,A,B,C,D,x0,Q,R);
