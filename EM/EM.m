@@ -103,6 +103,8 @@ for k=1:opts.Niter-1
 
     %Check for warning conditions:
     if ~improvement %This should never happen, except that our loglikelihood is approximate, so there can be some error
+        %Update Jan 2019: I think with the latest versions the logL is now
+        %exact.
         if abs(delta)>1e-5 %Drops of about 1e-5 can be expected because:
           %1) we are computing an approximate logl (which differs from the exact one, especially at the early stages of EM)
           %2) logL is only guaranteed to increase if there is no structural model mismatch (e.g. data having non-gaussian observation noise). Although it may work in other circumstances. Need to prove.

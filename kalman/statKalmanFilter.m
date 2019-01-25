@@ -102,6 +102,7 @@ while any(infVariances) %In practice, this only gets executed once at most.
     %prevI=diag(1./diag(P0)); %This information matrix ignores correlations, cheaper
     %Update:
     [~,~,prevX,prevP,logL(firstInd)]=infoUpdate(CtRinvC,CtRinvY(:,1),prevX,prevP,prevI);
+    %Warning: if variance was inifinte, then logL(firstInd)=-Inf!
     X(:,firstInd)=prevX;  P(:,:,firstInd)=prevP; %Store results
     %Predict:
     [prevX,prevP]=KFpredict(A,Q,prevX,prevP,BU(:,1));
@@ -174,5 +175,9 @@ if M<N %Do the fast filtering for any remaining steps:
 end
 
 %Compute mean log-L over samples and dimensions of the output:
-logL=nanmean(logL+logLmargin)/size(Y,1);
+if firstInd~=1
+    warning('statKF:logLnoPrior','Filter was computed from an improper uniform prior as starting point. Ignoring first point for computation of log-likelihood.')
+end
+aux=logL+logLmargin;
+logL=nanmean(aux(firstInd:end))/size(Y,1);
 end
