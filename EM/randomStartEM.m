@@ -1,7 +1,7 @@
 function [A,B,C,D,Q,R,X,P,bestLL,outLog]=randomStartEM(Y,U,nd,Nreps,opts)
 
 %First iter:
-fprintf(['\n Starting rep 0... \n']);
+fprintf(['\n Starting rep 0 (fast one)... \n']);
 opts=processEMopts(opts,size(U,1));
 outLog=struct();
 opt1=opts;
@@ -26,7 +26,7 @@ for i=1:Nreps
     fprintf(['\n Starting rep ' num2str(i) '. Best logL so far=' num2str(bestLL,8) '... \n']);
 
     %Initialize starting point:
-    Xguess=guess(N,nd,ny,opts);
+    Xguess=guess(N,nd,ny,opts,U,Y);
 
     %Optimize:
     [Ai,Bi,Ci,Di,Qi,Ri,Xi,Pi,logl,repLog]=EM(Y,U,Xguess,opts);
@@ -46,6 +46,7 @@ disp(['Refining solution...']);
 opts.Niter=1e4;
 opts.convergenceTol=1e-9;
 opts.targetTol=0;
+opts.fastFlag=false; %Patience
 try
     [Ai,Bi,Ci,Di,Qi,Ri,Xi,Pi,bestLL1,refineLog]=EM(Y,U,X,opts,P); %Refine solution, sometimes works
 catch
@@ -63,7 +64,7 @@ if opts.logFlag
 end
 end
 
-function Xguess=guess(N,nd,ny,opts)
+function Xguess=guess(N,nd,ny,opts,U,Y)
     x01=randn(nd,1);
     P01=1e1*eye(nd); %No sense in being certain about made up numbers
     %A1=diag(exp(-1./(.5*N*rand(nd,1)))); %WLOG, diagonal matrix with log-uniformly spaced time-constants

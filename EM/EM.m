@@ -20,8 +20,9 @@ outLog=[];
 
 %Process opts:
 [opts] = processEMopts(opts,size(U,1));
-if any(isnan(Y(:)))
-  opts.fastFlag=0; %No fast-filtering in nan-filled data
+if opts.fastFlag~=0 && any(isnan(Y(:)))
+   warning('EM:fastAndLoose','Requested fast filtering but data contains NaNs. No steady-state can be found for filtering. Filtering will not be exact. Proceed at your own risk.')
+  %opts.fastFlag=0; %No fast-filtering in nan-filled data
 end
 if opts.logFlag
   %diary(num2str(round(now*1e5)))
@@ -31,7 +32,7 @@ end
 
 %Disable some annoying warnings:
 warning ('off','statKFfast:unstable');
-warning ('off','statKFfast:NaNsamples');
+warning ('off','statKFfast:NaN');
 warning ('off','statKSfast:unstable');
 
 %% ------------Init stuff:-------------------------------------------
@@ -141,7 +142,7 @@ for k=1:opts.Niter-1
         pOverTarget=100*((l-opts.targetLogL)/abs(opts.targetLogL));
         if k>=step && ~breakFlag
             lastChange=l-logl(k+1-step,1);
-            disp(['Iter = ' num2str(k)  ', logL = ' num2str(l,8) ', \Delta logL = ' num2str(lastChange) ', % over target = ' num2str(pOverTarget) ', \tau =' num2str(-1./log(sort(eig(A1)))')])
+            disp(['Iter = ' num2str(k)  ', logL = ' num2str(l,8) ', \Delta logL = ' num2str(lastChange,3) ', % over target = ' num2str(pOverTarget,3) ', \tau =' num2str(-1./log(sort(eig(A1)))',3)])
             %sum(rejSamples)
         else %k==1 || breakFlag
             l=bestLogL;

@@ -13,10 +13,13 @@ defaultArgs(auxIdx(~emptyIdx))=aux(~emptyIdx); %Replacing defaults with whatever
 [x0,P0,B,D,U,opts]=defaultArgs{[1:6]};
 
 if ~isfield(opts,'fastFlag') || isempty(opts.fastFlag)
-  opts.fastFlag=0;
+  opts.fastFlag=0; %No fast mode
 end
 if ~isfield(opts,'outlierFlag') || isempty(opts.outlierFlag)
   opts.outlierFlag=false;
+elseif opts.fastFlag && opts.outlierFlag
+    warning('kalmanOptions:fastAndOutlierFlag','Requested fast mode AND outlier rejection, which is not possible. Disabling fast mode.')
+    opts.fastFlag=0;
 end
 if ~isfield(opts,'noReduceFlag') || isempty(opts.noReduceFlag)
   opts.noReduceFlag=false;

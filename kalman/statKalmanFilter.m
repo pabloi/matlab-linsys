@@ -36,12 +36,25 @@ function [X,P,Xp,Pp,rejSamples,logL,invSchol]=statKalmanFilter(Y,A,C,Q,R,varargi
 %Init missing params:
 [x0,P0,B,D,U,Ud,Ub,opts]=processKalmanOpts(D1,N,varargin);
 M=processFastFlag(opts.fastFlag,A,N);
+if M~=N && any(isnan(Y(:)))
+    warning('statKFfast:NaN','Requested fast filtering but data contains NaNs. No steady-state can be found for filtering. Filtering will not be exact. Proceed at your own risk.')
+    %opts.fastFlag=false;
+    %allows for fast-filtering anyway. The steady-state of K (but not P) may exist
+    %under some special circumstances (e.g. missing data forms a regular
+    %pattern, such as every other datapoint), and even if not, fast
+    %filtering may still be good enough and thus acceptable. Issue warning
+    %to make subject aware.
+end
 
 %TODO: Special case: deterministic system, no filtering needed. This can also be
 %the case if Q << C'*R*C, and the system is stable
 
 %Size checks:
 %TODO
+
+if nargout>6 %This is here to make sure that no code is using the legacy call with 7 outputs
+    error('Too many outputs')
+end
 
 %Init arrays:
 if isa(Y,'gpuArray') %For code to work on gpu
@@ -112,7 +125,6 @@ for i=firstInd:M
   [prevX,prevP]=KFpredict(A,Q,prevX,prevP,BU(:,i));
   if nargout>2 %Store Xp, Pp if requested:
       Xp(:,i+1)=prevX;   Pp(:,:,i+1)=prevP; 
-      if nargout>5; invSchol(:,:,i)=icS; end
   end
 end
 
@@ -130,21 +142,33 @@ if M<N %Do the fast filtering for any remaining steps:
     %Assign all UPDATED uncertainty matrices:
     P(:,:,M+1:end)=repmat(Psteady,1,1,N-M);
 
-    %Check that no outlier or fast flags are enabled
-    if opts.outlierFlag || any(isnan(GBU_KY(:)))%Should never happen in fast mode
+    %Check that outlier flag is disabled and that no data is missing
+    if opts.outlierFlag %|| any(isnan(GBU_KY(:)))%Should never happen in fast mode
        error('KFfilter:outlierRejectFast','Outlier rejection is incompatible with fast mode.')
     end
 
     %Loop for remaining steps to compute x:
     for i=M+1:N
         gbu_ky=GBU_KY(:,i-M);
-        prevX=GA*prevX+gbu_ky; %Predict+Update, in that order.
+        if ~isnan(gbu_ky) %Have actual observation (not NaN)
+            prevX=GA*prevX+gbu_ky; %Predict+Update, in that order.
+        else %Observation is missing or rejected, cannot do update
+            %Warning: if this happens, then you shouldn't be using fast
+            %mode, as the Kalman filter does not reach a steady-state when
+            %data is missing. This is, at best, a heuristic calculation.
+            %(the value of Psteady defined above is not really
+            %steady-state, and Ksteady may or may not be depending on
+            %whether the missing data is missing in a regular pattern).
+            %Consistently, the value of Pp defined below cannot apply to
+            %all samples.
+            prevX=A*prevX+BU(:,i); %Predict only;
+        end
         X(:,i)=prevX;
     end
     if nargout>2 %Compute Xp, Pp only if requested:
         Xp(:,2:end)=A*X+B*Ub; Pp(:,:,M+2:end)=repmat(A*Psteady*A'+Q,1,1,size(Y,2)-M);
         if nargout>4; Innov=Y_D-C*Xp(:,1:end-1);  logL(M+1:end)=logLnormal(Innov(:,M+1:end),[],icS');
-            if nargout>5; invSchol(:,:,M+1:end)=repmat(icS,1,1,size(Y,2)-M); end
+            %if nargout>5; invSchol(:,:,M+1:end)=repmat(icS,1,1,size(Y,2)-M); end
         end
     end
 end
