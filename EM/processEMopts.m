@@ -49,4 +49,22 @@ end
 if ~isfield(opts,'logFlag')
   opts.logFlag=false;
 end
+if ~isfield(opts,'fixA')
+  opts.fixA=[];
+end
+if ~isfield(opts,'fixB')
+  opts.fixB=[];
+end
+if ~isfield(opts,'fixC')
+  opts.fixC=[];
+end
+if ~isfield(opts,'fixD')
+  opts.fixD=[];
+end
+if ~isfield(opts,'fixQ')
+  opts.fixQ=[];
+end
+if ~isfield(opts,'fixR')
+  opts.fixR=[];
+end
 end
