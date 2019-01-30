@@ -6,21 +6,32 @@ function [A,B,C,D,Q,R,X,P,bestLogL,outLog]=EM(Y,U,Xguess,opts,Pguess)
 %Xguess - Either the number of states for the system (if scalar) or a guess
 %at the initial states of the system (if D1 x N matrix)
 
-%Scaling:
-scale=sqrt(nanmean(Y.^2,2));
-Y=Y./scale;
+%Scaling: (Note: scaling is not important to EM, the optimal solution is
+%scale invariant. However, some constants here have been fine-tuned
+%presuming a certain scaling of the data for convergence issues.)
+if ~isa(Y,'cell')
+    scale=sqrt(nanmean(Y.^2,2));
+    Y=Y./scale;
+else
+    scale=sqrt(nanmean(cell2mat(Y).^2,2));
+    Y=cellfun(@(x) x./scale,Y,'UniformOutput',false);
+end
 
 if nargin<4
     opts=[];
 end
 if nargin<5
-  Pguess=[];
+    if ~isa(Y,'cell')
+        Pguess=[];
+    else
+        Pguess=cell(size(Y));
+    end
 end
 outLog=[];
 
 %Process opts:
 [opts] = processEMopts(opts,size(U,1));
-if opts.fastFlag~=0 && any(isnan(Y(:)))
+if opts.fastFlag~=0 && ( (~isa(Y,'cell') && any(isnan(Y(:)))) || (isa(Y,'cell') && any(any(isnan(cell2mat(Y)))) ) ) 
    warning('EM:fastAndLoose','Requested fast filtering but data contains NaNs. No steady-state can be found for filtering. Filtering will not be exact. Proceed at your own risk.')
   %opts.fastFlag=0; %No fast-filtering in nan-filled data
 end
@@ -38,7 +49,12 @@ warning ('off','statKSfast:unstable');
 %% ------------Init stuff:-------------------------------------------
 % Init params:
  [A1,B1,C1,D1,Q1,R1,X1,P1,Pt1,bestLogL]=initEM(Y,U,Xguess,opts,Pguess);
- x01=X1(:,1); P01=P1(:,:,1);
+ if ~isa(Y,'cell')
+    x01=X1(:,1); P01=P1(:,:,1);
+ else
+     x01=cellfun(@(x) x(:,1),X1,'UniformOutput',false);
+     P01=cellfun(@(p) p(:,:,1),P1,'UniformOutput',false);
+ end
 %logL=dataLogLikelihood(Y,U(opts.indD,:),A1,B1,C1,D1,Q1,R1,x01,P01,'approx',U(opts.indB,:))
 %Initialize log-likelihood register & current best solution:
 logl=nan(opts.Niter,1);
@@ -70,7 +86,7 @@ for k=1:opts.Niter-1
 
     %E-step:
     if isa(Y,'cell') %Data is many realizations of same system
-        [X1,P1,Pt1,~,~,Xp,Pp,rejSamples,l]=cellfun(@(y,x0,p0,u) statKalmanSmoother(y,A1,C1,Q1,R1,x0,p0,B1,D1,u,opts),Y,x01,P01,U,'UniformOutput',false);
+        [X1,P1,Pt1,~,~,Xp,Pp,rejSamples,l1]=cellfun(@(y,x0,p0,u) statKalmanSmoother(y,A1,C1,Q1,R1,x0,p0,B1,D1,u,opts),Y,x01,P01,U,'UniformOutput',false);
         if any(cellfun(@(x) any(imag(x(:))~=0),X1))
           msg='Complex states detected, stopping.';
           breakFlag=true;
@@ -78,6 +94,8 @@ for k=1:opts.Niter-1
           msg='States are NaN, stopping.';
           breakFlag=true;
         end
+        sampleSize=cellfun(@(y) size(y,2),Y);
+        l=(cell2mat(l1)*sampleSize')/sum(sampleSize);
     else
         [X1,P1,Pt1,~,~,Xp,Pp,rejSamples,l]=statKalmanSmoother(Y,A1,C1,Q1,R1,x01,P01,B1,D1,U,opts);
         if any(imag(X1(:))~=0)
@@ -91,9 +109,6 @@ for k=1:opts.Niter-1
 
 
     %Check improvements:
-    Y2=Y;
-    %l2=dataLogLikelihood(Y2,U(opts.indD,:),A1,B1,C1,D1,Q1,R1,Xp,Pp,'exact',U(opts.indB,:)); %Passing the Kalman-filtered states and uncertainty makes the computation more efficient
-    %disp(['KF logL: ' num2str(l) ', legacy: ' num2str(l2) ',diff: ' num2str(l-l2)])
     logl(k+1)=l;
     delta=l-logl(k);
     improvement=delta>=0;
@@ -105,7 +120,7 @@ for k=1:opts.Niter-1
     if ~improvement %This should never happen, except that our loglikelihood is approximate, so there can be some error
         %Update Jan 2019: I think with the latest versions the logL is now
         %exact.
-        if abs(delta)>1e-5 %Drops of about 1e-5 can be expected because:
+        if abs(delta)>1e-5 %Drops of about 1e-5 can be expected because (conjectures):
           %1) we are computing an approximate logl (which differs from the exact one, especially at the early stages of EM)
           %2) logL is only guaranteed to increase if there is no structural model mismatch (e.g. data having non-gaussian observation noise). Although it may work in other circumstances. Need to prove.
           %3)numerical precision.

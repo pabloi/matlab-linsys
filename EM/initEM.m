@@ -7,15 +7,15 @@ function [A,B,C,D,Q,R,X,P,Pt,logL]=initEM(Y,U,X,opts,P)
 
   if isempty(X)
       error('Xguess has to be a guess of the states (D x N matrix) or a scalar indicating the number of states to be estimated')
-  elseif numel(X)==1 %X is just dimension, initializing with subspace method
+  elseif numel(X)==1 %X is just dimension, initializing as usual
       d=X;
-      if any(isnan(Y(:))) %Removing NaNs First
-        Y2=substituteNaNs(Y')';
-      else
-        Y2=Y;
-      end
+      %if any(isnan(Y(:))) %Removing NaNs First for subspace method
+      %  Y2=substituteNaNs(Y')';
+      %else
+      %  Y2=Y;
+      %end
       %[A,B,C,D,X,Q,R]=subspaceIDv2(Y2,U,d); %Works if no missing data
-      [X]=initGuessOld(Y2,U,d);
+      [X]=initGuessOld(Y,U,d);
   end
   [A,B,C,D,Q,R,X,P,logL,Pt]=initParams(Y,U,X,opts,P);
   %logL=dataLogLikelihood(Y,U(opts.indD,:),A,B,C,D,Q,R,X(:,1),P(:,:,1),'approx',U(opts.indB,:))
@@ -24,7 +24,7 @@ end
 
 function [A1,B1,C1,D1,Q1,R1,X1,P1,logL,Pt]=initParams(Y,U,X,opts,Pguess)
   if isa(Y,'cell')
-      [P,Pt]=cellfun(@(x) initCov(x,U,Pguess),X,'UniformOutput',false);
+      [P,Pt]=cellfun(@(x,u,p) initCov(x,u,p),X,U,Pguess,'UniformOutput',false);
   else
       %Initialize covariance to plausible values:
       [P,Pt]=initCov(X,U,Pguess);
@@ -55,7 +55,9 @@ function [P,Pt]=initCov(X,U,P)
     %Initialize covariance to plausible values:
     if nargin<2 || isempty(P)
       dX=diff(X');
-      dX=dX- U(:,1:end-1)'*(U(:,1:end-1)'\dX); %Projection orthogonal to input
+      if ~all(U(:)==0)
+        dX=dX- U(:,1:end-1)'*(U(:,1:end-1)'\dX); %Projection orthogonal to input
+      end
       Px=.1*(dX'*dX)/(N);
       P=repmat(Px,1,1,N);
       %Px1=(dX(2:end,:)'*dX(1:end-1,:));
@@ -68,7 +70,8 @@ end
 %This function used to be used instead of the subspace method, but is deprecated:
 function [X]=initGuessOld(Y,U,D1)
   if isa(Y,'cell')
-      X=cellfun(@(y,u) initGuess(y,u,D1),Y,U,'UniformOutput',false);
+      X=initGuessOld(cell2mat(Y),cell2mat(U),D1);
+      X=mat2cell(X,size(X,1),cellfun(@(x) size(x,2),Y));
   else
       idx=~any(isnan(Y));
       D=Y(:,idx)/U(:,idx);

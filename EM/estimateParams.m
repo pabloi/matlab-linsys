@@ -7,38 +7,47 @@ function [A,B,C,D,Q,R,x0,P0]=estimateParams(Y,U,X,P,Pt,opts)
 %P = covariance of states (Kalman-smoothed), D1 x D1 x N
 %Pp = covariance of state transitions (Kalman-smoothed), D1 x D1 x (N-1),
 %evaluated at k+1|k
+%Alternatively, all the inputs may be cells containing matrices with
+%different N values (sample size) but same D1, D2, D3.
 %See Cheng and Sabes 2006, Ghahramani and Hinton 1996, Shumway and Stoffer 1982
 
-%
-[No,N]=size(Y);
-%
-if all(U(:)==0)  %Can't estimate B,D if input is null/empty
-    U=zeros(0,N);
-end
-Nu=size(U,1);
-%
-[opts] = processEMopts(opts,Nu);
+
+% if ~isa(U,'cell') && all(U(:)==0)  %Can't estimate B,D if input is null/empty
+%     U=zeros(0,N);
+%     Nu=0;
+% elseif isa(U,'cell')
+%     for i=1:length(U)
+%         if all(U{i}(:)==0) 
+%             U{i}=zeros();
+%         end
+%     end
+% end
+
 
 %Define vars:
 [yx,yu,xx,uu,xu,SP,SPt,xx_,uu_,xu_,xx1,xu1,SP_,S_P]=computeRelevantMatrices(Y,X,U,P,Pt,opts.robustFlag);
 D1=size(xx,1);
+[No]=size(yx,1);
+N=[];
+Nu=size(uu,1);
+[opts] = processEMopts(opts,Nu);
 
 %Estimate A,B:
 xu_=xu_(:,opts.indB);
 xu1=xu1(:,opts.indB);
 uu_=uu_(opts.indB,opts.indB);
-B=zeros(D1,Nu);
+%B=zeros(D1,Nu);
 if isempty(opts.fixA) && isempty(opts.fixB)
   O=[SP_+xx_ xu_; xu_' uu_];
   AB=[SPt+xx1 xu1]/O; %In absence of state uncertainty, reduces to: [A,B]=X+/[X;U],
   %where X+ is X one step in the future
   A=AB(:,1:D1);
-  B(:,opts.indB)=AB(:,D1+1:end);
+  B=AB(:,D1+1:end);
 elseif isempty(opts.fixA) && ~isempty(opts.fixB) %Only A is to be estimated
   A=([SPt+xx1 xu1] - opts.fixB*[xu_' uu_])/[SP_+xx_ xu_];
   B=opts.fixB;
 elseif isempty(opts.fixB) && ~isempty(opts.fixA) %Only B
-  B(:,opts.indB)=([SPt+xx1 xu1] - opts.fixA*[SP_+xx_ xu_])/[xu' uu_];
+  B=([SPt+xx1 xu1] - opts.fixA*[SP_+xx_ xu_])/[xu' uu_];
   A=opts.fixA;
 else
   A=opts.fixA;
@@ -76,7 +85,7 @@ end
 %Estimate Q,R: %Adaptation of Shumway and Stoffer 1982: (there B=D=0 and C is fixed), but consistent with Ghahramani and Hinton 1996, and Cheng and Sabes 2006
 [w,z]=computeResiduals(Y,U,X,A,B,C,D,opts);
 
-if ~isempty(opts.fixQ)
+if isempty(opts.fixQ)
   % MLE estimator of Q, under the given assumptions:
   aux=mycholcov(SP_); %Enforce symmetry
   Aa=A*aux';
@@ -113,7 +122,7 @@ else
 end
 
 %MLE of R:
-if ~isempty(opts.fixR)
+if isempty(opts.fixR)
   aux=mycholcov(SP); %Enforce symmetry
   Ca=C*aux';
   Nz=size(z,2);
@@ -252,7 +261,7 @@ end
 function [w,z]=computeResiduals(Y,U,X,A,B,C,D,opts)
 
 if isa(X,'cell') %Case where data is many realizations of same system
-    [w,z]=cellfun(@(y,u,x) computeResiduals(y,u,x,A,B,C,D),Y(:),U(:),X(:),'UniformOutput',false); %Ensures column cell-array output
+    [w,z]=cellfun(@(y,u,x) computeResiduals(y,u,x,A,B,C,D,opts),Y(:),U(:),X(:),'UniformOutput',false); %Ensures column cell-array output
     w=cell2mat(w'); %Concatenates as if each realization is extra samples
     z=cell2mat(z');
 else

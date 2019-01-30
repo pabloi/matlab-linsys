@@ -1,8 +1,5 @@
 %%
-addpath(genpath('../EM/')) %Adding the matlab-sysID toolbox to path, just in case
-addpath(genpath('../kalman/'))
-addpath(genpath('../aux/'))
-addpath(genpath('../sim/'))
+addpath(genpath('../')) %Adding the matlab-sysID toolbox to path, just in case
 addpath(genpath('../../robustCov/'))
 %%
 clear all
@@ -20,7 +17,7 @@ C=randn(D2,D1);
 D=randn(D2,1);
 Q=eye(D1)*.0001;
 R=eye(D2)*.01;
-[J,B,C,Q] = canonizev2(A,B,C,Q);
+[J,B,C,~,~,Q,~] = canonize(A,B,C,[],Q,[]);
 x0=zeros(D1,1);
 [Y,X]=fwdSim(U,A,B,C,D,x0,[],[]); %Noiseless simulation, for comparison
 logL=dataLogLikelihood(Y,U,A,B,C,D,Q,R,[],[]);
@@ -35,12 +32,12 @@ for i=1:Nsubs
 Uall{i}=U;
 end
 %% Identify: all together
-opts.fastFlag=0;
-opts.robustFlag=true;
+opts.fastFlag=true;
+opts.robustFlag=false;
 tic
 [A,B,C,D,Q,R,X,P,logL]=EM(Y,Uall,D1,opts);
 toc
-[J,B,C,X,~,Q,P] = canonizev2(A,B,C,X,Q,P);
+[J,B,C,X,~,Q,P] = canonize(A,B,C,X,Q,P);
 model{2}=autodeal(J,B,C,D,X,Q,R,logL);
 model{2}.name='EM (fast,robust)';
 
@@ -49,7 +46,7 @@ for i=1:Nsubs
 tic
 [A,B,C,D,Q,R,X,P,logL]=EM(Y{i},U,D1,opts);
 toc
-[J,B,C,X,~,Q,P] = canonizev2(A,B,C,X,Q,P);
+[J,B,C,X,~,Q,P] = canonize(A,B,C,X,Q,P);
 model{2+i}=autodeal(J,B,C,D,X,Q,R,logL);
 model{2+i}.name=['EM (fast,robust), sub' num2str(i)];
 end
