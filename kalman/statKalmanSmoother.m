@@ -67,7 +67,7 @@ for i=N-1:-1:N-M1
   pp=Pp(:,:,i+1); %Covariance of next step based on post estimate of this step
 
   %Backward pass:
-  [prevPs,prevXs,newPt]=backStepRTS(pp,pf,prevPs,xp,xf,prevXs,A);
+  [prevPs,prevXs,newPt]=backStepRTS(pp,pf,prevPs,xp,xf,prevXs,A,Q);
   %Alt: Bryson-Frazier recursion. Faster, but error-prone
   %innov=Innov(:,i);
   %[prevPs,prevXs,newPt,prevDelta,prevLambda]=backStepBF(xf,pf,innov,pp,prevpp,A,C,invSchol(:,:,i),prevDelta,prevLambda);
@@ -105,7 +105,7 @@ for i=M2:-1:1
   pp=Pp(:,:,i+1); %Covariance of next step based on post estimate of this step
 
   %Backward pass:
-  [prevPs,prevXs,newPt]=backStepRTS(pp,pf,prevPs,xp,xf,prevXs,A);
+  [prevPs,prevXs,newPt]=backStepRTS(pp,pf,prevPs,xp,xf,prevXs,A,Q);
   %Alt:
   %innov=Innov(:,i);
   %[prevPs,prevXs,newPt,prevDelta,prevLambda]=backStepBF(xf,pf,innov,pp,prevpp,A,C,invSchol(:,:,i),prevDelta,prevLambda);
@@ -116,27 +116,26 @@ end
 
 end
 
-function [newPs,newXs,newPt,H]=backStepRTS(pp,pf,ps,xp,xf,prevXs,A)
+function [newPs,newXs,newPt,H]=backStepRTS(pp,pf,ps,xp,xf,prevXs,A,Q)
   %Implements the Rauch-Tung-Striebel backward recursion
   %https://en.wikipedia.org/wiki/Kalman_filter#Fixed-interval_smoothers)
-
-  %First, compute gain:
-  [icP]=pinvchol(pp);
-  H=(pf*(A'*icP))*icP'; %H=AP'/pp; %Faster, although worse conditioned, matters a lot when smoothing
-
-  %Unstable smoothing warning: in general, the back step can be unstable for a few strides, but if it happens always, there is probably something wrong:
-  %if any(abs(eig(H))>1)
-  %  warning('Unstable back filter!')
-  %end
-
-  %Compute relevant covariances
-  newPt=ps*H'; %This should be such that A*newPt' is hermitian
-
-  %Updates: Improved (smoothed) state estimate
-  Hext=H*(mycholcov(pp-ps)');
-  newPs=pf-Hext*Hext';
-  %newPs=pf-H*(pp-ps)*H';  %Faster, but worse conditioned
-  newXs=xf + H*(prevXs-xp);
+  if ~any(isinf(diag(pf))) %The usual case: we have a proper prior from filter
+      %First, compute gain:
+      [icP]=pinvchol(pp);
+      H=(pf*(A'*icP))*icP'; %H=AP'/pp; %Faster, although worse conditioned, matters a lot when smoothing
+      %Compute relevant covariances
+      newPt=ps*H'; %This should be such that A*newPt' is hermitian
+      %Updates: Improved (smoothed) state estimate
+      Hext=H*(mycholcov(pp-ps)');
+      newPs=pf-Hext*Hext'; %newPs=pf-H*(pp-ps)*H';  %Faster, but worse conditioned
+      newXs=xf + H*(prevXs-xp);
+  else %This happens when we started filtering from an improper prior 
+  %(infinite uncertainty) and we go back to smooth those infinitely uncertain samples
+    Hext=A\mycholcov(ps)';
+    newPs=Hext*Hext'+Q; %The input Q is only used here
+    newPt=ps/A';
+    newXs=xf + A\(prevXs-xp);
+  end
 end
 
 function [newPs,newXs,newPt,newDelta,newLambda]=backStepBF(xf,Pf,innov,Pp,prevPp,A,C,icS,prevDelta,prevLambda)

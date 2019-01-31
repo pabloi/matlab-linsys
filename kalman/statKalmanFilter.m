@@ -94,20 +94,26 @@ end
 %For the first steps do an information update if P0 contains infinite elements
 firstInd=1;
 infVariances=isinf(diag(prevP));
-while any(infVariances) %In practice, this only gets executed once at most.
+while any(infVariances) %In practice, this only gets executed until the first non-NaN data sample is found
     %Define info matrix from cov matrix:
     prevI=zeros(size(prevP));
     aux=inv(prevP(~infVariances,~infVariances)); %This inverse needs to exist, no such thing as absolute certainty
     prevI(~infVariances,~infVariances)=aux; %Computing inverse of the finite submatrix of P0
     %prevI=diag(1./diag(P0)); %This information matrix ignores correlations, cheaper
     %Update:
-    [~,~,prevX,prevP,logL(firstInd)]=infoUpdate(CtRinvC,CtRinvY(:,1),prevX,prevP,prevI);
-    %Warning: if variance was inifinte, then logL(firstInd)=-Inf!
-    X(:,firstInd)=prevX;  P(:,:,firstInd)=prevP; %Store results
-    %Predict:
-    [prevX,prevP]=KFpredict(A,Q,prevX,prevP,BU(:,1));
+    data=CtRinvY(:,firstInd);
+    if ~any(isnan(data)) %Do update
+        [~,~,prevX,prevP,logL(firstInd)]=infoUpdate(CtRinvC,data,prevX,prevP,prevI);
+        %Warning: if variance was inifinte, then logL(firstInd)=-Inf!
+        X(:,firstInd)=prevX;  P(:,:,firstInd)=prevP; %Store results
+        %Predict:
+        [prevX,prevP]=KFpredict(A,Q,prevX,prevP,BU(:,firstInd));
+    else
+        X(:,firstInd)=prevX;  P(:,:,firstInd)=prevP; %Store results
+        prevX=A*prevX+BU(:,firstInd); %Update the mean, even if uncertainty is infinite
+    end
     firstInd=firstInd+1;
-    Xp(:,firstInd)=prevX;   Pp(:,:,2)=prevP; 
+    Xp(:,firstInd)=prevX;   Pp(:,:,firstInd)=prevP; 
     %New variances:
     infVariances=isinf(diag(prevP));
 end

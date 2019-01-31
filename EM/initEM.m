@@ -40,14 +40,12 @@ function [A1,B1,C1,D1,Q1,R1,X1,P1,logL,Pt]=initParams(Y,U,X,opts,Pguess)
 
 %Initialize guesses of A,B,C,D,Q,R
 [A1,B1,C1,D1,Q1,R1,x01,P01]=estimateParams(Y,U,X,P,Pt,opts);
-%logL=dataLogLikelihood(Y,U(opts.indD,:),A1,B1,C1,D1,Q1,R1,x01,P01,'approx',U(opts.indB,:))
 %Make sure scaling is appropriate:
-[~,~,~,X1,~,~,P1] = canonize(A1,B1,C1,X,Q1,P);
-[~,~,~,~,~,~,Pt] = canonize(A1,B1,C1,x01,Q1,Pt);
+[~,~,~,X1,~,~,P1] = canonize(A1,B1,C1,X,Q1,P); %Why is this being returned?
+[~,~,~,~,~,~,Pt] = canonize(A1,B1,C1,x01,Q1,Pt); %Why is this being returned?
 [A1,B1,C1,x01,~,Q1,P01] = canonize(A1,B1,C1,x01,Q1,P01);
 %Compute logL:
 logL=dataLogLikelihood(Y,U(opts.indD,:),A1,B1,C1,D1,Q1,R1,x01,P01,'exact',U(opts.indB,:));
-%logL=dataLogLikelihood(Y,U(opts.indD,:),A1,B1,C1,D1,Q1,R1,X1(:,1),P1(:,:,1),'approx',U(opts.indB,:))
 end
 
 function [P,Pt]=initCov(X,U,P)
