@@ -1,4 +1,4 @@
-function [x0,P0,B,D,U,Ud,Ub,opts]=processKalmanOpts(D1,N,aux)
+function [x0,P0,B,D,U,opts]=processKalmanOpts(D1,N,aux)
 %Argument order: D1, N, x0,P0,B,D,U,opts
 %outlierRejection,fastFlag,Ub)
 
@@ -30,21 +30,19 @@ end
 if ~isfield(opts,'indB') %Leave empty as empty
   opts.indB=1:size(U,1);
 end
-Ud=U(opts.indD,:);
-if size(Ud,1)~=size(D,2)
+if size(U,1)~=size(D,2)
   if isempty(D)
-    D=zeros(1,size(Ud,1));
+    D=zeros(1,size(U,1));
     warning('D was empty but Ud was not. Replacing D with 0')
   else
-    error('Incompatible sizes of D, Ud')
+    error('Incompatible sizes of D, U')
   end
 end
-Ub=U(opts.indB,:);
-if size(Ub,1)~=size(B,2)
+if size(U,1)~=size(B,2)
   if isempty(B)
-    B=zeros(1,size(Ub,1));
+    B=zeros(1,size(U,1));
     warning('B was empty but Ud was not. Replacing B with 0')
   else
-    error('Incompatible sizes of B, Ub')
+    error('Incompatible sizes of B, U')
   end
 end

@@ -20,7 +20,7 @@ function [Xs,Ps,Pt,Xf,Pf,Xp,Pp,rejSamples,logL]=statKalmanSmoother(Y,A,C,Q,R,var
 
 %Init missing params:
 aux=varargin;
-[x0,P0,B,D,U,Ud,Ub,opts]=processKalmanOpts(D1,N,aux);
+[x0,P0,B,D,U,opts]=processKalmanOpts(D1,N,aux);
 M=processFastFlag(opts.fastFlag,A,N);
 opts.fastFlag=M+1;
 
@@ -52,18 +52,18 @@ if Nfast<=0 %No fast filtering at all
 end
 
 %Do true smoothing for last M1 samples:
-if D2>D1 && ~opts.noReduceFlag %Reducing dimension of problem for speed
-  [C,~,Y]=reduceModel(C,R,Y-D*Ud); 
-end
-prevDelta=0; prevLambda=zeros(D1,1);
-Innov=Y-C*Xp(:,1:N);
+%if D2>D1 && ~opts.noReduceFlag %Reducing dimension of problem for speed
+%  [C,~,Y]=reduceModel(C,R,Y-D*U); 
+%end
+%prevDelta=0; prevLambda=zeros(D1,1);
+%Innov=Y-C*Xp(:,1:N);
 pp=Pp(:,:,end);
 for i=N-1:-1:N-M1
   %First, get estimates from forward pass:
   xf=Xf(:,i); %Previous posterior estimate of covariance at this step
   pf=Pf(:,:,i); %Previous posterior estimate of covariance at this time step
   xp=Xp(:,i+1); %Prediction of next step based on post estimate of this step
-  prevpp=pp;
+  %prevpp=pp;
   pp=Pp(:,:,i+1); %Covariance of next step based on post estimate of this step
 
   %Backward pass:

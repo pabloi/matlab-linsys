@@ -34,7 +34,7 @@ function [X,P,Xp,Pp,rejSamples,logL,invSchol]=statKalmanFilter(Y,A,C,Q,R,varargi
 
 [D2,N]=size(Y); D1=size(A,1);
 %Init missing params:
-[x0,P0,B,D,U,Ud,Ub,opts]=processKalmanOpts(D1,N,varargin);
+[x0,P0,B,D,U,opts]=processKalmanOpts(D1,N,varargin);
 M=processFastFlag(opts.fastFlag,A,N);
 if M~=N && any(isnan(Y(:)))
     warning('statKFfast:NaN','Requested fast filtering but data contains NaNs. No steady-state can be found for filtering. Filtering will not be exact. Proceed at your own risk.')
@@ -71,7 +71,7 @@ end
 prevX=x0; prevP=P0; Xp(:,1)=x0; Pp(:,:,1)=P0;
 
 %Re-define observations to account for input effect:
-Y_D=Y-D*Ud; BU=B*Ub;
+Y_D=Y-D*U; BU=B*U;
 
 %Define constants for sample rejection:
 logL=nan(1,N); %Row vector
@@ -173,7 +173,7 @@ if M<N %Do the fast filtering for any remaining steps:
         X(:,i)=prevX;
     end
     if nargout>2 %Compute Xp, Pp only if requested:
-        Xp(:,2:end)=A*X+B*Ub; Pp(:,:,M+2:end)=repmat(A*Psteady*A'+Q,1,1,size(Y,2)-M);
+        Xp(:,2:end)=A*X+B*U; Pp(:,:,M+2:end)=repmat(A*Psteady*A'+Q,1,1,size(Y,2)-M);
         if nargout>4; Innov=Y_D-C*Xp(:,1:end-1);  logL(M+1:end)=logLnormal(Innov(:,M+1:end),[],icS');
             %if nargout>5; invSchol(:,:,M+1:end)=repmat(icS,1,1,size(Y,2)-M); end
         end

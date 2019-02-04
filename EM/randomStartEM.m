@@ -59,17 +59,15 @@ function Xguess=guess(nd,Y,U,opts)
         y=Y;
         u=U;
     end    
-    ub=u(opts.indB,:);
-    ud=u(opts.indD,:);
     [ny,N]=size(y);
     A1=diag(exp(-1./exp(log(N)*rand(nd,1)))); %WLOG, diagonal matrix with log-uniformly spaced time-constants in the [1,N] interval
     %I think the sign above is unnecessary
-    B1=ones(nd,sum(opts.indB~=0)); %WLOG
+    B1=ones(nd,size(u,1)); %WLOG
     Q1=(abs(randn)+1e-4)*eye(nd); %Needs to be psd
     C1=randn(ny,nd)/ny; %WLOG
     D1=randn(ny,size(u,1));
-    [~,Xsmooth]=fwdSim(ub,A1,B1,zeros(1,nd),0,[],Q1,[]);
-    z=y-C1*Xsmooth(:,1:end-1)-D1*ud;
+    [~,Xsmooth]=fwdSim(u,A1,B1,zeros(1,nd),zeros(1,size(u,1)),[],Q1,[]);
+    z=y-C1*Xsmooth(:,1:end-1)-D1*u;
     idx=~any(isnan(z));
     z=z(:,idx);
     R1=z*z'/size(z,2) + C1*Q1*C1'; %Reasonable estimate of R

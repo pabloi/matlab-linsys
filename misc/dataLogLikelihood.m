@@ -1,4 +1,4 @@
-function logLperSamplePerDim=dataLogLikelihood(Y,U,A,B,C,D,Q,R,X0,P0,method,Ub)
+function logLperSamplePerDim=dataLogLikelihood(Y,U,A,B,C,D,Q,R,X0,P0,method)
 %Evaluates the likelihood of the data under a given model
 
 if nargin<11 || isempty(method)
@@ -7,10 +7,6 @@ end
 if nargin<10 || isempty(X0) || isempty(P0)
     X0=[];
     P0=[];
-end
-Ud=U;
-if nargin<12
-  Ub=U; %Allowing different inputs to dynamics and output equations
 end
 
 %Check if R is psd, and do cholesky decomp:
@@ -22,17 +18,18 @@ if r~=size(R,1)
 end
 
 if isa(Y,'cell') %Case where input/output data corresponds to many realizations of system, requires Y,U,x0,P0 to be cells of same size
-    logLperSamplePerDim=cellfun(@(y,ud,x0,p0,ub) dataLogLikelihood(y,ud,A,B,C,D,Q,R,x0,p0,method,ub),Y,Ud,X0,P0,Ub);
+    logLperSamplePerDim=cellfun(@(y,u,x0,p0) dataLogLikelihood(y,u,A,B,C,D,Q,R,x0,p0,method),Y,U,X0,P0);
     sampleSize=cellfun(@(y) size(y,2),Y);
     logLperSamplePerDim=(logLperSamplePerDim*sampleSize')/sum(sampleSize);
 else
 
     if size(X0,2)<=1 %True init state guess
         opts.fastFlag=false;
-        Dalt=zeros(size(D,1),0);
-        opts1=opts;
-        opts1.indD=[];
-        [~,~,Xp,Pp,~,logLperSamplePerDim]=statKalmanFilter(Y-D*Ud,A,C,Q,R,X0,P0,B,Dalt,Ub,opts1);
+        %Dalt=zeros(size(D,1),0);
+        %opts1=opts;
+        %opts1.indD=[];
+        %[~,~,Xp,Pp,~,logLperSamplePerDim]=statKalmanFilter(Y-D*U,A,C,Q,R,X0,P0,B,Dalt,U,opts1);
+        [~,~,Xp,Pp,~,logLperSamplePerDim]=statKalmanFilter(Y,A,C,Q,R,X0,P0,B,D,U,opts);
         if ~strcmp(method,'exact')
           warning('dataLogL:ignoreMethod','Method requested was not ''exact'', but returning exact log-likelihood anyway, because it''s faster.')
         end
@@ -43,7 +40,7 @@ else
     end
 
     %'Incomplete' logLikelihood: p({y}|params) [Albert and Shadmehr 2017, eq. A1.25]
-    predY=C*Xp(:,1:end-1)+D*Ud; %Prediction from one step ahead
+    predY=C*Xp(:,1:end-1)+D*U; %Prediction from one step ahead
     z=Y-predY; %If this values are too high, it may be convenient to just set logL=-Inf, for numerical reasons
     idx=~any(isnan(Y));
     z=z(:,idx); %Removing NaN samples

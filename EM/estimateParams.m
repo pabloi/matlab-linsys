@@ -36,18 +36,18 @@ Nu=size(uu,1);
 xu_=xu_(:,opts.indB);
 xu1=xu1(:,opts.indB);
 uu_=uu_(opts.indB,opts.indB);
-%B=zeros(D1,Nu);
+B=zeros(D1,Nu);
 if isempty(opts.fixA) && isempty(opts.fixB)
   O=[SP_+xx_ xu_; xu_' uu_];
   AB=[SPt+xx1 xu1]/O; %In absence of state uncertainty, reduces to: [A,B]=X+/[X;U],
   %where X+ is X one step in the future
   A=AB(:,1:D1);
-  B=AB(:,D1+1:end);
+  B(:,opts.indB)=AB(:,D1+1:end);
 elseif isempty(opts.fixA) && ~isempty(opts.fixB) %Only A is to be estimated
   A=([SPt+xx1 xu1] - opts.fixB*[xu_' uu_])/[SP_+xx_ xu_];
   B=opts.fixB;
 elseif isempty(opts.fixB) && ~isempty(opts.fixA) %Only B
-  B=([SPt+xx1 xu1] - opts.fixA*[SP_+xx_ xu_])/[xu' uu_];
+  B(:,opts.indB)=([SPt+xx1 xu1] - opts.fixA*[SP_+xx_ xu_])/[xu' uu_];
   A=opts.fixA;
 else
   A=opts.fixA;
@@ -83,7 +83,7 @@ if isempty(U)
 end
 
 %Estimate Q,R: %Adaptation of Shumway and Stoffer 1982: (there B=D=0 and C is fixed), but consistent with Ghahramani and Hinton 1996, and Cheng and Sabes 2006
-[w,z]=computeResiduals(Y,U,X,A,B,C,D,opts);
+[w,z]=computeResiduals(Y,U,X,A,B,C,D);
 
 if isempty(opts.fixQ)
   % MLE estimator of Q, under the given assumptions:
@@ -258,18 +258,16 @@ end
 
 end
 
-function [w,z]=computeResiduals(Y,U,X,A,B,C,D,opts)
-
+function [w,z]=computeResiduals(Y,U,X,A,B,C,D)
 if isa(X,'cell') %Case where data is many realizations of same system
-    [w,z]=cellfun(@(y,u,x) computeResiduals(y,u,x,A,B,C,D,opts),Y(:),U(:),X(:),'UniformOutput',false); %Ensures column cell-array output
+    [w,z]=cellfun(@(y,u,x) computeResiduals(y,u,x,A,B,C,D),Y(:),U(:),X(:),'UniformOutput',false); %Ensures column cell-array output
     w=cell2mat(w'); %Concatenates as if each realization is extra samples
     z=cell2mat(z');
 else
     N=size(X,2);
     idx=~any(isnan(Y));
-    z=Y-C*X-D*U(opts.indD,:);
+    z=Y-C*X-D*U;
     z=z(:,idx);
-    w=X(:,2:N)-A*X(:,1:N-1)-B*U(opts.indB,1:N-1);
+    w=X(:,2:N)-A*X(:,1:N-1)-B*U(:,1:N-1);
 end
-
 end

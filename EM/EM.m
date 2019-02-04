@@ -195,13 +195,8 @@ if opts.logFlag
   outLog.bestLogL=bestLogL;
   %diary('off')
 end
-%% Re-assign B,D according to opts.indD, opts.indB
-B1=zeros(size(A,1),size(U,1));
-D1=zeros(size(C,1),size(U,1));
-B1(:,opts.indB)=B;
-D1(:,opts.indD)=D;
-B=B1; D=D1;
-%Restore scale:
+
+%% Restore scale:
 C=C.*scale;
 D=D.*scale;
 R=scale.*R.*scale';
