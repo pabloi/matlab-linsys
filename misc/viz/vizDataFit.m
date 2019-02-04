@@ -1,9 +1,9 @@
 function [fh,fh2] = vizDataFit(model,Y,U)
 
-M=max(cellfun(@(x) size(x.J,1),model));
+M=max(cellfun(@(x) size(x.J,1),model(:)));
 fh=figure('Units','Normalized','OuterPosition',[0 0 1 1]);
-Ny=3;
-Nx=max(M+1,6);
+Ny=4;
+Nx=max(M,6);
 yoff=size(Y,2)*1.1;
 Nm=length(model); %Number of models
 %% Add reduced models:
@@ -21,7 +21,7 @@ for k=1%:2 %Original or reduced models
         model=redModel;
     end
     for i=1:length(model)
-        %[model{i}.J,model{i}.B,model{i}.C,~,~,model{i}.Q] = canonize(model{i}.J,model{i}.B,model{i}.C,[],model{i}.Q,[],[]);
+        [model{i}.J,model{i}.B,model{i}.C,~,~,model{i}.Q] = canonize(model{i}.J,model{i}.B,model{i}.C,[],model{i}.Q,[],'canonicalAlt');
         opts.fastFlag=false;
         Nd=size(model{i}.D,2);
         [Xs,Ps,Pt,Xf,Pf,Xp,Pp,rejSamples,logL]=statKalmanSmoother(model{i}.Y_,model{i}.J,model{i}.C,model{i}.Q,model{i}.R,[],[],model{i}.B,model{i}.D,U,opts);
@@ -76,6 +76,7 @@ for kk=1:maxK
     colormap(flipud(map))
     aC=max(abs(cc(:)));
     caxis([-aC aC])
+    ylabel(['PC ' num2str(kk) ', ' num2str(100*aa(kk)/sum(aa)) '%'])
     axis tight
     subplot(Nx,3*Ny,3*(kk-1)*Ny+[2:3]) %Output along PC of true data
     hold on
@@ -88,7 +89,7 @@ for kk=1:maxK
     if kk==1
         title('Output projection over main PCs')
     end
-    ylabel(['PC ' num2str(kk) ', ' num2str(100*aa(kk)/sum(aa)) '%'])
+    axis tight
 end
 
 %% Measures of output error:
@@ -109,12 +110,14 @@ for ll=1:3
                 title('KF prediction output error (RMSE, mov. avg.)')
         end
         idx=find(~isnan(aux1));
-        aux1=aux1(idx);
-        aux2=conv(aux1,ones(1,binw)/binw,'valid');
-        p1=plot(idx((binw-1)/2+1:end-(binw-1)/2),aux2,'LineWidth',1);
+        aux2=aux1(idx);
+        aux2=conv(aux2,ones(1,binw)/binw,'valid');
+        set(gca,'ColorOrderIndex',k)
+        s1=scatter(1:length(aux1),aux1,5,'filled','MarkerEdgeColor','none','MarkerFaceAlpha',.5);
+        %p1=plot(idx((binw-1)/2+1:end-(binw-1)/2),aux2,'LineWidth',1,'LineColor',s1.MarkerFaceColor);
         RMSE=sqrt(mean([aux1].^2)); %Normalized Frobenius norm
-        bar2=bar([yoff+k*200],RMSE,'EdgeColor','none','BarWidth',200,'FaceColor',p1.Color);
-        text(yoff+(k-1)*200+100,.9*RMSE,[num2str(RMSE,4)],'Color','w','FontSize',7)
+        bar2=bar([yoff+k*100],RMSE,'EdgeColor','none','BarWidth',100,'FaceColor',s1.MarkerFaceColor);
+        text(yoff+(k-1)*100+100,.9*RMSE,[num2str(RMSE,4)],'Color','w','FontSize',6,'Rotation',270)
     end
     axis tight
     grid on
@@ -163,6 +166,7 @@ end
 clear p
 for k=1:length(model)
     taus=-1./log(sort(eig(model{k}.J)));
+    projectedX=model{k}.C\(Y-model{k}.D*U);
     for i=1:size(model{k}.J,1)
         subplot(Nx,Ny,Ny*(i-1)+3) %States
         hold on
@@ -173,103 +177,48 @@ for k=1:length(model)
         end
         %Smooth states
         set(gca,'ColorOrderIndex',k)
-        p(k,i)=plot(model{k}.smoothStates(i,:),'LineWidth',2,'DisplayName',nn);
         %MLE states:
         %plot(model{k}.Xf(i,:),'LineWidth',1,'DisplayName',nn,'Color',p(k).Color);
         %patch([1:size(model{k}.Xf,2),size(model{k}.Xf,2):-1:1]',[model{k}.Xf(i,:)+sqrt(squeeze(model{k}.Pf(i,i,:)))', %fliplr(model{k}.Xf(i,:)-sqrt(squeeze(model{k}.Pf(i,i,:)))')]',p(k).Color,'EdgeColor','none','FaceAlpha',.3)
-        plot(model{k}.Xs(i,:),'LineWidth',1,'DisplayName',nn,'Color',p(k).Color);
+        p(k,i)=plot(model{k}.Xs(i,:),'LineWidth',2,'DisplayName',nn);
+        %plot(model{k}.smoothStates(i,:),'LineWidth',1,'DisplayName',nn);
         patch([1:size(model{k}.Xs,2),size(model{k}.Xs,2):-1:1]',[model{k}.Xs(i,:)+sqrt(squeeze(model{k}.Ps(i,i,:)))', fliplr(model{k}.Xs(i,:)-sqrt(squeeze(model{k}.Ps(i,i,:)))')]',p(k).Color,'EdgeColor','none','FaceAlpha',.3)
+        s1=scatter(1:size(projectedX,2),projectedX(i,:),5,'filled','MarkerEdgeColor','none','MarkerFaceAlpha',.2,'MarkerFaceColor',p(k).Color);
+        uistack(s1,'bottom')
         %plot(model{k}.Xp(i,:),'LineWidth',1,'DisplayName',nn,'Color','k');
         if k==length(model)
-            legend(findobj(gca,'Type','Line','LineWidth',2),'Location','SouthEast')
+            legend(findobj(gca,'Type','Line','LineWidth',2),'Location','Best')
             title('(Smoothed) States')
             ylabel(['State ' num2str(i)])
         end
         axis tight
-        aa=axis;
-        axis([aa(1:2) -.3 1.3]);
+        grid on
+
+        subplot(Nx,Ny,Ny*(i-1)+4) %State residuals
+        hold on
+        set(gca,'ColorOrderIndex',k)
+        scatter(1:size(projectedX,2),model{k}.Xs(i,:)-projectedX(i,:),5,'filled','MarkerEdgeColor','none','MarkerFaceAlpha',.5);
+        if k==length(model)
+            title('(KS) State residual (vs. projection)')
+            grid on
+        end
+        axis tight
     end
 end
 
 %% MLE state innovation
-subplot(Nx,Ny,Ny*(M)+3)
+subplot(Nx,Ny,Ny*(M)+4)
 hold on
 for k=1:length(model)
     stError=model{k}.Xs(:,2:end)-model{k}.oneAheadStates;
-aux1=sqrt(z2score(stError,model{k}.Q));
-p1=plot(aux1,'LineWidth',1);
-bar2=bar([yoff + k*100],nanmean([aux1]),'EdgeColor','none','BarWidth',100,'FaceColor',p1.Color);
-text(yoff+(k)*100,nanmean(aux1)*(1+.3*k),[num2str(nanmean(aux1))],'Color',bar2.FaceColor)
+    aux1=sqrt(z2score(stError,model{k}.Q));
+    p1=plot(aux1,'LineWidth',1);
+    bar2=bar([yoff + k*100],nanmean([aux1]),'EdgeColor','none','BarWidth',100,'FaceColor',p1.Color);
+    text(yoff+(k)*100,nanmean(aux1)*(1+.3*k),[num2str(nanmean(aux1))],'Color',bar2.FaceColor)
 end
 title('(KS) Predicted state error (z-score)')
 axis tight
 grid on
-
-%% Plot features of one-ahead output residuals:
-Nny=6;
-allLogL=cellfun(@(x) x.logLtest,model);
-for i=1:length(model)
-    res=Y(:,2:end)-model{i}.oneAheadOut; %One-ahead residuals
-    res=substituteNaNs(res'); %Removing NaNs, otherwise this is all crap
-    [pp,cc,aa]=pca((res),'Centered','off');
-    subplot(Nx,Nny,(Nx-1)*Nny+1)
-    if model{i}.logLtest==min(allLogL)
-        try
-            imagesc(flipud(reshape(pp(:,kk),12,Nc/12)'))
-        catch
-            imagesc(flipud(pp(:,kk)))
-        end
-        colormap(flipud(map))
-        aC=.5*max(abs(cc(:)));
-        caxis([-aC aC])
-        title('First residual PC for best model')
-    end
-
-
-    subplot(Nx,Nny,(Nx-1)*Nny+2)
-    hold on
-    aux1=conv(cc(:,1)',ones(1,binw)/binw,'valid');
-    p(i)=plot(aux1,'LineWidth',1) ;
-    title('First PC of residual, mov. avg.')
-    grid on
-
-
-    subplot(Nx,Nny,(Nx-1)*Nny+3)
-    hold on
-    plot(aa,'LineWidth',1)
-    title('Distribution of residual energy')
-    grid on
-    set(gca,'YScale','log')
-    axis([1 30 1e-2 1])
-
-    subplot(Nx,Nny,(Nx-1)*Nny+4)
-    hold on
-    qq1=qqplot(cc(:,1));
-    qq1(1).MarkerEdgeColor=p(i).Color;
-    ax=gca;
-    ax.Title.String='QQ plot residual PC 1';
-
-    subplot(Nx,Nny,(Nx-1)*Nny+5)
-    hold on
-    r=xcorr(cc(:,1));
-    plot(-(length(r)-1)/2:(length(r)-1)/2,r)
-    axis tight
-    aa=axis;
-    grid on
-    xlabel('Delay (samp)')
-    title('Residual PC 1 autocorr')
-    axis([-15 15 aa(3:4)])
-
-    subplot(Nx,Nny,(Nx-1)*Nny+6)
-    hold on
-    histogram(cc(:,1),'EdgeColor','none','Normalization','pdf','FaceAlpha',.2,'BinEdges',[-1:.02:1])
-end
-xx=[-1:.001:1];
-subplot(Nx,Nny,(Nx-1)*Nny+6)
-hold on
-sig=.25;
-plot(xx,exp(-(xx.^2)/(2*sig^2))/sqrt(2*pi*sig^2),'k')
-title('Residual PC 1 histogram')
 
 %% Compare outputs at different points in time:
 if nargout>1
