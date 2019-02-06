@@ -2,7 +2,13 @@ function [A,B,C,D,Q,R,X,P,bestLL,outLog]=randomStartEM(Y,U,nd,Nreps,opts)
 
 %First iter:
 fprintf(['\n Starting rep 0 (fast one)... \n']);
-opts=processEMopts(opts,size(U,1));
+%Pre-process optional flags:
+if isa(U,'cell')
+  Nu=size(U{1},1);
+else
+  Nu=size(U,1);
+end
+opts=processEMopts(opts,Nu);
 outLog=struct();
 opt1=opts;
 opt1.fastFlag=true; %Enforcing fast filtering
@@ -22,9 +28,9 @@ for i=1:Nreps
 
     %Optimize:
     [Ai,Bi,Ci,Di,Qi,Ri,Xi,Pi,logl,repLog]=EM(Y,U,Xguess,opts);
-    
+
     %If solution improved, save and display:
-      if logl>bestLL 
+      if logl>bestLL
           A=Ai; B=Bi; C=Ci; D=Di; Q=Qi; R=Ri; X=Xi; P=Pi;
           bestLL=logl;            opts.targetLogL=bestLL;
           disp(['Success, best logL=' num2str(bestLL,8)])
@@ -55,10 +61,10 @@ function Xguess=guess(nd,Y,U,opts)
     if isa(U,'cell')
         u=cell2mat(U);
         y=cell2mat(Y);
-    else 
+    else
         y=Y;
         u=U;
-    end    
+    end
     [ny,N]=size(y);
     A1=diag(exp(-1./exp(log(N)*rand(nd,1)))); %WLOG, diagonal matrix with log-uniformly spaced time-constants in the [1,N] interval
     %I think the sign above is unnecessary

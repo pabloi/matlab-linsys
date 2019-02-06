@@ -30,8 +30,13 @@ end
 outLog=[];
 
 %Process opts:
-[opts] = processEMopts(opts,size(U,1));
-if opts.fastFlag~=0 && ( (~isa(Y,'cell') && any(isnan(Y(:)))) || (isa(Y,'cell') && any(any(isnan(cell2mat(Y)))) ) ) 
+if isa(U,'cell')
+  Nu=size(U{1},1);
+else
+  Nu=size(U,1);
+end
+[opts] = processEMopts(opts,Nu); %This is a fail-safe to check for proper options being defined.
+if opts.fastFlag~=0 && ( (~isa(Y,'cell') && any(isnan(Y(:)))) || (isa(Y,'cell') && any(any(isnan(cell2mat(Y)))) ) )
    warning('EM:fastAndLoose','Requested fast filtering but data contains NaNs. No steady-state can be found for filtering. Filtering will not be exact. Proceed at your own risk.')
   %opts.fastFlag=0; %No fast-filtering in nan-filled data
 end

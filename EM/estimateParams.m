@@ -17,7 +17,7 @@ function [A,B,C,D,Q,R,x0,P0]=estimateParams(Y,U,X,P,Pt,opts)
 %     Nu=0;
 % elseif isa(U,'cell')
 %     for i=1:length(U)
-%         if all(U{i}(:)==0) 
+%         if all(U{i}(:)==0)
 %             U{i}=zeros();
 %         end
 %     end
@@ -30,7 +30,7 @@ D1=size(xx,1);
 [No]=size(yx,1);
 N=[];
 Nu=size(uu,1);
-[opts] = processEMopts(opts,Nu);
+%[opts] = processEMopts(opts,Nu); opts are processed in EM(). This function should only be called from there, so opts need to be defined appropriately already
 
 %Estimate A,B:
 xu_=xu_(:,opts.indB);
