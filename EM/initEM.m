@@ -9,13 +9,13 @@ function [A,B,C,D,Q,R,X,P,Pt,logL]=initEM(Y,U,X,opts,P)
       error('Xguess has to be a guess of the states (D x N matrix) or a scalar indicating the number of states to be estimated')
   elseif numel(X)==1 %X is just dimension, initializing as usual
       d=X;
-      %if any(isnan(Y(:))) %Removing NaNs First for subspace method
-      %  Y2=substituteNaNs(Y')';
-      %else
-      %  Y2=Y;
-      %end
-      %[A,B,C,D,X,Q,R]=subspaceIDv2(Y2,U,d); %Works if no missing data
-      [X]=initGuessOld(Y,U,d);
+      if any(isnan(Y(:))) %Removing NaNs first 
+        Y2=substituteNaNs(Y')';
+      else
+        Y2=Y;
+      end
+      %[A,B,C,D,X,Q,R]=subspaceIDv2(Y2,U,d); %Works if no missing data, is slow
+      [X]=initGuessOld(Y2,U,d);
   end
   [A,B,C,D,Q,R,X,P,logL,Pt]=initParams(Y,U,X,opts,P);
   %logL=dataLogLikelihood(Y,U(opts.indD,:),A,B,C,D,Q,R,X(:,1),P(:,:,1),'approx',U(opts.indB,:))
@@ -65,7 +65,7 @@ function [P,Pt]=initCov(X,U,P)
     end
 end
 
-%This function used to be used instead of the subspace method, but is deprecated:
+%This function used to be used instead of the subspace method
 function [X]=initGuessOld(Y,U,D1)
   if isa(Y,'cell')
       X=initGuessOld(cell2mat(Y),cell2mat(U),D1);

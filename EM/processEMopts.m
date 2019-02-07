@@ -3,6 +3,9 @@ function [opts] = processEMopts(opts,nu)
 if ~isfield(opts,'Niter')
     opts.Niter=1e3; %Max number of iters
 end
+if ~isfield(opts,'Nreps')
+    opts.Niter=10; %Number of repetitions for randomStartEM
+end
 
 if ~isfield(opts,'robustFlag')
     opts.robustFlag=false; % Non-robust behavior

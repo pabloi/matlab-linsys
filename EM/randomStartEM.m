@@ -1,4 +1,4 @@
-function [A,B,C,D,Q,R,X,P,bestLL,outLog]=randomStartEM(Y,U,nd,Nreps,opts)
+function [A,B,C,D,Q,R,X,P,bestLL,outLog]=randomStartEM(Y,U,nd,opts)
 
 %First iter:
 fprintf(['\n Starting rep 0 (fast one)... \n']);
@@ -20,7 +20,7 @@ if opts.logFlag
     tic;
 end
 opts.targetLogL=bestLL;
-for i=1:Nreps
+for i=1:opts.Nreps
     fprintf(['\n Starting rep ' num2str(i) '. Best logL so far=' num2str(bestLL,8) '... \n']);
 
     %Initialize starting point:
