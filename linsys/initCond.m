@@ -1,33 +1,19 @@
-classdef initCond
+classdef initCond < stateEstimate
     %INITCOND Class representing a set of initial condition (gaussian) beliefs for
     %bayesian-like filtering. To be used with linsys' kalman filtering and
-    %smoothing.
-    
-    properties
-       x %State belief: N x 1 vector
-       P %State uncertainty: N x N matrix
-    end
-    properties(Dependent)
-       order
-    end
-    
+    %smoothing. Inherits from stateEstimate class, but represents a single time point.
+
     methods
         function obj = initCond(x,P)
-            obj.x=reshape(x,numel(x),1);
-            obj.P=P;
-            if numel(x)~=size(P,1)
-                error('initCond:constructor','Inconsistent state and uncertainty sizes')
-            end
-            if size(P,1)~=size(P,2)
-                error('initCond:constructor','Uncertainty matrix is not square')
-            end
-            if ~isempty(P) && (min(eig(P))<0 || any(imag(eig(P))~=0))
-                error('initCond:constructor','Uncertainty matrix is not PSD')
-            end
-        end
-        function order=get.order(this)
-           order=length(this.x); 
+          if size(x,2)>1
+            error('Initial condition estimates must represent a single time-sample')
+          elseif isempty(x)
+              warning('Empty initial condition given. Using improper prior.')
+              N=size(x,1);
+              x=zeros(N,1);
+              P=diag(Inf*ones(N,1));
+          end
+          %obj=stateEstimate(x,P);
         end
     end
 end
-
