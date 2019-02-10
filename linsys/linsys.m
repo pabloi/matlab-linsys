@@ -191,17 +191,26 @@ classdef linsys
             if nargin<3
                 opts.Nreps=0; %Simple EM, starting from PCA approximation
             end
-            if order==0
-                [J,B,C,D,Q,R]=getFlatModel(datSet.out,datSet.in);
-                this=linsys(J,C,R,B,D,Q,trainInfo(datSet.hash,'flatModel',[]));
-                this.name='Flat';
-                outlog=[];
-            elseif order>0
-                [A,B,C,D,Q,R,~,~,~,outlog]=randomStartEM(datSet.out,datSet.in,order,opts);
-                this=linsys(A,C,R,B,D,Q,trainInfo(datSet.hash,'repeatedEM',opts));
-                this.name=['rEM ' num2str(order)];
+            if numel(order)>1
+                M=length(order);
+                this=cell(M,1);
+                outlog=cell(M,1);
+                for ord=1:M
+                    [this{ord},outlog{ord}]=linsys.id(datSet,order(ord),opts);
+                end
             else
-                error('Order must be a non-negative integer.')
+                if order==0
+                    [J,B,C,D,Q,R]=getFlatModel(datSet.out,datSet.in);
+                    this=linsys(J,C,R,B,D,Q,trainInfo(datSet.hash,'flatModel',[]));
+                    this.name='Flat';
+                    outlog=[];
+                elseif order>0
+                    [A,B,C,D,Q,R,~,~,~,outlog]=randomStartEM(datSet.out,datSet.in,order,opts);
+                    this=linsys(A,C,R,B,D,Q,trainInfo(datSet.hash,'repeatedEM',opts));
+                    this.name=['rEM ' num2str(order)];
+                else
+                    error('Order must be a non-negative integer.')
+                end
             end
         end
         function this=struct2linsys(str)

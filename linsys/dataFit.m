@@ -11,8 +11,9 @@ end
 
 properties (Dependent)
   Nsamp
-  bic
-  aic
+  BIC
+  AIC
+  AICc
 end
 methods
   function this=dataFit(model,datSet,initC)
@@ -30,14 +31,27 @@ methods
   function Ns=get.Nsamp(this)
     Ns=this.causalMLE.Nsamp;
   end
-  function bic=get.bic(this)
+  function bic=get.BIC(this)
     bic=-2*this.logL+log(this.Nsamp)*this.model.dof;
   end
-  function aic=get.aic(this)
+  function aic=get.AIC(this)
     aic=-2*this.logL+2*this.model.dof;
+  end
+  function aicc=get.AICc(this)
+      p=this.model.dof;
+      N=this.Nsamp;
+      aicc=this.AIC+2*p*(p+1)/(N*this.model.Noutput-p-1); %This correction is unclear. 
+      %Literature on the topic uses N to mean number of samples, but 
+      %if that were the case, then it is very easy to have p>N in 
+      %high-dimensional samples. I will use the numel of the output
+      %(fitted) data, which is N times data dimension.
   end
   function [p,chi]=likelihoodRatioTest(this,other)
     %Performs a likelihood ratio test for the fits of two models to a given dataset.
+    %Uses Wilk's theorem approximation for the asymptotic distribution of
+    %the likelihood ratio. 
+    %CAUTION: this is known to NOT be a valid approximation for LTI-SSM 
+    %modeling of different orders.
     %p returns the p-value of the observed likelihood ratio (of the model with more parameters over the one with less, so the ratio should always be larger than 1)
     %Models should be nested for this to work.
     %Check: both dataFits refer to the same dataset
