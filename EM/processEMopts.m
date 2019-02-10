@@ -26,7 +26,9 @@ end
 if ~isfield(opts,'targetLogL')
     opts.targetLogL=[];
 end
-
+if ~isfield(opts,'diagA')
+  opts.diagA=false;
+end
 if ~isfield(opts,'sphericalR')
     opts.sphericalR=false;
 end
@@ -69,5 +71,11 @@ if ~isfield(opts,'fixQ')
 end
 if ~isfield(opts,'fixR')
   opts.fixR=[];
+end
+if ~isfield(opts,'fixX0')
+  opts.fixX0=[];
+end
+if ~isfield(opts,'fixP0')
+  opts.fixP0=[];
 end
 end

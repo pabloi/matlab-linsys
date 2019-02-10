@@ -37,21 +37,33 @@ xu_=xu_(:,opts.indB);
 xu1=xu1(:,opts.indB);
 uu_=uu_(opts.indB,opts.indB);
 B=zeros(D1,Nu);
-if isempty(opts.fixA) && isempty(opts.fixB)
-  O=[SP_+xx_ xu_; xu_' uu_];
-  AB=[SPt+xx1 xu1]/O; %In absence of state uncertainty, reduces to: [A,B]=X+/[X;U],
-  %where X+ is X one step in the future
-  A=AB(:,1:D1);
-  B(:,opts.indB)=AB(:,D1+1:end);
-elseif isempty(opts.fixA) && ~isempty(opts.fixB) %Only A is to be estimated
-  A=([SPt+xx1 xu1] - opts.fixB*[xu_' uu_])/[SP_+xx_ xu_];
-  B=opts.fixB;
-elseif isempty(opts.fixB) && ~isempty(opts.fixA) %Only B
-  B(:,opts.indB)=([SPt+xx1 xu1] - opts.fixA*[SP_+xx_ xu_])/[xu' uu_];
-  A=opts.fixA;
-else
-  A=opts.fixA;
-  B=opts.fixB;
+if ~opts.diagA || ~isempty(opts.fixA) %Asked for fixed A or full-matrix A
+  if isempty(opts.fixA) && isempty(opts.fixB)
+    O=[SP_+xx_ xu_; xu_' uu_];
+    AB=[SPt+xx1 xu1]/O; %In absence of state uncertainty, reduces to: [A,B]=X+/[X;U],
+    %where X+ is X one step in the future
+    A=AB(:,1:D1);
+    B(:,opts.indB)=AB(:,D1+1:end);
+  elseif isempty(opts.fixA) && ~isempty(opts.fixB) %Only A is to be estimated
+    A=([SPt+xx1 xu1] - opts.fixB*[xu_' uu_])/[SP_+xx_ xu_];
+    B=opts.fixB;
+  elseif isempty(opts.fixB) && ~isempty(opts.fixA) %Only B
+    B(:,opts.indB)=([SPt+xx1 xu1] - opts.fixA*[SP_+xx_ xu_])/[xu' uu_];
+    A=opts.fixA;
+  else
+    A=opts.fixA;
+    B=opts.fixB;
+  end
+else %Non-fixed diagonal A Enforcing
+  error('EM:diagA','Unimplemented')
+  if isempty(opts.fixB) %Estimate A and B
+
+  else %Estimate A only
+    A=zeros(D1);
+      for i=1:D1
+        A(i,i)=0; %doxy
+      end
+  end
 end
 
 %Estimate C,D:
@@ -154,6 +166,12 @@ if isa(X,'cell')
     [x0,P0]=cellfun(@(x,p) estimateInit(x,p,A,Q),X,P,'UniformOutput',false);
 else
     [x0,P0]=estimateInit(X,P,A,Q);
+end
+if ~isempty(opts.fixX0)
+  x0=opts.fixX0;
+end
+if ~isempty(opts.fixP0)
+  P0=opts.fixP0;
 end
 
 %[A,B,C,x0,~,Q,P0] = canonize(A,B,C,x0,Q,P0); %Avoid run-away parameters to ill-conditioned situations
