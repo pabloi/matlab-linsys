@@ -10,7 +10,7 @@ function [L,r]=mycholcov(A)
 r=size(A,1);
 [L,p]=chol(A);
 if p~=0 %Not positive definite, need to complete
-    %Algorithm from: https://arxiv.org/pdf/0804.4809.pdf made more efficient  
+    %Algorithm adapted from: https://arxiv.org/pdf/0804.4809.pdf made more efficient  
     t=trace(A);
     if t>eps % Numeric precision
         n=r;
@@ -35,6 +35,11 @@ if p~=0 %Not positive definite, need to complete
         r=0;
     end    
 end
+
+%ALT:
+%[L,D]=ldl(A);
+%L=L*sqrt(D);
+%r=[];
 
 % %Functionally equivalent built-in code, but doesn't guarantee triangular form:
 % r=size(A,1);

@@ -25,3 +25,17 @@ for i=1:reps
   [fitMdl{i},outlog{i}]=linsys.id(simDatSet{i},4,opts);
 end
 save modelVsrTest5Reps.mat fitMdl outlog simDatSet datSet model
+
+%% View time constants:
+tc=cell2mat(cellfun(@(x) eig(x.A),fitMdl,'UniformOutput',false)); %Get time constants
+trueTC=sort(eig(model.A));
+%Make time constants real:
+rtc=real(tc);
+rtc=sort(rtc);
+
+%See dispersion:
+figure; hold on;
+for i=1:4
+    histogram(rtc(i,:))
+    plot(trueTC(i)*[1 1],[0 40],'k--') %True value
+end

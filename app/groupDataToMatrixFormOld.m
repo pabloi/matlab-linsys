@@ -1,4 +1,4 @@
-function [Y,Ysym,Ycom,U]=groupDataToMatrixForm(sqrtFlag,remove79flag)
+function [Y,Ysym,Ycom,U]=groupDataToMatrixFormOld(sqrtFlag,remove79flag)
 %% Load real data:
 load dynamicsData300blocksALTnormalization_longBaseFIXED.mat
 addpath(genpath('./fun/'))

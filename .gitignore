@@ -1,8 +1,6 @@
 
 *.m~
 
-ext/
-
 EM/robCov\.png
 
 *.mat
@@ -14,3 +12,23 @@ EM/robCov\.png
 robustCov
 
 app/old/
+
+ext/getMD5/
+
+*.mexa64
+
+app/groupDataToMatrixForm\.m
+
+kalman/codegen/mex/trueKF/html/
+
+kalman/codegen/lib/trueKF/
+
+kalman/codegen/lib/KFupdate2/
+
+kalman/KFupdate2\.prj
+
+kalman/trueKF\.prj
+
+kalman/trueKF\.m
+
+*.mldatx
