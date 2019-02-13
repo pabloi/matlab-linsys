@@ -111,7 +111,7 @@ for i=firstInd:M
 
   %First, do the update given the output at this step:
   if ~any(isnan(y)) %If measurement is NaN, skip update.
-     [prevX,prevP,prevK,logL(i),rejSamples(i),icS]=KFupdate(C,R,y,prevX,prevP,rejThreshold,cR);
+     [prevX,prevP,logL(i),rejSamples(i),icS]=KFupdate(C,R,y,prevX,prevP,rejThreshold);
   end
   X(:,i)=prevX;  P(:,:,i)=prevP; %Store results
 
@@ -126,8 +126,10 @@ if M<N %Do the fast filtering for any remaining steps:
 %(from here on, we assume stady-state behavior to improve speed).
     %Steady-state matrices:
     prevX=X(:,M); Psteady=P(:,:,M); %Steady-state UPDATED state and uncertainty matrix
-    Ksteady=prevK; %Steady-state Kalman gain
-    Gsteady=eye(size(Ksteady,1))-Ksteady*C; %I-K*C,
+    PpSteady=prevP;
+    CicS=C'*icS;
+    Ksteady=PpSteady*C'*(icS*icS');
+    Gsteady=eye(size(prevP))-PpSteady*(CicS*CicS');% %I-K*C,
 
     %Pre-compute matrices to reduce computing time:
     GBU_KY=Gsteady*BU(:,M:N-1)+Ksteady*Y_D(:,M+1:N); %The off-ordering is because we are doing predict (which depends on U(:,i-1)) and update (which depends on Y(:,i)
