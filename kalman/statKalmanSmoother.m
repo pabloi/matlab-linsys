@@ -29,9 +29,9 @@ opts.fastFlag=M+1;
 
 %Step 1: forward filter
 [Xf,Pf,Xp,Pp,rejSamples,logL]=statKalmanFilter(Y,A,C,Q,R,x0,P0,B,D,U,opts);
-%[Xf,Pf,Xp,Pp,rejSamples,logL,invSchol]=statKalmanFilter(Y,A,C,Q,R,x0,P0,B,D,U,opts);
 
 %Step 2: backward pass:
+
 %TODO: Special case: deterministic system, no filtering needed. This can also be the case if Q << C'*R*C, and the system is stable
 
 D1=size(A,1);

@@ -1,0 +1,50 @@
+This package of functions was modified by Pablo A. Iturralde (piturralde at ieee dot org) on Jan 2019.
+The only files that were changed:
+SmoothLDS.c
+Makefile
+SmoothLDS.m (this file may be removed in future versions and all other .m files were removed)
+Changes include:
+- Handling of missing (NaN) data in observations.
+- Minor changes in variable types to make compilation compatible with 64 bit systems.
+
+%%%%%%%% ORIGINAL README %%%%%%%%%%%%%%%%%%%%%
+The Matlab files in this directory implement system identification of a Linear
+Dynamical System (LDS) of the form
+
+   x(t+1) = A*x(t) + B*u(t) + q(t)
+   y(t)   = C*x(t) + D*w(t) + r(t)
+   cov([q,r])=[Q 0; 0 R]
+
+The algorithm is the expectation-maximization (EM) identification algorithm
+developed by Shumway and Stoffer (1982) and Ghahramani and Hinton (1996).  The
+E-Step consists of Kalman Smoothing, the M-Step is solved exactly.
+
+This implementation is based heavily on code by Zoubin Ghahramani.
+
+Files:
+  DemoLDS.m		    Short demo on how to use the code, please look at source
+  IdentifyLDS.m		Main function to estimate parameters of LDS
+  LikelihoodLDS.m	Return the log likelihood of data given the LDS
+  MStep.m		    Called by IdentifyLDS for M-Step
+  SimulateLDS.m		Generate output of LDS.
+  SmoothLDS.m		Kalman smoother, called by IdentifyLDS for E-Step
+
+  SmoothLDS.c		Much faster C implementation of Kalman smoother. 
+			Use "make" to compile for use with matlab, change 
+			variable MEX in Makefile to point to your Matlab compiler.
+  other *.h *.c		Auxiliary files needed by SmootLDS.c
+
+See, e.g. "help IdentifyLDS" for syntax of functions.
+
+The C implementation of the Kalman smoother, SmoothLDS.c, is much faster (in one
+test by 20x) than the Matlab m-file. To compile the mex object file on Unix or
+similar systems:
+
+1. in Makefile change the path "MEX = /usr/local/matlab-7sp1/bin/mex" to point
+   to your local Matlab compiler.
+2. compile with "make" at the command line.
+
+Authors:
+  Phillip N Sabes
+  Sen Cheng
+
