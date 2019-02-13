@@ -12,12 +12,18 @@ function [new_i,newI,new_x,newP,logL,rejectedSample,oldI]=infoUpdate(CtRinvC,CtR
   end
   
   %Do the update:
-  [cholOldI,~,oldI]=pinvchol(P); %Prior information matrix not given, computing from prior covariance
+  %[cholOldI,~,oldI]=pinvchol(P); %Prior information matrix not given, computing from prior covariance
+  cholOldP=chol(P);
+  cholOldI=cholOldP'\eye(size(P));
+  oldI=cholOldI*cholOldI';
   newI=oldI + CtRinvC;
   new_i=oldI*x + CtRinvY;
   
   if nargout>2 %If new state and covariance were requested:
-    [~,cholInvP,newP]=pinvchol(newI);
+    %[~,cholInvP,newP]=pinvchol(newI);
+    cholInvP=chol(newI);
+    cholP=cholInvP'\eye(size(P));
+    newP=cholP*cholP';
     new_x=newP*new_i; 
     if (nargout>4 || rejectFlag) 
         %[logL,z2]=logLnormal(CtRinvY-CtRinvC*x,CtRinvC*P*CtRinvC+CtRinvC); %This is slow, requires inversion 

@@ -1,4 +1,4 @@
-function [X,P,Xp,Pp,rejSamples,logL,invSchol]=statKalmanFilter(Y,A,C,Q,R,varargin)
+function [X,P,Xp,Pp,rejSamples,logL]=statKalmanFilter(Y,A,C,Q,R,varargin)
 %statKalmanFilter implements a Kalman filter assuming
 %stationary (fixed) noise matrices and system dynamics
 %The model is: x[k+1]=A*x[k]+b+v[k], v~N(0,Q)
@@ -75,47 +75,34 @@ Y_D=Y-D*U; BU=B*U;
 
 %Define constants for sample rejection:
 logL=nan(1,N); %Row vector
-rejThreshold=[];
+rejThreshold=0;
 if opts.outlierFlag
   rejThreshold=chi2inv(.99,D2);
 end
 
 %Reduce model if convenient for efficiency:
-[CtRinvC,~,CtRinvY,cholCtRinvC,logLmargin]=reduceModel(C,R,Y_D); 
+[CtRinvC,~,CtRinvY,cholCtRinvC,logLmargin]=reduceModel(C,R,Y_D);
 if D2>D1 && ~opts.noReduceFlag %Reducing dimension of problem for speed
     C=CtRinvC; R=CtRinvC; Y_D=CtRinvY;  D2=D1; cR=cholCtRinvC; rejSamples=rejSamples(1:D1,:);
 else
     cR=mycholcov(R);  logLmargin=0;
-end
-if nargout>5
-    invSchol=nan(D2,D2,N);
 end
 
 %For the first steps do an information update if P0 contains infinite elements
 firstInd=1;
 infVariances=isinf(diag(prevP));
 while any(infVariances) %In practice, this only gets executed until the first non-NaN data sample is found
-    %Define info matrix from cov matrix:
-    prevI=zeros(size(prevP));
-    aux=inv(prevP(~infVariances,~infVariances)); %This inverse needs to exist, no such thing as absolute certainty
-    prevI(~infVariances,~infVariances)=aux; %Computing inverse of the finite submatrix of P0
-    %prevI=diag(1./diag(P0)); %This information matrix ignores correlations, cheaper
-    %Update:
-    data=CtRinvY(:,firstInd);
-    if ~any(isnan(data)) %Do update
-        [~,~,prevX,prevP,logL(firstInd)]=infoUpdate(CtRinvC,data,prevX,prevP,prevI);
-        %Warning: if variance was inifinte, then logL(firstInd)=-Inf!
-        X(:,firstInd)=prevX;  P(:,:,firstInd)=prevP; %Store results
-        %Predict:
-        [prevX,prevP]=KFpredict(A,Q,prevX,prevP,BU(:,firstInd));
-    else
-        X(:,firstInd)=prevX;  P(:,:,firstInd)=prevP; %Store results
-        prevX=A*prevX+BU(:,firstInd); %Update the mean, even if uncertainty is infinite
-    end
+    %Run info filter for just 1 stride
+    [ii,I,ip,Ip]=statInfoFilter2(Y_D(:,firstInd),A,C,Q,R,prevX,prevP,B,zeros(size(B)),U(:,firstInd),opts);
+    logL(firstInd)=-Inf; %Warning: if variance was inifinte, then logL(firstInd)=-Inf!
+    %Store results
+    [~,~,P(:,:,firstInd)]=pinvchol(I);      X(:,firstInd)=P(:,:,firstInd)*ii;
+    [~,~,prevP]=pinvchol(Ip(:,:,2));        prevX=prevP*ip(:,2);
     firstInd=firstInd+1;
-    Xp(:,firstInd)=prevX;   Pp(:,:,firstInd)=prevP; 
+    Pp(:,:,firstInd)=prevP;                 Xp(:,firstInd)=prevX;
+
     %New variances:
-    infVariances=isinf(diag(prevP));
+    infVariances= diag(I)==0; %After update the information was still 0.
 end
 
 %Run filter for remaining steps:
@@ -175,7 +162,6 @@ if M<N %Do the fast filtering for any remaining steps:
     if nargout>2 %Compute Xp, Pp only if requested:
         Xp(:,2:end)=A*X+B*U; Pp(:,:,M+2:end)=repmat(A*Psteady*A'+Q,1,1,size(Y,2)-M);
         if nargout>4; Innov=Y_D-C*Xp(:,1:end-1);  logL(M+1:end)=logLnormal(Innov(:,M+1:end),[],icS');
-            %if nargout>5; invSchol(:,:,M+1:end)=repmat(icS,1,1,size(Y,2)-M); end
         end
     end
 end
@@ -185,5 +171,5 @@ if firstInd~=1
     warning('statKF:logLnoPrior','Filter was computed from an improper uniform prior as starting point. Ignoring first point for computation of log-likelihood.')
 end
 aux=logL+logLmargin;
-logL=nanmean(aux(firstInd:end))/size(Y,1);
+logL=nanmean(aux(firstInd:end))/size(Y,1); %Per-sample, per-dimension of output
 end

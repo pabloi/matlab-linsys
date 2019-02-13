@@ -78,6 +78,7 @@ function Xguess=guess(nd,Y,U,opts)
     z=z(:,idx);
     R1=z*z'/size(z,2) + C1*Q1*C1'; %Reasonable estimate of R
     [Xguess]=statKalmanSmoother(y,A1,C1,Q1,R1,[],[],B1,D1,u,opts);
+    %Alternative: [Xguess]=statInfoSmoother2(y,A1,C1,Q1,R1,[],[],B1,D1,u,opts);
     Xguess=medfilt1(Xguess,9,[],2); %Some smoothing to avoid starting with very ugly estimates
     if isa(U,'cell')
         Xguess=mat2cell(Xguess,size(Xguess,1),cellfun(@(x) size(x,2),Y));
