@@ -73,7 +73,7 @@ void SmoothLDS(
 	mxArray   *Rp, *K, *innov, *J;
 	double   *prRp, *prinvRp, *prK, *prinnov, *prJ;
 	int       j,t,e,maxT,sumT;
-	double    detiRp,temp;
+	double    logDetiRp,temp;
 	const double  lognorm = -0.5*(double)Ny*log(2.0*3.14159265358979);
 
 	gsl_matrix *mx1= gsl_matrix_calloc(Nx,1);
@@ -199,7 +199,7 @@ void SmoothLDS(
 			subinc(prRp,1, prR,1, Ny*Ny);      /* Rp= C*Vp*C'+R */
 
             for(j=0; j<Ny*Ny; j++) prRptmp[j]= prRp[j]; /* @@ tmp */
-			myinv(Ny,Rptmp,invRp,permy,&detiRp); 	      /* Rp= inv(C*Vp*C'+R) */
+			myinv(Ny,Rptmp,invRp,permy,&logDetiRp); 	      /* Rp= inv(C*Vp*C'+R) */
 
 			/* K = Vp(:,:,t) * C' * invRp; */
 			multm(txy,prinvRp,prK,Nx,Ny,Ny);
@@ -229,7 +229,7 @@ void SmoothLDS(
 			/****** Likelihood *****/
 			/* Lik +=  0.5*log(detInvRp) - 0.5*innov'*invRp*innov; */
 			multm(prinvRp,prinnov,ty1,Ny,Ny,1);
-			*prLik += -0.5*log(detiRp) - 0.5*innerProd(prinnov,ty1,Ny);
+			*prLik += -0.5*logDetiRp - 0.5*innerProd(prinnov,ty1,Ny);
     }else{
       /* printf("Missing sample detected at (t=%d)",t);
       printf("State %d",prXpre[t]); */

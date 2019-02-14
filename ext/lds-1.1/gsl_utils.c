@@ -16,7 +16,7 @@
     Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-/*  
+/*
     Almost all the code in this file was taken from various files of the GNU
     scientific library version 1.6.
 */
@@ -27,7 +27,7 @@
 #include <stdio.h>
 #include "gsl_utils.h"
 
-void myinv(const size_t n, gsl_matrix *m, gsl_matrix *inv, 
+void myinv(const size_t n, gsl_matrix *m, gsl_matrix *inv,
         gsl_permutation * p, double *det)
 {
     int signum;
@@ -82,19 +82,19 @@ void error(char error_text[])
  * matrix. The diagonal elements of L are unity and are not stored.
  *
  * U is stored in the diagonal and upper triangular part of the
- * input matrix.  
- * 
+ * input matrix.
+ *
  * P is stored in the permutation p. Column j of P is column k of the
  * identity matrix, where k = permutation->data[j]
  *
  * signum gives the sign of the permutation, (-1)^n, where n is the
- * number of interchanges in the permutation. 
+ * number of interchanges in the permutation.
  *
  * See Golub & Van Loan, Matrix Computations, Algorithm 3.4.1 (Gauss
  * Elimination with Partial Pivoting).
  */
 
-int gsl_linalg_LU_decomp (gsl_matrix * A, gsl_permutation * p, int *signum) 
+int gsl_linalg_LU_decomp (gsl_matrix * A, gsl_permutation * p, int *signum)
 {
     if (A->size1 != A->size2) {
         mexWarnMsgTxt("LU decomposition requires square matrix");
@@ -165,12 +165,12 @@ int gsl_linalg_LU_invert (const gsl_matrix * LU, const gsl_permutation * p,
     return status;
 }
 
-double gsl_linalg_LU_det (gsl_matrix * LU, int signum)
+double gsl_linalg_LU_det (gsl_matrix * LU, int signum) /* Modified: returns the log(det) */
 {
     size_t i, n = LU->size1;
-    double det = (double) signum;
+    double det = 0;
     for (i = 0; i < n; i++) {
-        det *= gsl_matrix_get (LU, i, i);
+        det += log(gsl_matrix_get (LU, i, i));
     }
 
     return det;
@@ -557,5 +557,3 @@ cblas_dtrsv (const enum CBLAS_ORDER order, const enum CBLAS_UPLO Uplo,
 #include "source_trsv_r.c"
 #undef BASE
 }
-
-
