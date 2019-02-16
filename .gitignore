@@ -32,3 +32,5 @@ kalman/trueKF\.prj
 kalman/trueKF\.m
 
 *.mldatx
+
+*.eps

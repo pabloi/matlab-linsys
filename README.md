@@ -25,13 +25,11 @@ Non-priority:
 - Allow for partially unknown (diffuse) initial conditions (Follow Durbin and Koopman book, Chapter 5.) -> Is this not equivalent to the information filter currently used?
 - Compute a proper (formal) likelihood when initial conditions are diffuse (Durbin and Koopman again).
 - Allow for partially unknown/missing data (as opposed to fully missing samples).
-- C code: figure out why EM fails
-- C code: remove direct computation of log(det(S)), use sum(log(diag(chol(S)))) instead
-- C code: use chol instead of direct inversion of matrix.
-- Fast mode, logL() computation, and sample rejection for informationFilter2 and informationSmoother.
-- Generate Mex/C files for faster performance.
+- C code: figure out why EM sometimes returns NaN for logL, & why 1 state estimation always fails.
+- C code: improve handling of infinite initial uncertainty, right now is just a workaround
+- C code: use chol instead of LU decomp, enforce symmetry of uncertainty matrices.
+- logL() computation, and sample rejection for informationFilter2 and informationSmoother.
 - Implement fwd/backward algorithm for discrete state markov chains (genKF).
-- Replace chol(), cholcov() and mycholcov() usage for LDL decomposition with appropriate PD/PSD checks.
 - Test EM using fixed values for A,B,C,D,Q,R (any combination of them).
 - Create a CircleCI/Docker/Quay integration to continuously test for octave compatibility.
 - Implement EM in reduced form when size(C,1)>size(C,2). Kalman smoothing already exploits this, but the M-step could exploit it too: we only need to estimate C'inv(R), rather than a full R.
