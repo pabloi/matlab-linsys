@@ -10,6 +10,7 @@ D2=200;%100;
 %being less accurate than this implementation's filtering).
 A=diag(rand(D1,1));
 A=.9999*A; %Setting the max eigenvalue to .9999
+%A(1,1)=.9999; %Very slow pole. This renders fast mode basically useless, and thus makes (reduced) C code much faster than any matlab code (steady state filtering can still be forced, but there will be a trade-off with speed, especially in the determination of the very slow state)
 %B=3*randn(D1,1);
 %B=B./sign(B); %Forcing all elements of B to be >0, WLOG
 B=(eye(size(A))-A)*ones(size(A,1),1); %WLOG, arbitrary scaling so all states asymptote at 1
@@ -18,7 +19,7 @@ U=[zeros(300,1);ones(N,1);zeros(N/2,1)]'; %Step input and then removed
 C=randn(D2,D1);
 D=randn(D2,1);
 Q=eye(D1)*1e-1;
-Q=zeros(D1);
+%Q=zeros(D1); %Uncomment to check performance with Q=0
 R=1*eye(D2); %CS2006 performance degrades (larger state estimation errors) for very small R
 
 %% Simulate
@@ -41,6 +42,7 @@ opts.noReduceFlag=true;
 opts.fastFlag=0;
 [Xs,Ps,Pt,Xf,Pf,Xp,Pp,~,logL(mdl)]=statKalmanSmoother(Y,A,C,Q,R,x0,P0,B,D,U,opts); %Kalman smoother estimation of states, given the true parameters (this is the best possible estimation of states)
 Xcs=Xs;
+Pcs=Ps;
 res(mdl)=norm(Xs-X,'fro')^2;
 maxRes(mdl)=max(sum((Xs-X).^2));
 name{mdl}='KS';
@@ -98,6 +100,11 @@ res2KS(mdl)=norm(Xs-Xcs,'fro');
 tc(mdl)=toc;
 
 %% C version, reduced:
+if isempty(which('SmoothLDS')) %Function not found
+    cd ../../ext/lds-1.1/
+    mex utils.c gsl_utils.c SmoothLDS.c -silent -output SmoothLDS -largeArrayDims  %Compiling from source
+    cd ../../kalman/test/ %This directory
+end
 mdl=6;
 opts.noReduceFlag=false;
 tic
@@ -167,6 +174,7 @@ axis([aa(1:2) .5 2e2])
 title(['Relative running time, KSred fast=' num2str(tc(3))])
 grid on
 
+logL
 %Save fig
 print(fh,['results.eps'],'-depsc','-tiff','-r2400')
 save results.mat res tc logL maxRes res2KS

@@ -40,28 +40,13 @@ end
 %firstInd=1;
 prevP=P0;
 prevX=x0;
-% infVariances=isinf(diag(prevP));
-% while any(infVariances) %In practice, this only gets executed until the first non-NaN data sample is found
-%     %Define info matrix from cov matrix:
-%     prevI=zeros(size(prevP));
-%     aux=inv(prevP(~infVariances,~infVariances)); %This inverse needs to exist, no such thing as absolute certainty
-%     prevI(~infVariances,~infVariances)=aux; %Computing inverse of the finite submatrix of P0
-%     %prevI=diag(1./diag(P0)); %This information matrix ignores correlations, cheaper
-%     %Update:
-%     data=CtRinvY(:,firstInd);
-%     if ~any(isnan(data)) %Do update
-%         [~,~,prevX,prevP,logL(firstInd)]=infoUpdate(CtRinvC,data,prevX,prevP,prevI);
-%         %Warning: if variance was inifinte, then logL(firstInd)=-Inf!
-%         %Predict:
-%         [prevX,prevP]=KFpredict(A,Q,prevX,prevP,BU(:,firstInd));
-%     else %Sample was NaN
-%         prevX=A*prevX+BU(:,firstInd); %Update the mean, even if uncertainty is infinite
-%         prevP=A*prevP*A'+Q; %Propagating infinity
-%     end
-%     firstInd=firstInd+1;
-%     %New variances:
-%     infVariances=isinf(diag(prevP));
-% end
+%For the first steps do an information update if P0 contains infinite elements
+firstInd=1;
+infVariances=isinf(diag(prevP));
+while any(infVariances)  %My filter uses Inf as initial uncertainty, but CS2006 does not support it, or anything too large
+    prevP=1e9*eye(size(prevP)); %Workaround
+    prevX=zeros(size(prevX));
+end
 
 %Now do the actual thing:
 LDS.A=A;
@@ -72,10 +57,10 @@ LDS.Q=Q;
 LDS.R=R;
 LDS.x0=prevX;
 LDS.V0=prevP; %My filter uses Inf as initial uncertainty, but CS2006 does not support it, or anything too large
-if any(isnan(Y_D(:,1)))
-    Y_D(:,1)=0;
-end
+%if any(isnan(Y_D(:,1)))
+%    Y_D(:,1)=0;
+%end
 [Lik,Xs,Ps,Pt] = SmoothLDSMatlab(LDS,Y_D,U,U); %Mex version (requires building from mex, see README in lds-1.1)
-aux=Lik*size(Y,2)/sum(~any(isnan(Y)))+nanmean(logLmargin);
-logL=aux/size(Y,1); %Per-sample, per-dimension of output
+aux=Lik+logLmargin;
+logL=nanmean(aux(firstInd:end))/size(Y,1); %Per-sample, per-dimension of output
 end
