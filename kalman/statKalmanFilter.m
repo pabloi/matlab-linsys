@@ -64,7 +64,7 @@ if isa(Y,'gpuArray') %For code to work on gpu
 else
     Xp=nan(D1,N+1);      X=nan(D1,N);
     Pp=nan(D1,D1,N+1);   P=nan(D1,D1,N);
-    rejSamples=false(D2,N); 
+    rejSamples=false(D2,N);
 end
 
 %Priors:
@@ -81,28 +81,28 @@ if opts.outlierFlag
 end
 
 %Reduce model if convenient for efficiency:
-[CtRinvC,~,CtRinvY,cholCtRinvC,logLmargin]=reduceModel(C,R,Y_D);
 if D2>D1 && ~opts.noReduceFlag %Reducing dimension of problem for speed
-    C=CtRinvC; R=CtRinvC; Y_D=CtRinvY;  D2=D1; cR=cholCtRinvC; rejSamples=rejSamples(1:D1,:);
+    [CtRinvC,~,CtRinvY,~,logLmargin]=reduceModel(C,R,Y_D);
+    C=CtRinvC; R=CtRinvC; Y_D=CtRinvY;  D2=D1; rejSamples=rejSamples(1:D1,:);
 else
-    cR=mycholcov(R);  logLmargin=0;
+    logLmargin=0;
 end
 
 %For the first steps do an information update if P0 contains infinite elements
 firstInd=1;
 infVariances=isinf(diag(prevP));
 while any(infVariances) %In practice, this only gets executed until the first non-NaN data sample is found
-    %Run info filter for just 1 stride
-    [ii,I,ip,Ip]=statInfoFilter2(Y_D(:,firstInd),A,C,Q,R,prevX,prevP,B,zeros(size(B)),U(:,firstInd),opts);
+    %Run info filter for just 1 step:
+    [ii,I,ip,Ip]=statInfoFilter2(Y_D(:,firstInd),A,C,Q,R,prevX,prevP,B,zeros(D2,size(U,1)),U(:,firstInd),opts);
     logL(firstInd)=-Inf; %Warning: if variance was inifinte, then logL(firstInd)=-Inf!
-    %Store results
-    [~,~,P(:,:,firstInd)]=pinvchol(I);      X(:,firstInd)=P(:,:,firstInd)*ii;
-    [~,~,prevP]=pinvchol(Ip(:,:,2));        prevX=prevP*ip(:,2);
-    firstInd=firstInd+1;
-    Pp(:,:,firstInd)=prevP;                 Xp(:,firstInd)=prevX;
 
-    %New variances:
-    infVariances= diag(I)==0; %After update the information was still 0.
+    %Transform results from information to state estimates:
+    [X(:,firstInd),P(:,:,firstInd)]=info2state(ii,I);
+    firstInd=firstInd+1;
+    [prevX,prevP]=info2state(ip(:,2),Ip(:,:,2));
+    Xp(:,firstInd)=prevX;    Pp(:,:,firstInd)= prevP;
+
+    infVariances=isinf(diag(prevP));
 end
 
 %Run filter for remaining steps:
@@ -118,7 +118,7 @@ for i=firstInd:M
   %Then, predict next step:
   [prevX,prevP]=KFpredict(A,Q,prevX,prevP,BU(:,i));
   if nargout>2 %Store Xp, Pp if requested:
-      Xp(:,i+1)=prevX;   Pp(:,:,i+1)=prevP; 
+      Xp(:,i+1)=prevX;   Pp(:,:,i+1)=prevP;
   end
 end
 

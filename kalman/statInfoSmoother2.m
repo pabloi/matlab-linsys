@@ -18,51 +18,98 @@ function [is,Is,iif,If,ip,Ip,xs,Ps,PtAt]=statInfoSmoother2(Y,A,C,Q,R,varargin)
 %See also:
 % statKalmanFilter, filterStationary_wConstraint, EM
 
-[D2,N]=size(Y); D1=size(A,1);
-
-
 %Init missing params:
 aux=varargin;
+D1=size(A,1);
+[D2,N]=size(Y);
 [x0,P0,B,D,U,opts]=processKalmanOpts(D1,N,aux);
 M=processFastFlag(opts.fastFlag,A,N);
-opts.fastFlag=M+1;
 
 %Size checks:
 %TODO
 rejSamples=[];
 logL=[];
 
-%Step 1: forward filter (could also be achieved through KF, but this
-%precomputes the information matrices that are needed for the merge step)
-%[Xf,Pf,Xp,Pp,rejSamples,logL]=statKalmanFilter(Y,A,C,Q,R,x0,P0,B,D,U,opts);
-%[Xf,Pf,Xp,Pp,rejSamples,logL,Ip,~]=statInfoFilter(Y,A,C,Q,R,x0,P0,B,D,U,opts);
-[iif,If,ip,Ip]=statInfoFilter2(Y,A,C,Q,R,x0,P0,B,D,U,opts);
-is=zeros(size(iif));
-Is=zeros(size(If));
+%Re-define observations to account for input effect:
+Y_D=Y-D*U; BU=B*U;
+
+%Precompute for efficiency:
+[CtRinvC,~,CtRinvY]=reduceModel(C,R,Y_D);
+[~,~,iA]=pinvchol(A);
+cQ=mycholcov(Q);
+iAcQ=iA*cQ;
+
+%Convert init state to init info
+[previ,prevI]=state2info(x0,P0);
+
+
+pp=gcp('nocreate');
+if isempty(pp) %No parallel pool open, doing regular for, issue warning
+    %warning('No parallel pool was found, running for loop in serial way.')
+    %Step 1: forward filter
+    [iif,If,ip,Ip]=trueStatInfoFilter(CtRinvY,CtRinvC,A,Q,BU,previ,prevI,M);
+
+    %Step 2: backward pass: this is just running the filter backwards (makes sense only if A is invertible)
+    %This can be run in parallel to the fwd filter!
+    [ifb,Ib]=trueStatInfoFilter(fliplr(CtRinvY),CtRinvC,iA,iAcQ*iAcQ',-iA*fliplr(BU),zeros(size(previ)),zeros(size(prevI)),M);
+    %If the forward pass started from an uniformative prior (previ=0) then Ib
+    %should be exactly If (minus numerical errors). If it started from
+    %somewhere else, they should still converge to the same value.
+    %Should I run the filter in both passes with uniformative priors, and an
+    %extra time with the initial conditions to add the associated transient?
+
+else %Running in parallel. Because of matlab's restrictions and overhead in parallelism, this is not worth it.
+    error('Unimplemented parallel code')
+    %args={CtRinvY,CtRinvC,A,Q,BU,previ,prevI;
+    %    fliplr(CtRinvY),CtRinvC,iA,iAcQ*iAcQ',-iA*fliplr(BU),zeros(size(previ)),zeros(size(prevI))};
+    %spmd
+    %    if labIndex<2
+    %        [i1,I1,i2,I2] = trueStatInfoFilter(args{labIndex,:});
+    %    end
+    %end
+end
+
+%Step 3: merge
+Is=Ip(:,:,1:end-1)+flip(Ib,3);
+is=ip(:,1:end-1)+fliplr(ifb);
+
 if nargout>6
     Ps=zeros(size(Is));
     PtAt=zeros(size(Is));
     xs=zeros(size(is));
-end
-%Step 2: backward pass: (could also be achieved with a KF)
-iA=inv(A);
-%[Xfb,Pfb]=statKalmanFilter(fliplr(Y),iA,C,Q,R,x0,[],-iA*B,D,fliplr(U),opts);
-%[Xfb,~,~,~,~,~,~,Ib]=statInfoFilter(fliplr(Y),iA,C,Q,R,x0,P0,-iA*B,D,fliplr(U),opts);
-[ifb,Ib]=statInfoFilter2(fliplr(Y),iA,C,Q,R,x0,P0,-iA*B,D,fliplr(U),opts);
-
-%Step 3: merge
-for i=1:N
-    iP1=Ib(:,:,N-i+1);%inv(P1);
-    iP2=Ip(:,:,i);%inv(P2);
-    I=(iP1+iP2);
-    Is(:,:,i)=I;
-    ii=ifb(:,N-i+1)+ip(:,i);
-    is(:,i)=ii;
-    if nargout>6
-        [~,~,P]=pinvchol(I);
-        xs(:,i)=P*ii;
+    for i=1:N
+        I=Is(:,:,i);
+        [xs(:,i),P]=info2state(is(:,i),I);
         Ps(:,:,i)=P;
-        PtAt(:,:,i)=P-P*I*Q; %Pt*A' = Ps*Ip*A*Pf*A' = Ps*Ip*(Pp-Q);
+        %PtAt(:,:,i)=P-P*Ip(:,:,i+1)*Q; %Pt*A' = Ps*Ip*A*Pf*A' = Ps*Ip*(Pp-Q) = Ps - Ps*Ip*Q;
+        PtAt=[];
     end
 end
-end
+
+% %DEBUG:
+% for i=1:N
+%     [xf(:,i),Pf(:,:,i)]=info2state(iif(:,i),If(:,:,i));
+%     [xb(:,i),Pb(:,:,i)]=info2state(ifb(:,i),Ib(:,:,i));
+%     [xs(:,i),Ps(:,:,i)]=info2state(is(:,i),Is(:,:,i));
+% end
+% 
+% figure;
+% 
+% subplot(2,1,1)
+% plot(xf','LineWidth',2); 
+% hold on; 
+% set(gca,'ColorOrderIndex',1)
+% plot(fliplr(xb)','--');
+% set(gca,'ColorOrderIndex',1)
+% plot(xs','-.')
+% 
+% subplot(2,1,2)
+% plot(squeeze(Pf(1,1,:)),'LineWidth',2); 
+% hold on; 
+% plot(squeeze(Pf(2,2,:)),'LineWidth',2); 
+% set(gca,'ColorOrderIndex',1)
+% plot(squeeze(Pb(1,1,:)),'--'); 
+% plot(squeeze(Pb(2,2,:)),'--'); 
+% set(gca,'ColorOrderIndex',1)
+% plot(squeeze(Ps(1,1,:)),'-.'); 
+% plot(squeeze(Ps(2,2,:)),'-.'); 

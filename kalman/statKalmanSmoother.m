@@ -23,6 +23,7 @@ aux=varargin;
 [x0,P0,B,D,U,opts]=processKalmanOpts(D1,N,aux);
 M=processFastFlag(opts.fastFlag,A,N);
 opts.fastFlag=M+1;
+BU=B*U;
 
 %Size checks:
 %TODO
@@ -53,11 +54,12 @@ end
 
 %Do true smoothing for last M1 samples:
 %if D2>D1 && ~opts.noReduceFlag %Reducing dimension of problem for speed
-%  [C,~,Y]=reduceModel(C,R,Y-D*U); 
+%  [C,~,Y]=reduceModel(C,R,Y-D*U);
 %end
 %prevDelta=0; prevLambda=zeros(D1,1);
 %Innov=Y-C*Xp(:,1:N);
 pp=Pp(:,:,end);
+[cholInvA,~,iA]=pinvchol(A);
 for i=N-1:-1:N-M1
   %First, get estimates from forward pass:
   xf=Xf(:,i); %Previous posterior estimate of covariance at this step
@@ -65,9 +67,10 @@ for i=N-1:-1:N-M1
   xp=Xp(:,i+1); %Prediction of next step based on post estimate of this step
   %prevpp=pp;
   pp=Pp(:,:,i+1); %Covariance of next step based on post estimate of this step
+  bu=BU(:,i);
 
   %Backward pass:
-  [prevPs,prevXs,newPt]=backStepRTS(pp,pf,prevPs,xp,xf,prevXs,A,Q);
+  [prevPs,prevXs,newPt]=backStepRTS(pp,pf,prevPs,xp,xf,prevXs,A,Q,bu,iA);
   %Alt: Bryson-Frazier recursion. Faster, but error-prone
   %innov=Innov(:,i);
   %[prevPs,prevXs,newPt,prevDelta,prevLambda]=backStepBF(xf,pf,innov,pp,prevpp,A,C,invSchol(:,:,i),prevDelta,prevLambda);
@@ -101,11 +104,12 @@ for i=M2:-1:1
   xf=Xf(:,i); %Previous posterior estimate of covariance at this step
   pf=Pf(:,:,i); %Previous posterior estimate of covariance at this time step
   xp=Xp(:,i+1); %Prediction of next step based on post estimate of this step
-  prevpp=pp;
+  %prevpp=pp;
   pp=Pp(:,:,i+1); %Covariance of next step based on post estimate of this step
+  bu=BU(:,i);
 
   %Backward pass:
-  [prevPs,prevXs,newPt]=backStepRTS(pp,pf,prevPs,xp,xf,prevXs,A,Q);
+  [prevPs,prevXs,newPt]=backStepRTS(pp,pf,prevPs,xp,xf,prevXs,A,Q,bu,iA);
   %Alt:
   %innov=Innov(:,i);
   %[prevPs,prevXs,newPt,prevDelta,prevLambda]=backStepBF(xf,pf,innov,pp,prevpp,A,C,invSchol(:,:,i),prevDelta,prevLambda);
@@ -116,25 +120,34 @@ end
 
 end
 
-function [newPs,newXs,newPt,H]=backStepRTS(pp,pf,ps,xp,xf,prevXs,A,Q)
+function [newPs,newXs,newPt,H]=backStepRTS(pp,pf,ps,xp,xf,prevXs,A,Q,bu,iA)
   %Implements the Rauch-Tung-Striebel backward recursion
   %https://en.wikipedia.org/wiki/Kalman_filter#Fixed-interval_smoothers)
-  if ~any(isinf(diag(pf))) %The usual case: we have a proper prior from filter
+  if ~any((diag(pf))>1e5) %The usual case: we have a proper prior from filter
       %First, compute gain:
-      [icP]=pinvchol(pp);
-      H=(pf*(A'*icP))*icP'; %H=AP'/pp; %Faster, although worse conditioned, matters a lot when smoothing
+      [icP,cP]=pinvchol(pp);
+      HcP=(pf*(A'*icP)); %H*cP'
+      H=HcP*icP'; %H=AP'/pp; %Faster, although worse conditioned, matters a lot when smoothing
       %Compute relevant covariances
       newPt=ps*H'; %This should be such that A*newPt' is hermitian
       %Updates: Improved (smoothed) state estimate
-      Hext=H*(mycholcov(pp-ps)');
-      newPs=pf-Hext*Hext'; %newPs=pf-H*(pp-ps)*H';  %Faster, but worse conditioned
-      newXs=xf + H*(prevXs-xp);
-  else %This happens when we started filtering from an improper prior 
-  %(infinite uncertainty) and we go back to smooth those infinitely uncertain samples
-    Hext=A\mycholcov(ps)';
-    newPs=Hext*Hext'+Q; %The input Q is only used here
-    newPt=ps/A';
-    newXs=xf + A\(prevXs-xp);
+      %Hext=H*(mycholcov(pp-ps)');
+      %newPs=pf-Hext*Hext'; %newPs=pf-H*(pp-ps)*H';  %Faster, but worse conditioned
+      %newXs=xf + H*(prevXs-xp);
+      %More stable update:
+      cPs=mycholcov(ps);
+      HcPs=H*cPs';
+      newPs= HcPs*HcPs' + (pf - HcP*HcP'); %The term in parenthesis is psd = inv(inv(pf)+a'*inv(Q)*A)
+      newXs=H*prevXs +(xf-H*xp);
+  else %This happens when we started filtering from an improper prior
+  %(infinite uncertainty) or very larger uncertainties and we go back to smooth
+  %those infinitely uncertain samples
+  %This is fine if A is invertible. Otherwise it will be problematic (we cannot infer the previous state solely from the current one)
+    cholPs=mycholcov(ps);
+    Hext=iA*cholPs';
+    newPs=Hext*Hext'+Q; %The input Q is only used here. This is equivalent to pf-iA*(pp-ps)*iA', but if pp was larger, then pf-iA*pp*iA' may not reduce exactly to Q
+    newPt=cholPs*Hext';
+    newXs=iA*(prevXs-bu); %This should be the same as xf+iA*(prevXs-xp), but may be numerically ill-conditioned (if uncertainty was large, xf and xp are possibly large, ugly numbers, and the cancellation only happens if indeed iA*A=eye)
   end
 end
 
@@ -159,5 +172,5 @@ function [newPs,newXs,newPt,newDelta,newLambda]=backStepBF(xf,Pf,innov,Pp,prevPp
   I_KCA=I_KC'*A';
   newLambda=I_KCA*prevLambda - CicS*icS'*innov;
   newDelta=I_KCA*prevDelta*I_KCA' + CtinvSC;
-  
+
 end
