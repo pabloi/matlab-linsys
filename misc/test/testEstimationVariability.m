@@ -36,6 +36,7 @@ rtc=sort(rtc);
 %See dispersion:
 figure; hold on;
 for i=1:4
-    histogram(rtc(i,:))
-    plot(trueTC(i)*[1 1],[0 40],'k--') %True value
+    histogram(-log(rtc(i,:)))
+    plot(-log(trueTC(i))*[1 1],[0 40],'k--') %True value
 end
+title('Estimated and true values for 1/\tau')

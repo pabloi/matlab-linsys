@@ -214,10 +214,17 @@ classdef linsys
             end
         end
         function this=struct2linsys(str)
-            if ~isfield(str,'A') && isfield(str,'J')
-                str.A=str.J;
+            if iscell(str)
+                for i=1:length(str(:))
+                    this{i}=linsys.struct2linsys(str{i});
+                end
+                this=reshape(this,size(str));
+            else
+                if ~isfield(str,'A') && isfield(str,'J')
+                    str.A=str.J;
+                end
+                this=linsys(str.A,str.C,str.R,str.B,str.D,str.Q);
             end
-            this=linsys(str.A,str.C,str.R,str.B,str.D,str.Q);
         end
     end
 end

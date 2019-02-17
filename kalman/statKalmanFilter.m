@@ -91,7 +91,7 @@ end
 %For the first steps do an information update if P0 contains infinite elements
 firstInd=1;
 infVariances=isinf(diag(prevP));
-while any(infVariances) %In practice, this only gets executed until the first non-NaN data sample is found
+while any(infVariances) && firstInd<N %In practice, this only gets executed until the first non-NaN data sample is found
     %Run info filter for just 1 step:
     [ii,I,ip,Ip]=statInfoFilter2(Y_D(:,firstInd),A,C,Q,R,prevX,prevP,B,zeros(D2,size(U,1)),U(:,firstInd),opts);
     logL(firstInd)=-Inf; %Warning: if variance was inifinte, then logL(firstInd)=-Inf!

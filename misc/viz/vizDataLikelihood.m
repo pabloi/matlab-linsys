@@ -10,8 +10,8 @@ yoff=size(datSet.out,2)*1.1;
 Nm=length(model); %Number of models
 dFit=cellfun(@(x) x.fit(datSet),model,'UniformOutput',false);
 logLtest=2*cellfun(@(x) x.logL,dFit);
-BIC=-cellfun(@(x) x.bic,dFit);
-AIC=-cellfun(@(x) x.aic,dFit);
+BIC=-cellfun(@(x) x.BIC,dFit);
+AIC=-cellfun(@(x) x.AIC,dFit);
 
 %LogL, BIC, AIC
 mdl=model;

@@ -9,7 +9,9 @@ previ=i0;
 prevI=I0;
 
 %Pre-comp for efficiency:
+invertibleQ=all(diag(Q)>0);
 [ciQ,~,iQ]=pinvchol(Q);
+[~,~,iA]=pinvchol(A);
 iQA=iQ*A;
 ciQA=ciQ'*A;
 AtiQA=ciQA'*ciQA;
@@ -23,8 +25,8 @@ else
     ip=nan(D1,N+1);      ii=nan(D1,N);
     Ip=nan(D1,D1,N+1);   I=nan(D1,D1,N);
     if nargout>4
-        xp=nan(D1,N+1);      xf=nan(D1,N);
-        Pp=nan(D1,D1,N+1);   Pf=nan(D1,D1,N);
+        xp=zeros(D1,N+1);      xf=zeros(D1,N);
+        Pp=zeros(D1,D1,N+1);   Pf=zeros(D1,D1,N);
     end
 end
 ip(:,1)=previ;
@@ -32,7 +34,7 @@ Ip(:,:,1)=prevI;
 
 
 %Do traditional update-predict
-psdEnforce=nargout>4;
+psdEnforce=nargout>4 || ~invertibleQ; %IF user asks for x,P estimates, or if Q is not invertible, we need to do the update in state space
 for i=1:slowSamples
   y=Y(:,i); %Output at this step
   %First, do the update given the output at this step:
@@ -45,23 +47,28 @@ for i=1:slowSamples
   I(:,:,i)=prevI; %Store results
 
   %Then, predict next step: (if prevI==0 there is no need for this)
-  if all(diag(prevI)~=0) && ~psdEnforce 
+  properPriors=diag(prevI)~=0;
+  if all(properPriors) && ~psdEnforce  
       %State conversion not requested, all Info well defined, doing an efficient prediction
       [cholAuxP,~,auxP]=pinvchol(prevI+AtiQA);
       HH=(ciQA*cholAuxP);
       prevI=ciQ*(ey - HH*HH')*ciQ'; %I think this expression is better conditioned
       previ=iQA*auxP*previ+prevI*BU(:,i);
-  elseif any(diag(prevI)~=0) %We have SOME info: doing alternative way, 
-      %which guarantees PSD, and as a bonus computes P and x
-      [oldX,oldP]=info2state(previ,prevI); %Requires one pinvchol
-      prevP=A*oldP*A'+Q;
+  elseif any(properPriors)
+      %At least some info available: doing alternative way, which: 
+      %guarantees PSD, works with non-inv Q, and as a bonus computes P and x
+      [cOldP,~,oldP]=pinvchol(prevI);
+      oldX=oldP*previ;
+      AcP=A*cOldP;
+      prevP=AcP*AcP'+Q;
+      aux=find(~properPriors);
+      prevP(aux,:)=0;
+      prevP(:,aux)=0;
+      prevP(sub2ind([D1,D1],aux,aux))=Inf;
       prevX=A*oldX+BU(:,i);
       [previ,prevI]=state2info(prevX,prevP); %Requires one pinvchol
-  else %information matrix all 0, nothing to update
-        oldX=zeros(size(previ));
-        oldP=diag(Inf*ones(size(previ)));
-        prevX=zeros(size(previ));
-        prevP=diag(Inf*ones(size(previ)));
+  else %No info available: nothing to do, nowhere to go-o-o
+      %I wanna be sedated
   end
 
   if nargout>2 %Store Xp, Pp if requested:
