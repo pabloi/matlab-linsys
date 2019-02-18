@@ -11,6 +11,7 @@ classdef dset
         Noutput %Number of outputs
         Nsamp %Number of samples
         hash %MD5 hash
+        nonNaNSamp
     end
     methods
         function this = dset(in,out)
@@ -28,6 +29,9 @@ classdef dset
         end
         function Nsample=get.Nsamp(this)
             Nsample=size(this.in,2);
+        end
+        function N=get.nonNaNSamp(this)
+            N=sum(~any(isnan(this.out))); %Non-NaN samples counted only
         end
         function hs=get.hash(this)
            %This uses an external MEX function to compute the MD5 hash

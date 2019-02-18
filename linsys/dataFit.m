@@ -11,16 +11,22 @@ end
 
 properties (Dependent)
   Nsamp
+  nonNaNSamp
   BIC
   AIC
   AICc
+end
+properties (Hidden)
+    Nsamp_
 end
 methods
   function this=dataFit(model,datSet,initC)
       this.model=model; %check that it is linsys
       this.dataSetHash=datSet.hash; %check that it is dset
+      this.Nsamp_=datSet.nonNaNSamp; %Non-NaN samples use in logL computation
       if nargin<3
         initC=[];
+        this.Nsamp_=this.Nsamp_;
       end
       [MLE,filtered,oneAhead,rej,logL]=model.Ksmooth(datSet,initC);
       this.MLEstate=MLE;
@@ -31,8 +37,11 @@ methods
   function Ns=get.Nsamp(this)
     Ns=this.causalMLE.Nsamp;
   end
+  function Ns=get.nonNaNSamp(this)
+     Ns=this.Nsamp_; 
+  end
   function bic=get.BIC(this)
-    bic=-2*this.logL+log(this.Nsamp)*this.model.dof;
+    bic=-2*this.logL+log(this.nonNaNSamp)*this.model.dof;
   end
   function aic=get.AIC(this)
     aic=-2*this.logL+2*this.model.dof;

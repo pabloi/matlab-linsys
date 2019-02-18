@@ -96,14 +96,16 @@ classdef linsys
                     [X{i},P{i},Pt{i},Xf{i},Pf{i},Xp{i},Pp{i},rejSamples{i},logL(i)] = Ksmooth(this,datSet{i},initC{i},opts);
                 end
             else
+                unusedSamp=0;
                 if nargin<3 || isempty(initC)
                     initC=initCond(zeros(this.order,0)); %Improper prior
+                    unusedSamp=1;
                 end
                 [X,P,Pt,Xf,Pf,Xp,Pp,rejSamples,logL]=statKalmanSmoother(datSet.out,this.A,this.C,this.Q,this.R,initC.state,initC.covar,this.B,this.D,datSet.in,opts);
                 smoothState=stateEstimate(X,P,Pt);
                 filteredState=stateEstimate(Xf,Pf);
                 oneAheadState=stateEstimate(Xp,Pp);
-                logL=logL*numel(datSet.out);%logL from Ksmooth is given on a per-sample per-dim basis;
+                logL=logL*(datSet.nonNaNSamp-unusedSamp)*datSet.Noutput; %logL from Ksmooth is given on a per-sample per-dim basis; Less samples may be used if the prior was improper
             end
         end
         function stateE=predict(this,stateE,in)

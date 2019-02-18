@@ -82,7 +82,7 @@ end
 %Fast smoothing for the middle (N-2*M) samples (using the
 %Rauch-Tung-Striebel equations, should see how to do the BF equations)
 if Nfast>0 %Assume steady-state:
-    [~,~,newPt,H]=backStepRTS(pp,pf,prevPs,Xp(:,i+1),xf,prevXs,A); %Get gain H
+    [~,~,newPt,H]=backStepRTS(pp,pf,prevPs,Xp(:,i+1),xf,prevXs,A,Q,bu,iA); %Get gain H
      if any(abs(eig(H))>1) %TODO: check for stability efficiently
          warning('statKS:unstableSmooth','Unstable smoothing, skipping the backward pass.')
          H=zeros(size(H));

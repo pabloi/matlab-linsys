@@ -1,20 +1,22 @@
-function [fh,fh2] = vizDataLikelihood(model,datSet)
+function [fh] = vizDataLikelihood(model,datSet)
+if ~iscell(datSet)
+    datSet={datSet};
+end
 if ~isa(model{1},'struct')
   %To do: convert struct to model
 end
 M=max(cellfun(@(x) size(x.A,1),model(:)));
 fh=figure('Units','Normalized','OuterPosition',[.25 .4 .5 .3]);
-Ny=4;
-Nx=max(M,6);
-yoff=size(datSet.out,2)*1.1;
-Nm=length(model); %Number of models
-dFit=cellfun(@(x) x.fit(datSet),model,'UniformOutput',false);
-logLtest=2*cellfun(@(x) x.logL,dFit);
-BIC=-cellfun(@(x) x.BIC,dFit);
-AIC=-cellfun(@(x) x.AIC,dFit);
+
 
 %LogL, BIC, AIC
 mdl=model;
+Md=length(datSet);
+for kd=1:Md %One row of subplots per dataset
+    dFit=cellfun(@(x) x.fit(datSet{kd}),model,'UniformOutput',false);
+    logLtest=2*cellfun(@(x) x.logL,dFit);
+    BIC=-cellfun(@(x) x.BIC,dFit);
+    AIC=-cellfun(@(x) x.AIC,dFit);
 for kj=1:3 %logL, BIC, aic
     switch kj
         case 1
@@ -27,9 +29,8 @@ for kj=1:3 %logL, BIC, aic
             yy=AIC;
             nn='-AIC';
     end
-    subplot(1,3,kj)
+    subplot(Md,3,kj+(kd-1)*3)
     hold on
-    [N,Nz]=size(datSet.out);
     Mm=length(mdl);
     for k=1:Mm
         set(gca,'ColorOrderIndex',k)
@@ -49,4 +50,5 @@ for kj=1:3 %logL, BIC, aic
     axis tight;
     aa=axis;
     axis([aa(1:2) .98*min(yy) max(yy)])
+end
 end
