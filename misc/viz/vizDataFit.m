@@ -1,58 +1,28 @@
 function [fh,fh2] = vizDataFit(model,Y,U)
-
-M=max(cellfun(@(x) size(x.J,1),model(:)));
+  if ~iscell(model)
+    model={model};
+  end
+  if isa(model{1},'struct') %For back-compatibility
+    model=cellfun(@(x) linsys.struct2linsys(x),model,'UniformOutput',false);
+  end
+  if nargin<3
+    datSet=Y; %Expecting dset object
+  else
+    datSet=dset(U,Y);
+  end
+  Y=datSet.out;
+  U=datSet.in;
+M=max(cellfun(@(x) size(x.A,1),model(:)));
 fh=figure('Units','Normalized','OuterPosition',[0 0 1 1]);
 Ny=4;
 Nx=max(M,6);
 yoff=size(Y,2)*1.1;
 Nm=length(model); %Number of models
-%% Add reduced models:
+
 for i=1:length(model)
-%    redModel{i}=model{i};
-%    [redModel{i}.C,redModel{i}.R,redModel{i}.D,redModel{i}.Y_]=reduceModel(model{i}.C,model{i}.R,model{i}.D,Y);
-    model{i}.Y_=Y;
+  dFit{i}=model{i}.fit(datSet);
 end
-%% Compute output and residuals
-modelOrig=model;
-for k=1%:2 %Original or reduced models
-    if k==1
-        model=modelOrig;
-    else
-        model=redModel;
-    end
-    for i=1:length(model)
-        [model{i}.J,model{i}.B,model{i}.C,~,~,model{i}.Q] = canonize(model{i}.J,model{i}.B,model{i}.C,[],model{i}.Q,[],'canonicalAlt');
-        opts.fastFlag=false;
-        Nd=size(model{i}.D,2);
-        [Xs,Ps,Pt,Xf,Pf,Xp,Pp,rejSamples,logL]=statKalmanSmoother(model{i}.Y_,model{i}.J,model{i}.C,model{i}.Q,model{i}.R,[],[],model{i}.B,model{i}.D,U,opts);
-        model{i}.Xs=Xs; %Smoothed data
-        model{i}.Ps=Ps;
-        model{i}.Pp=Pp; %One-step ahead uncertainty from filtered data.
-        model{i}.Pf=Pf;
-        model{i}.Xf=Xf; %Filtered data
-        model{i}.Xp=Xp; %Predicted data
-        model{i}.out=model{i}.C*model{i}.Xs+model{i}.D*U(1:Nd,:); %Discarding input components at the end
-        model{i}.outF=model{i}.C*model{i}.Xf+model{i}.D*U(1:Nd,:); %Discarding input components at the end
-        model{i}.res=model{i}.Y_-model{i}.out;
-        model{i}.oneAheadStates=model{i}.J*model{i}.Xs(:,1:end-1)+model{i}.B*U(1:Nd,1:end-1);
-        model{i}.oneAheadOut=model{i}.C*(model{i}.oneAheadStates)+model{i}.D*U(1:Nd,2:end);
-        model{i}.oneAheadOutF=model{i}.C*(model{i}.Xp(:,2:end-1))+model{i}.D*U(1:Nd,2:end);
-        [Y2,X2]=fwdSim(U(1:Nd,:),model{i}.J,model{i}.B,model{i}.C,model{i}.D,model{i}.Xs(:,1),[],[]); %Simulating from MLE initial state
-        model{i}.smoothStates=X2;
-        model{i}.smoothOut=Y2;
-        model{i}.logLtest=logL;
-        [bic,aic,bic2]= bicaic(model{i},model{i}.Y_,numel(Y)*model{i}.logLtest);
-        model{i}.BIC=bic/(2*numel(Y)); %To put in the same scale as logL
-        model{i}.BIC2=bic2/(2*numel(Y)); %To put in the same scale as logL
-        model{i}.AIC=aic/(2*numel(Y));
-    end
-    if k==1
-        modelOrig=model;
-    else
-        redModel=model;
-    end
-end
-model=modelOrig;
+
 %% Define colormap:
 ex1=[1,0,0];
 ex2=[0,0,1];
@@ -83,7 +53,8 @@ for kk=1:maxK
     scatter(1:size(Y,2),cc(:,kk)'*Y,5,.5*ones(1,3),'filled')
      set(gca,'ColorOrderIndex',1)
     for i=1:length(model)
-        p(i)=plot(cc(:,kk)'*(model{i}.out),'LineWidth',2);
+    [~,modelOut]=datSet.getOneAheadResiduals(dFit{i});
+        p(i)=plot(cc(:,kk)'*(modelOut),'LineWidth',2);
     end
 
     if kk==1
@@ -94,19 +65,20 @@ end
 
 %% Measures of output error:
 binw=11;
-for ll=1:3
+for ll=3
     subplot(Nx,Ny,2+(ll-1)*Ny)
     hold on
     for k=1:length(model)
         switch ll
             case 1 %Smooth output RMSE
-                aux1=sqrt(sum((Y-model{k}.smoothOut).^2));
+
                 title('Smooth output error (RMSE, mov. avg.)')
             case 2 % MLE state output error
-                aux1=sqrt(sum((Y(:,2:end)-model{k}.oneAheadOut).^2));
+
                 title('KS one-ahead output error (RMSE, mov. avg.)')
             case 3 %One ahead error
-                aux1=sqrt(sum((Y(:,2:end)-model{k}.oneAheadOutF).^2));
+              res=datSet.getOneAheadResiduals(dFit{k});
+                aux1=sqrt(sum((res).^2));
                 title('KF prediction output error (RMSE, mov. avg.)')
         end
         idx=find(~isnan(aux1));
@@ -124,50 +96,14 @@ for ll=1:3
     set(gca,'YScale','log')
 end
 
-%LogL, BIC, AIC
-for kl=1%:2
-    switch kl
-        case 1
-            mdl=model;
-        case 2
-            mdl=redModel; %To do: used reduced model
-    end
-    for kj=1:3 %logL, BIC, aic
-        switch kj
-            case 1
-                yy=cellfun(@(x) x.logLtest,mdl);
-                nn='logL';
-            case 2
-                yy=cellfun(@(x) x.BIC,mdl);
-                nn='-BIC';
-            case 3
-                yy=cellfun(@(x) x.AIC,mdl);
-                nn='-AIC';
-        end
-        subplot(Nx,3*Ny,9*Ny+3+kj+(kl-1)*3*Ny)
-        hold on
-        [N,Nz]=size(Y);
-        Mm=length(mdl);
-        for k=1:Mm
-            set(gca,'ColorOrderIndex',k)
-            bar2=bar([k*100],yy(k),'EdgeColor','none','BarWidth',100);
-            text((k)*100,.982*(yy(k)),[num2str(yy(k),6)],'Color','w','FontSize',8,'Rotation',90)
-        end
-        title([nn])
-        grid on
-        %set(gca,'XTick',100*(Mm+1)*.5,'XTickLabel',nn)
-        axis tight;
-        aa=axis;
-        axis([aa(1:2) .98*min(yy) max(yy)])
-    end
-end
-
 %% Plot STATES
 clear p
 for k=1:length(model)
-    taus=-1./log(sort(eig(model{k}.J)));
-    projectedX=model{k}.C\(Y-model{k}.D*U);
-    for i=1:size(model{k}.J,1)
+    taus=-1./log(sort(eig(model{k}.A)));
+    [projectedX,projectedXLS]=getDataProjections(datSet,model{k});
+    Xs=dFit{k}.MLEstate.state;
+    Ps=dFit{k}.MLEstate.covar;
+    for i=1:size(model{k}.A,1)
         subplot(Nx,Ny,Ny*(i-1)+3) %States
         hold on
         if i==1
@@ -180,9 +116,9 @@ for k=1:length(model)
         %MLE states:
         %plot(model{k}.Xf(i,:),'LineWidth',1,'DisplayName',nn,'Color',p(k).Color);
         %patch([1:size(model{k}.Xf,2),size(model{k}.Xf,2):-1:1]',[model{k}.Xf(i,:)+sqrt(squeeze(model{k}.Pf(i,i,:)))', %fliplr(model{k}.Xf(i,:)-sqrt(squeeze(model{k}.Pf(i,i,:)))')]',p(k).Color,'EdgeColor','none','FaceAlpha',.3)
-        p(k,i)=plot(model{k}.Xs(i,:),'LineWidth',2,'DisplayName',nn);
+        p(k,i)=plot(Xs(i,:),'LineWidth',2,'DisplayName',nn);
         %plot(model{k}.smoothStates(i,:),'LineWidth',1,'DisplayName',nn);
-        patch([1:size(model{k}.Xs,2),size(model{k}.Xs,2):-1:1]',[model{k}.Xs(i,:)+sqrt(squeeze(model{k}.Ps(i,i,:)))', fliplr(model{k}.Xs(i,:)-sqrt(squeeze(model{k}.Ps(i,i,:)))')]',p(k).Color,'EdgeColor','none','FaceAlpha',.3)
+        patch([1:size(Xs,2),size(Xs,2):-1:1]',[Xs(i,:)+sqrt(squeeze(Ps(i,i,:)))', fliplr(Xs(i,:)-sqrt(squeeze(Ps(i,i,:)))')]',p(k).Color,'EdgeColor','none','FaceAlpha',.3)
         s1=scatter(1:size(projectedX,2),projectedX(i,:),5,'filled','MarkerEdgeColor','none','MarkerFaceAlpha',.2,'MarkerFaceColor',p(k).Color);
         uistack(s1,'bottom')
         %plot(model{k}.Xp(i,:),'LineWidth',1,'DisplayName',nn,'Color','k');
@@ -197,7 +133,7 @@ for k=1:length(model)
         subplot(Nx,Ny,Ny*(i-1)+4) %State residuals
         hold on
         set(gca,'ColorOrderIndex',k)
-        scatter(1:size(projectedX,2),model{k}.Xs(i,:)-projectedX(i,:),5,'filled','MarkerEdgeColor','none','MarkerFaceAlpha',.5);
+        scatter(1:size(projectedX,2),Xs(i,:)-projectedX(i,:),5,'filled','MarkerEdgeColor','none','MarkerFaceAlpha',.5);
         if k==length(model)
             title('(KS) State residual (vs. projection)')
             grid on
@@ -210,7 +146,7 @@ end
 subplot(Nx,Ny,Ny*(M)+4)
 hold on
 for k=1:length(model)
-    stError=model{k}.Xs(:,2:end)-model{k}.oneAheadStates;
+    stError=dFit{k}.MLEstate.state-dFit{k}.oneAheadMLE.state(:,1:end-1);
     aux1=sqrt(z2score(stError,model{k}.Q));
     p1=plot(aux1,'LineWidth',1);
     bar2=bar([yoff + k*100],nanmean([aux1]),'EdgeColor','none','BarWidth',100,'FaceColor',p1.Color);
@@ -247,7 +183,8 @@ for i=1:Ny
     end
     for k=1:M
        subplot(M+1,Ny,i+k*Ny)
-       dd=trueD-model{k}.out(:,viewPoints(i)+[-(binw/2):(binw/2)]);
+       [~,modelOut]=datSet.getOneAheadResiduals(dFit{k});
+       dd=trueD-modelOut(:,viewPoints(i)+[-(binw/2):(binw/2)]);
         try
             imagesc(reshape(nanmean(dd,2),12,size(Y,1)/12)')
         catch

@@ -1,5 +1,5 @@
 classdef dataFit
-
+%This is an auxiliary class that provides functionality to linsys and dset
 properties (SetAccess = immutable)
   model %linsys object (model)
   dataSetHash %hash of dset object (dataset)

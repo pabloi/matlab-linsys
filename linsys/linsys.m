@@ -141,9 +141,14 @@ classdef linsys
             datSet=dset(input,out);
             stateE=stateEstimate(state,zeros(this.order,this.order,datSet.Nsamp));
         end
-        function fh=visualize(this)
-            %TODO
-            fh=figure;
+        function mdl=linsys2struct(this)
+            warning('off'); %Prevents complaint about making structs from objects
+            mdl=struct(this);
+            mdl.J=mdl.A;
+            warning('on');
+        end
+        function fh=viz(this)
+            [fh] = vizModels({this.linsys2struct});
         end
         function [this,V]=canonize(this,method)
           if nargin<2
@@ -159,9 +164,11 @@ classdef linsys
             error('unimplemented')
            newThis=this; %Doxy
         end
-        function fh=assess(this,datSet,initC)
-            %TODO
-            fh=figure;
+        function [fh,fh2]=vizFit(this,datSet,initC)
+          [fh,fh2]=datSet.vizFit(this);
+        end
+        function fh=vizRes(this,datSet,initC)
+            [fh]=datSet.vizRes(this);
         end
         function l=logL(this,datSet,initC)
             if nargin<3
@@ -227,6 +234,10 @@ classdef linsys
                 end
                 this=linsys(str.A,str.C,str.R,str.B,str.D,str.Q);
             end
+        end
+        function fh=vizMany(modelCollection)
+            mdl=cellfun(@(x) x.linsys2struct,modelCollection,'UniformOutput',false);
+            vizModels(mdl)
         end
     end
 end

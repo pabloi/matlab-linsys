@@ -37,22 +37,41 @@ classdef dset
            %This uses an external MEX function to compute the MD5 hash
            hs=dset.GetMD5([this.in;this.out]);
         end
+        function [res,modelOut]=getOneAheadResiduals(this,datFit)
+            modelOut=datFit.model.C*datFit.oneAheadMLE.state(:,1:end-1)+datFit.model.D*this.in;
+            res=this.out-modelOut;
+        end
+        function [res,resLS]=getDataProjections(this,model)
+            yd=this.out-model.D*this.in;
+            res=model.C\(yd);
+            [CtRinvC,~,CtRinvY]=reduceModel(model.C,model.R,yd);
+            resLS=CtRinvC\CtRinvY;
+        end
         function multiSet=split(this,breaks)
             %Splits a dataset along the specified breaks. Returns a cell-array of dset.
             %Breaks is a vector indicating the first data sample of each sub-set.
             %New sets are contiguous (previous one ends on the last sample before current one).
             %First set is presumed to start at 1, and last set is presumed to finish at end.
             if breaks(1)~=1
-              breaks=[1 breaks(:)];
+              breaks=[1; breaks(:)];
             end
             if breaks(end)~=this.Nsamp+1
-              breaks=[breaks(:) this.Nsamp+1];
+              breaks=[breaks(:); this.Nsamp+1];
             end
             newIn=mat2cell(this.in,this.Ninput,diff(breaks));
             newOut=mat2cell(this.out,this.Noutput,diff(breaks));
             for i=1:length(newIn)
               multiSet{i}=dset(newIn{i},newOut{i});
             end
+        end
+        function [fh,fh2]=vizFit(this,models)
+            [fh,fh2] = vizDataFit(models,this);
+        end
+        function fh=vizRes(this,models)
+            [fh] = vizDataRes(models,this);
+        end
+        function fh=compareModels(this,models)
+            [fh] = vizDataLikelihood(models,this);
         end
     end
     methods(Hidden,Static)

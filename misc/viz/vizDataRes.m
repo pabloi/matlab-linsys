@@ -1,53 +1,25 @@
-function [fh,fh2] = vizDataRes(model,Y,U)
-
-M=max(cellfun(@(x) size(x.J,1),model(:)));
+function [fh2] = vizDataRes(model,Y,U)
+if ~iscell(model)
+  model={model};
+end
+if isa(model{1},'struct') %For back-compatibility
+  model=cellfun(@(x) linsys.struct2linsys(x),model,'UniformOutput',false);
+end
+if nargin<3
+  datSet=Y; %Expecting dset object
+else
+  datSet=dset(U,Y);
+end
+Y=datSet.out;
+U=datSet.in;
+M=max(cellfun(@(x) size(x.A,1),model(:)));
 yoff=size(Y,2)*1.1;
 Nm=length(model); %Number of models
-%% Add reduced models:
+%% Compute fits
 for i=1:length(model)
-    model{i}.Y_=Y;
+    dFit{i}=model{i}.fit(datSet);
 end
-%% Compute output and residuals
-modelOrig=model;
-for k=1%:2 %Original or reduced models
-    if k==1
-        model=modelOrig;
-    else
-        model=redModel;
-    end
-    for i=1:length(model)
-        [model{i}.J,model{i}.B,model{i}.C,~,~,model{i}.Q] = canonize(model{i}.J,model{i}.B,model{i}.C,[],model{i}.Q,[],'canonicalAlt');
-        opts.fastFlag=false;
-        Nd=size(model{i}.D,2);
-        [Xs,Ps,Pt,Xf,Pf,Xp,Pp,rejSamples,logL]=statKalmanSmoother(model{i}.Y_,model{i}.J,model{i}.C,model{i}.Q,model{i}.R,[],[],model{i}.B,model{i}.D,U,opts);
-        model{i}.Xs=Xs; %Smoothed data
-        model{i}.Ps=Ps;
-        model{i}.Pp=Pp; %One-step ahead uncertainty from filtered data.
-        model{i}.Pf=Pf;
-        model{i}.Xf=Xf; %Filtered data
-        model{i}.Xp=Xp; %Predicted data
-        model{i}.out=model{i}.C*model{i}.Xs+model{i}.D*U(1:Nd,:); %Discarding input components at the end
-        model{i}.outF=model{i}.C*model{i}.Xf+model{i}.D*U(1:Nd,:); %Discarding input components at the end
-        model{i}.res=model{i}.Y_-model{i}.out;
-        model{i}.oneAheadStates=model{i}.J*model{i}.Xs(:,1:end-1)+model{i}.B*U(1:Nd,1:end-1);
-        model{i}.oneAheadOut=model{i}.C*(model{i}.oneAheadStates)+model{i}.D*U(1:Nd,2:end);
-        model{i}.oneAheadOutF=model{i}.C*(model{i}.Xp(:,2:end-1))+model{i}.D*U(1:Nd,2:end);
-        [Y2,X2]=fwdSim(U(1:Nd,:),model{i}.J,model{i}.B,model{i}.C,model{i}.D,model{i}.Xs(:,1),[],[]); %Simulating from MLE initial state
-        model{i}.smoothStates=X2;
-        model{i}.smoothOut=Y2;
-        model{i}.logLtest=logL;
-        [bic,aic,bic2]= bicaic(model{i},model{i}.Y_,numel(Y)*model{i}.logLtest);
-        model{i}.BIC=bic/(2*numel(Y)); %To put in the same scale as logL
-        model{i}.BIC2=bic2/(2*numel(Y)); %To put in the same scale as logL
-        model{i}.AIC=aic/(2*numel(Y));
-    end
-    if k==1
-        modelOrig=model;
-    else
-        redModel=model;
-    end
-end
-model=modelOrig;
+
 %% Define colormap:
 ex1=[1,0,0];
 ex2=[0,0,1];
@@ -58,19 +30,19 @@ map=[ex1.*[N:-1:1]'/N + mid.*[0:N-1]'/N; mid; ex2.*[0:N-1]'/N + mid.*[N:-1:1]'/N
 %% Plot features of one-ahead output residuals:
 fh2=figure('Units','Normalized','OuterPosition',[0 0 1 1]);
 Nny=5;
-Nx=8;
-allLogL=cellfun(@(x) x.logLtest,model);
-bestModel=find(allLogL==min(allLogL));
-res=Y(:,2:end)-model{bestModel}.oneAheadOutF; %One-ahead residuals
+Nx=6;%8;
+allLogL=cellfun(@(x) x.logL,dFit);
+bestModel=find(allLogL==min(allLogL),1,'first');
+res=datSet.getOneAheadResiduals(dFit{bestModel});
 res=substituteNaNs(res'); %Removing NaNs, otherwise this is all crap
 [pp,cc,aa]=pca((res),'Centered','off');
 for i=1:length(model)
-    res=Y(:,2:end)-model{i}.oneAheadOutF; %One-ahead residuals
+    res=datSet.getOneAheadResiduals(dFit{i});
     cc=(pp\res)';
 
     for kk=1:Nx
         subplot(Nx,Nny,(kk-1)*Nny+1)
-        if model{i}.logLtest==min(allLogL)
+        if dFit{i}.logL==min(allLogL)
           Nc=size(pp,1);
             try
                 imagesc(flipud(reshape(pp(:,kk),12,Nc/12)'))

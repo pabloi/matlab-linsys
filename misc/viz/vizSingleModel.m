@@ -10,7 +10,7 @@ end
 Nu=size(singleModel.B,2);
 Ny=M+Nu+1;
 model{1}=singleModel;
-Nc=size(Y,1);
+Nc=size(singleModel.C,1);
 N=size(Y,2);
 
 %% First: normalize model, compute basic parameters of interest:
@@ -28,8 +28,8 @@ for i=1:length(model)
     model{i}.BIC2=bic2/(2*numel(Y)); %To put in the same scale as logL
     model{i}.AIC=aic/(2*numel(Y));
     if nargin>1
-        fastFlag=0;
-        [Xs,Ps,Pt,Xf,Pf,Xp,Pp,rejSamples]=statKalmanSmoother(Y,model{i}.J,model{i}.C,model{i}.Q,model{i}.R,[],[],model{i}.B,model{i}.D,U,false,fastFlag);
+        opts.fastFlag=0;
+        [Xs,Ps,Pt,Xf,Pf,Xp,Pp,rejSamples]=statKalmanSmoother(Y,model{i}.J,model{i}.C,model{i}.Q,model{i}.R,[],[],model{i}.B,model{i}.D,U,opts);
         model{i}.Xs=Xs; %Smoothed data
         model{i}.Pp=Pp; %One-step ahead uncertainty from filtered data.
         model{i}.Pf=Pf;
@@ -179,7 +179,7 @@ for k=1:3
         caxis([-aC aC])
         axis tight
         if k==1
-            title(['Output at t=' num2str(viewPoints(i))])
+            title(['t=' num2str(viewPoints(i))])
             ax=gca;
             ax.Title.FontSize=10;
         end
