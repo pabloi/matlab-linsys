@@ -37,4 +37,4 @@ opts.fastFlag=100;
 save modelOrderTestS5RepsWVariableNoise.mat fitMdl fitMdlVariableNoise outlog outlogVariableNoise simDatSetFixedNoise simDatSetVariableNoise datSet model simDatSetNoiseless stateE
 
 %% Step 5: use fitted models to evaluate log-L and goodness of fit
-%vizDataLikelihood(fitMdl,simDatSet)
+evaluateModelOrderSelection
