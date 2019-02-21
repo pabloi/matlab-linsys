@@ -25,7 +25,7 @@ warning('off','statKSfast:fewSamples') %This is needed to avoid a warning bombar
 scaleFactor=[ones(1,150) [1500:-1:1]/1500+1];
 noise=nan(D2,N);
 for i=1:N
-    noise(:,i)=sqrt(scaleFactor)*cR'*randn(D1,1); %Variance is linearly decreasing
+    noise(:,i)=sqrt(scaleFactor(i))*cR'*randn(D2,1); %Variance is linearly decreasing
 end
 simDatSetVariableNoise=dset(simDatSetNoiseless.in,simDatSetNoiseless.out+noise);
 

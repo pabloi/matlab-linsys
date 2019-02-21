@@ -123,7 +123,7 @@ end
 function [newPs,newXs,newPt,H]=backStepRTS(pp,pf,ps,xp,xf,prevXs,A,Q,bu,iA)
   %Implements the Rauch-Tung-Striebel backward recursion
   %https://en.wikipedia.org/wiki/Kalman_filter#Fixed-interval_smoothers)
-  if ~any((diag(pf))>1e5) %The usual case: we have a proper prior from filter
+  if ~any(isinf(diag(pf))) %The usual case: we have a proper prior from filter
       %First, compute gain:
       [icP,cP]=pinvchol(pp);
       HcP=(pf*(A'*icP)); %H*cP'
@@ -146,7 +146,8 @@ function [newPs,newXs,newPt,H]=backStepRTS(pp,pf,ps,xp,xf,prevXs,A,Q,bu,iA)
     cholPs=mycholcov(ps);
     Hext=iA*cholPs';
     newPs=Hext*Hext'+Q; %The input Q is only used here. This is equivalent to pf-iA*(pp-ps)*iA', but if pp was larger, then pf-iA*pp*iA' may not reduce exactly to Q
-    newPt=cholPs*Hext';
+    newPt=cholPs'*Hext';
+    H=iA;
     newXs=iA*(prevXs-bu); %This should be the same as xf+iA*(prevXs-xp), but may be numerically ill-conditioned (if uncertainty was large, xf and xp are possibly large, ugly numbers, and the cancellation only happens if indeed iA*A=eye)
   end
 end
