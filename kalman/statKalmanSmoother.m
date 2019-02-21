@@ -140,9 +140,12 @@ function [newPs,newXs,newPt,H]=backStepRTS(pp,pf,ps,xp,xf,prevXs,A,Q,bu,iA)
       newPs= HcPs*HcPs' + (pf - HcP*HcP'); %The term in parenthesis is psd = inv(inv(pf)+a'*inv(Q)*A)
       newXs=H*prevXs +(xf-H*xp);
   else %This happens when we started filtering from an improper prior
-  %(infinite uncertainty) or very larger uncertainties and we go back to smooth
-  %those infinitely uncertain samples
-  %This is fine if A is invertible. Otherwise it will be problematic (we cannot infer the previous state solely from the current one)
+  %(infinite uncertainty) or very large uncertainties and we go back to smooth
+  %those (almost) infinitely uncertain samples
+  %This is fine if A is invertible. Otherwise it will be problematic 
+  %(we cannot infer the previous state solely from the current one)
+  %Should find a proper way to handle mixed cases, where one uncertainty is
+  %very large or infinite but others are normal-sized.
     cholPs=mycholcov(ps);
     Hext=iA*cholPs';
     newPs=Hext*Hext'+Q; %The input Q is only used here. This is equivalent to pf-iA*(pp-ps)*iA', but if pp was larger, then pf-iA*pp*iA' may not reduce exactly to Q

@@ -34,3 +34,5 @@ kalman/trueKF\.m
 *.mldatx
 
 *.eps
+
+ext/gsl-2\.5/
