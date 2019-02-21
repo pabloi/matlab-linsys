@@ -1,4 +1,4 @@
-function [A,B,C,D,Q,R,X,P,Pt,logL]=initEM(Y,U,X,opts,P)
+function [A,B,C,D,Q,R,x0,P0,X,P,Pt,logL]=initEM(Y,U,X,opts,P)
   %Initialization of parameters for EM-search
   %INPUTS:
   %Y= output data of linear system (My x N)
@@ -9,7 +9,7 @@ function [A,B,C,D,Q,R,X,P,Pt,logL]=initEM(Y,U,X,opts,P)
       error('Xguess has to be a guess of the states (D x N matrix) or a scalar indicating the number of states to be estimated')
   elseif numel(X)==1 %X is just dimension, initializing as usual
       d=X;
-      if any(isnan(Y(:))) %Removing NaNs first 
+      if any(isnan(Y(:))) %Removing NaNs first
         Y2=substituteNaNs(Y')';
       else
         Y2=Y;
@@ -17,12 +17,12 @@ function [A,B,C,D,Q,R,X,P,Pt,logL]=initEM(Y,U,X,opts,P)
       %[A,B,C,D,X,Q,R]=subspaceIDv2(Y2,U,d); %Works if no missing data, is slow
       [X]=initGuessOld(Y2,U,d);
   end
-  [A,B,C,D,Q,R,X,P,logL,Pt]=initParams(Y,U,X,opts,P);
+  [A,B,C,D,Q,R,x0,P0,X,P,logL,Pt]=initParams(Y,U,X,opts,P);
   %logL=dataLogLikelihood(Y,U(opts.indD,:),A,B,C,D,Q,R,X(:,1),P(:,:,1),'approx',U(opts.indB,:))
 end
 
 
-function [A1,B1,C1,D1,Q1,R1,X1,P1,logL,Pt]=initParams(Y,U,X,opts,Pguess)
+function [A1,B1,C1,D1,Q1,R1,x01,P01,X1,P1,logL,Pt]=initParams(Y,U,X,opts,Pguess)
   if isa(Y,'cell')
       [P,Pt]=cellfun(@(x,u,p) initCov(x,u,p),X,U,Pguess,'UniformOutput',false);
   else

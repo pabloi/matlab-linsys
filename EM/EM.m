@@ -53,14 +53,8 @@ warning ('off','statKSfast:unstable');
 
 %% ------------Init stuff:-------------------------------------------
 % Init params:
- [A1,B1,C1,D1,Q1,R1,X1,P1,Pt1,bestLogL]=initEM(Y,U,Xguess,opts,Pguess);
- if ~isa(Y,'cell')
-    x01=X1(:,1); P01=P1(:,:,1);
- else
-     x01=cellfun(@(x) x(:,1),X1,'UniformOutput',false);
-     P01=cellfun(@(p) p(:,:,1),P1,'UniformOutput',false);
- end
-%logL=dataLogLikelihood(Y,U(opts.indD,:),A1,B1,C1,D1,Q1,R1,x01,P01,'approx',U(opts.indB,:))
+ [A1,B1,C1,D1,Q1,R1,x01,P01,X1,P1,Pt1,bestLogL]=initEM(Y,U,Xguess,opts,Pguess);
+
 %Initialize log-likelihood register & current best solution:
 logl=nan(opts.Niter,1);
 logl(1)=bestLogL;

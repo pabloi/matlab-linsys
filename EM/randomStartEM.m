@@ -13,7 +13,11 @@ outLog=struct();
 opt1=opts;
 opt1.fastFlag=true; %Enforcing fast filtering
 opt1.Niter=max([opt1.Niter,500]); %Very fast evaluation of initial case, just to get a benchmark.
+warning('off','EM:logLdrop') %If samples are NaN, fast filtering may make the log-L drop (smoothing is not exact, so the expectation step is not exact)
+warning('off','EM:fastAndLoose')%Disabling the warning that NaN and fast may be happening
 [A,B,C,D,Q,R,X,P,bestLL,startLog]=EM(Y,U,nd,opt1);
+warning('on','EM:logLdrop')
+warning('on','EM:fastAndLoose')
 if opts.logFlag
     outLog.opts=opts;
     outLog.startLog=startLog;
@@ -77,7 +81,9 @@ function Xguess=guess(nd,Y,U,opts)
     idx=~any(isnan(z));
     z=z(:,idx);
     R1=z*z'/size(z,2) + C1*Q1*C1'; %Reasonable estimate of R
+    warning('off','statKF:logLnoPrior') %Using uninformative prior
     [Xguess]=statKalmanSmoother(y,A1,C1,Q1,R1,[],[],B1,D1,u,opts);
+    warning('on','statKF:logLnoPrior')
     %Alternative: [Xguess]=statInfoSmoother2(y,A1,C1,Q1,R1,[],[],B1,D1,u,opts);
     Xguess=medfilt1(Xguess,9,[],2); %Some smoothing to avoid starting with very ugly estimates
     if isa(U,'cell')
