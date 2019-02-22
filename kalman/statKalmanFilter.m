@@ -92,7 +92,7 @@ end
 firstInd=1;
 infVariances=isinf(diag(prevP));
 while any(infVariances) && firstInd<N %In practice, this only gets executed until the first non-NaN data sample is found
-    %Run info filter for just 1 step:
+    %Run info filter for just 1 step: (this is a good idea only if D2>=D1, otherwise there are inifinte uncertainties that will be left)
     [ii,I,ip,Ip]=statInfoFilter2(Y_D(:,firstInd),A,C,Q,R,prevX,prevP,B,zeros(D2,size(U,1)),U(:,firstInd),opts);
     logL(firstInd)=-Inf; %Warning: if variance was inifinte, then logL(firstInd)=-Inf!
 

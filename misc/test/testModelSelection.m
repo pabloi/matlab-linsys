@@ -17,7 +17,9 @@ simDatSetFixedNoise=dset(simDatSetNoiseless.in,simDatSetNoiseless.out+noise);
 
 %% Step 2: identify models for various orders
 opts.Nreps=5;
-opts.fastFlag=100;
+opts.fastFlag=200;
+opts.indB=1;
+opts.indD=[];
 warning('off','statKSfast:fewSamples') %This is needed to avoid a warning bombardment
 [fitMdl,outlog]=linsys.id(simDatSetFixedNoise,1:6,opts);
 
@@ -31,7 +33,9 @@ simDatSetVariableNoise=dset(simDatSetNoiseless.in,simDatSetNoiseless.out+noise);
 
 %% Step 4: fit the new data
 opts.Nreps=5;
-opts.fastFlag=100;
+opts.fastFlag=200;
+opts.indB=1;
+opts.indD=[];
 [fitMdlVariableNoise,outlogVariableNoise]=linsys.id(simDatSetVariableNoise,1:6,opts);
 
 save modelOrderTestS5RepsWVariableNoise.mat fitMdl fitMdlVariableNoise outlog outlogVariableNoise simDatSetFixedNoise simDatSetVariableNoise datSet model simDatSetNoiseless stateE

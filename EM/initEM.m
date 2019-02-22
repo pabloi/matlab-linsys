@@ -1,4 +1,4 @@
-function [A,B,C,D,Q,R,x0,P0,X,P,Pt,logL]=initEM(Y,U,X,opts,P)
+function [A,B,C,D,Q,R,x0,P0]=initEM(Y,U,X,opts,P)
   %Initialization of parameters for EM-search
   %INPUTS:
   %Y= output data of linear system (My x N)
@@ -17,12 +17,11 @@ function [A,B,C,D,Q,R,x0,P0,X,P,Pt,logL]=initEM(Y,U,X,opts,P)
       %[A,B,C,D,X,Q,R]=subspaceIDv2(Y2,U,d); %Works if no missing data, is slow
       [X]=initGuessOld(Y2,U,d);
   end
-  [A,B,C,D,Q,R,x0,P0,X,P,logL,Pt]=initParams(Y,U,X,opts,P);
-  %logL=dataLogLikelihood(Y,U(opts.indD,:),A,B,C,D,Q,R,X(:,1),P(:,:,1),'approx',U(opts.indB,:))
+  [A,B,C,D,Q,R,x0,P0]=initParams(Y,U,X,opts,P);
 end
 
 
-function [A1,B1,C1,D1,Q1,R1,x01,P01,X1,P1,logL,Pt]=initParams(Y,U,X,opts,Pguess)
+function [A1,B1,C1,D1,Q1,R1,x01,P01]=initParams(Y,U,X,opts,Pguess)
   if isa(Y,'cell')
       [P,Pt]=cellfun(@(x,u,p) initCov(x,u,p),X,U,Pguess,'UniformOutput',false);
   else
@@ -40,12 +39,7 @@ function [A1,B1,C1,D1,Q1,R1,x01,P01,X1,P1,logL,Pt]=initParams(Y,U,X,opts,Pguess)
 
 %Initialize guesses of A,B,C,D,Q,R
 [A1,B1,C1,D1,Q1,R1,x01,P01]=estimateParams(Y,U,X,P,Pt,opts);
-%Make sure scaling is appropriate:
-[~,~,~,X1,~,~,P1] = canonize(A1,B1,C1,X,Q1,P); %Why is this being returned?
-[~,~,~,~,~,~,Pt] = canonize(A1,B1,C1,x01,Q1,Pt); %Why is this being returned?
-[A1,B1,C1,x01,~,Q1,P01] = canonize(A1,B1,C1,x01,Q1,P01);
-%Compute logL:
-logL=dataLogLikelihood(Y,U,A1,B1,C1,D1,Q1,R1,x01,P01,'exact');
+[A1,B1,C1,x01,~,Q1,P01] = canonize(A1,B1,C1,x01,Q1,P01,'canonicalAlt');
 end
 
 function [P,Pt]=initCov(X,U,P)
@@ -71,16 +65,20 @@ function [X]=initGuessOld(Y,U,D1)
       X=initGuessOld(cell2mat(Y),cell2mat(U),D1);
       X=mat2cell(X,size(X,1),cellfun(@(x) size(x,2),Y));
   else
-      idx=~any(isnan(Y));
+      idx=~any(isnan(Y),1);
       D=Y(:,idx)/U(:,idx);
       if isa(Y,'gpuArray')
           [pp,~,~]=pca(gather(Y(:,idx)-D*U(:,idx)),'Centered','off'); %Can this be done in the gpu?
       else
          [pp,~,~]=pca((Y(:,idx)-D*U(:,idx)),'Centered','off'); %Can this be done in the gpu?
       end
-      X=nan(D1,size(Y,2));
-      X(:,idx)=pp(:,1:D1)';
-      X(:,~idx)=interp1(find(idx),pp(:,1:D1),find(~idx))';
+      X=1e-5*randn(D1,size(Y,2));
+      if D1<=size(Y,1) %Finding less states than there are dimensions of output
+          X(:,idx)=pp(:,1:D1)';
+      else
+          X(1:size(Y,1),idx)=pp';
+      end
+      X(:,~idx)=interp1(find(idx),X',find(~idx))';
       X=(1e2*X)./sqrt(sum(X.^2,2)); %Making sure we have good scaling, WLOG
   end
 end

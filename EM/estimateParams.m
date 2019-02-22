@@ -184,7 +184,7 @@ function [x0,P0]=estimateInit(X,P,A,Q)
   %aux=mycholcov(P0);
   %Aa=A*aux';
   %P0=Q+Aa*Aa';
-  P0=Q;
+  %P0=Q;
 end
 
 function [yx,yu,xx,uu,xu,SP,SPt,xx_,uu_,xu_,xx1,xu1,SP_,S_P]=computeRelevantMatrices(Y,X,U,P,Pt,robustFlag)

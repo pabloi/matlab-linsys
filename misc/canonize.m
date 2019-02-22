@@ -49,6 +49,27 @@ case 'orthonormal' %Orthonormalizing the columns of C
         scale=(I-J)\K(:,1);
     end
     V=V*diag(sign(scale)); %So all states increase under a step input in first input
+    case 'eyeQ'
+        %To do: rotate such that Q is the identity matrix, except for any
+        %zero diagonal entries it may have
+    case 'orthomax'
+      [Cr,V] = rotatefactors(C, 'Method','orthomax','Coeff',gamma,'Maxit',1e3); %Uses gamma = 1 by default
+      scale=sqrt(sum(Cr.^2,1)).*sign(max(B,[],2))'; %Need to order with some criteria
+      scale(scale==0)=1; %Otherwise the transform is ill-defined
+      V2=diag(scale);
+      V=V2/V;
+     case 'varimax'
+      [Cr,V] = rotatefactors(C, 'Method','orthomax','Coeff',1,'Maxit',1e3); 
+      scale=sqrt(sum(Cr.^2,1)).*sign(max(B,[],2))'; %Need to order with some criteria
+      scale(scale==0)=1; %Otherwise the transform is ill-defined
+      V2=diag(scale);
+      V=V2/V;
+     case 'quartimax'
+      [Cr,V] = rotatefactors(C, 'Method','orthomax','Coeff',0,'Maxit',1e3); 
+      scale=sqrt(sum(Cr.^2,1)).*sign(max(B,[],2))'; %Need to order with some criteria
+      scale(scale==0)=1; %Otherwise the transform is ill-defined
+      V2=diag(scale);
+      V=V2/V;
 otherwise
     error('Unrecognized method')
 end
@@ -62,8 +83,7 @@ function [V,J]=diagonalizeA(A)
     % Deal with complex solutions, if they happen:
     a=imag(diag(J)); b=real(diag(J));
     if any(abs(a./b)>1e-15) %If there are (truly) complex eigen-values, will transform to the real-jordan form
-        [V,D]=eig(A);
-        [V,~] = cdf2rdf(V,D);
+        [V,J] = cdf2rdf(V,J);
         else %Ignore imaginary parts
         V=real(V);
         J=real(J);
@@ -72,4 +92,7 @@ function [V,J]=diagonalizeA(A)
     [~,idx]=sort(diag(J)); %This works if the matrix is diagonalizable
     J=J(idx,idx);
     V=V(:,idx);
+    
+    %Alt: use block diagonal Schur
+    %[V,J]=bdschur(A);
 end

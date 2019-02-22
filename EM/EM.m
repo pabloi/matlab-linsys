@@ -53,7 +53,8 @@ warning ('off','statKSfast:unstable');
 
 %% ------------Init stuff:-------------------------------------------
 % Init params:
- [A1,B1,C1,D1,Q1,R1,x01,P01,X1,P1,Pt1,bestLogL]=initEM(Y,U,Xguess,opts,Pguess);
+ [A1,B1,C1,D1,Q1,R1,x01,P01]=initEM(Y,U,Xguess,opts,Pguess);
+ [X1,P1,Pt1,~,~,~,~,~,bestLogL]=statKalmanSmoother(Y,A1,C1,Q1,R1,x01,P01,B1,D1,U,opts);
 
 %Initialize log-likelihood register & current best solution:
 logl=nan(opts.Niter,1);
@@ -67,9 +68,11 @@ A=A1; B=B1; C=C1; D=D1; Q=Q1; R=R1; x0=x01; P0=P01; P=P1; Pt=Pt1; X=X1;
 if isempty(opts.targetLogL)
     opts.targetLogL=logl(1);
 end
-
+%figure;
+%hold on;
 %% ----------------Now, do E-M-----------------------------------------
 breakFlag=false;
+improvement=true;
 disp(['Iter = 1, target logL = ' num2str(opts.targetLogL,8) ', current logL=' num2str(bestLogL,8) ', \tau =' num2str(-1./log(sort(eig(A)))')])
 for k=1:opts.Niter-1
 	%E-step: compute the distribution of latent variables given current parameter estimates
@@ -85,7 +88,7 @@ for k=1:opts.Niter-1
 
     %E-step:
     if isa(Y,'cell') %Data is many realizations of same system
-        [X1,P1,Pt1,~,~,Xp,Pp,rejSamples,l1]=cellfun(@(y,x0,p0,u) statKalmanSmoother(y,A1,C1,Q1,R1,x0,p0,B1,D1,u,opts),Y,x01,P01,U,'UniformOutput',false);
+        [X1,P1,Pt1,~,~,~,~,~,l1]=cellfun(@(y,x0,p0,u) statKalmanSmoother(y,A1,C1,Q1,R1,x0,p0,B1,D1,u,opts),Y,x01,P01,U,'UniformOutput',false);
         if any(cellfun(@(x) any(imag(x(:))~=0),X1))
           msg='Complex states detected, stopping.';
           breakFlag=true;
@@ -96,7 +99,7 @@ for k=1:opts.Niter-1
         sampleSize=cellfun(@(y) size(y,2),Y);
         l=(cell2mat(l1)*sampleSize')/sum(sampleSize);
     else
-        [X1,P1,Pt1,~,~,Xp,Pp,rejSamples,l]=statKalmanSmoother(Y,A1,C1,Q1,R1,x01,P01,B1,D1,U,opts);
+        [X1,P1,Pt1,~,~,~,~,~,l]=statKalmanSmoother(Y,A1,C1,Q1,R1,x01,P01,B1,D1,U,opts);
         if any(imag(X1(:))~=0)
             msg='Complex states detected, stopping.';
             breakFlag=true;
@@ -172,12 +175,6 @@ for k=1:opts.Niter-1
     end
     %M-step:
     [A1,B1,C1,D1,Q1,R1,x01,P01]=estimateParams(Y,U,X1,P1,Pt1,opts);
-    if mod(k,step)==0
-        [A1,B1,C1,x01,~,Q1,P01] = canonize(A1,B1,C1,x01,Q1,P01); %Regularizing the solution to avoid ill-conditioned situations
-        %This is necessary because it is possible that the EM algorithm will
-        %runaway towards a numerically unstable representation of an otherwise
-        %stable system
-    end
 end %for loop
 
 %%

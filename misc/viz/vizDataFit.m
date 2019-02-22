@@ -147,7 +147,7 @@ subplot(Nx,Ny,Ny*(M)+4)
 hold on
 for k=1:length(model)
     stError=dFit{k}.MLEstate.state-dFit{k}.oneAheadMLE.state(:,1:end-1);
-    aux1=sqrt(z2score(stError,model{k}.Q));
+    [~,z2]=logLnormal(stError,model{k}.Q); %This should be the innovation z2 score, but that would require to also consider the prior uncertainty, which requires a for-loop here. 
     p1=plot(aux1,'LineWidth',1);
     bar2=bar([yoff + k*100],nanmean([aux1]),'EdgeColor','none','BarWidth',100,'FaceColor',p1.Color);
     text(yoff+(k)*100,nanmean(aux1)*(1+.3*k),[num2str(nanmean(aux1))],'Color',bar2.FaceColor)
