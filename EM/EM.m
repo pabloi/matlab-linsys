@@ -39,6 +39,8 @@ end
 if opts.fastFlag~=0 && ( (~isa(Y,'cell') && any(isnan(Y(:)))) || (isa(Y,'cell') && any(any(isnan(cell2mat(Y)))) ) )
    warning('EM:fastAndLoose','Requested fast filtering but data contains NaNs. No steady-state can be found for filtering. Filtering will not be exact. Proceed at your own risk.')
   %opts.fastFlag=0; %No fast-filtering in nan-filled data
+elseif opts.fastFlag~=0 && opts.fastFlag~=1
+    warning('EM:fastFewSamples','Requested an exact number of samples for fast filtering. This is guaranteed to be equivalent to fast filtering only if the slowest time-constant of the system is much smaller than the requested number of samples, otherwise this is an appoximation.')
 end
 if opts.logFlag
   %diary(num2str(round(now*1e5)))
@@ -46,10 +48,12 @@ if opts.logFlag
   tic
 end
 
-%Disable some annoying warnings:
-warning ('off','statKFfast:unstable');
-warning ('off','statKFfast:NaN');
-warning ('off','statKSfast:unstable');
+%Disable some annoying warnings related to fast filtering (otherwise these 
+%warnings appear on each iteration when the Kalman filter is run):
+warning('off','statKFfast:unstable');
+warning('off','statKFfast:NaN');
+warning('off','statKSfast:unstable');
+warning('off','statKSfast:fewSamples');
 
 %% ------------Init stuff:-------------------------------------------
 % Init params:

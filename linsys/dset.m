@@ -64,6 +64,15 @@ classdef dset
               multiSet{i}=dset(newIn{i},newOut{i});
             end
         end
+        function multiSet=alternate(this,N)
+           %Creates N different data folds by putting 1 every N datapoints
+           %into each dataset
+           [ou] = foldSplit(this.out',N); %Foldsplit works along first dim
+           multiSet=cell(size(ou));
+           for i=1:N
+                multiSet{i}=dset(this.in,ou{i}');
+           end
+        end
         function [fh,fh2]=vizFit(this,models)
             [fh,fh2] = vizDataFit(models,this);
         end
