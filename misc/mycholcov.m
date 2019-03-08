@@ -8,7 +8,7 @@ function [L,r]=mycholcov(A)
 %See also: cholcov, testMyCholCov, pinvchol
 
 r=size(A,1);
-[L,p]=chol(A);
+[L,p]=chol(A); %This can handle infinite diagonal elements
 if p~=0 %Not positive definite, need to complete
     %Algorithm adapted from: https://arxiv.org/pdf/0804.4809.pdf made more efficient  
     t=trace(A);
