@@ -14,7 +14,6 @@ methods
         if nargin>0
           this.state=x;
           if nargin>1
-            this.covar=P;
               if size(x,1)~=size(P,1)
                 error('stateEstimate:constructor','Inconsistent state and uncertainty sizes')
               end
@@ -23,11 +22,27 @@ methods
               end
               %Need to check: P is psd for each sample
               if ~isempty(P)
-              for i=1:size(P,3)
-              if ~any(isinf(diag(P(:,:,i)))) && (min(eig(P(:,:,i)))<0 || any(imag(eig(P(:,:,i)))~=0))
-                  error('stateEstimate:constructor','Uncertainty matrix is not PSD')
-              end
-              end
+                  if size(P,3)==size(x,2)
+                      this.covar=P;
+                      for i=1:size(P,3)
+                          M=P(:,:,i);
+                          try
+                            cM=chol(M); %This may fail if not psd
+                          catch
+                            warning('stateEstimate:constructor','Uncertainty matrix is not PSD');
+                          end
+                      end
+                  elseif size(P,3)==1
+                     try 
+                         chol(P);
+                     catch
+                         warning('stateEstimate:constructor','Uncertainty matrix is not PSD');
+                     end
+                     this.covar=repmat(P,1,1,size(x,2));
+                  else
+                     error('stateEstimateConstructor:inconsistentCovarSize',...
+                     'Provided covariance matrix does not have the same number of samples as the state'); 
+                  end
               end
           end
         end

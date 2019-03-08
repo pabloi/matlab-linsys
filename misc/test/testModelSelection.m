@@ -11,19 +11,10 @@ noiselessModel.R=zeros(size(model.R));
 cR=chol(model.R);
 D2=size(model.C,1);
 N=size(simDatSetNoiseless.out,2);
-noise=cR*randn(D2,N);
-simDatSetFixedNoise=simDatSetNoiseless;
+noise=cR*randn(D2,N); 
 simDatSetFixedNoise=dset(simDatSetNoiseless.in,simDatSetNoiseless.out+noise);
 
-%% Step 2: identify models for various orders
-opts.Nreps=5;
-opts.fastFlag=200;
-opts.indB=1;
-opts.indD=[];
-warning('off','statKSfast:fewSamples') %This is needed to avoid a warning bombardment
-[fitMdl,outlog]=linsys.id(simDatSetFixedNoise,1:6,opts);
-
-%% Step 3: generate a similar model but with decreasing noise levels
+%% Step 2: generate a similar model but with decreasing noise levels
 scaleFactor=[ones(1,150) [1500:-1:1]/1500+1];
 noise=nan(D2,N);
 for i=1:N
@@ -31,14 +22,20 @@ for i=1:N
 end
 simDatSetVariableNoise=dset(simDatSetNoiseless.in,simDatSetNoiseless.out+noise);
 
-%% Step 4: fit the new data
-opts.Nreps=5;
-opts.fastFlag=200;
+%% Step 3: identify models 
+opts.Nreps=10;
+opts.fastFlag=1;
 opts.indB=1;
 opts.indD=[];
-[fitMdlVariableNoise,outlogVariableNoise]=linsys.id(simDatSetVariableNoise,1:6,opts);
+warning('off','statKSfast:fewSamples') %This is needed to avoid a warning bombardment
+[fitMdl,outlog]=linsys.id({simDatSetFixedNoise; simDatSetVariableNoise},1:6,opts);
+fitMdlVariableNoise=fitMdl(:,2);
+outlogVariableNoise=outlog(:,2);
+fitMdlFixedNoise=fitMdl(:,1);
+outlogFixedNoise=outlog(:,1);
 
-save modelOrderTestS5RepsWVariableNoise.mat fitMdl fitMdlVariableNoise outlog outlogVariableNoise simDatSetFixedNoise simDatSetVariableNoise datSet model simDatSetNoiseless stateE
+%% Save
+save modelOrderTestS10RepsWVariableNoise.mat fitMdlFixedNoise fitMdlVariableNoise outlogFixedNoise outlogVariableNoise simDatSetFixedNoise simDatSetVariableNoise datSet model simDatSetNoiseless stateE
 
 %% Step 5: use fitted models to evaluate log-L and goodness of fit
 evaluateModelOrderSelection

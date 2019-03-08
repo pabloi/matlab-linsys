@@ -21,13 +21,15 @@ The constrained filter allows better handling of unknown dynamics (see testConst
 
 *To Do*
 PRIORITY:
+- Figure out why EM algorithm does not seem to converge for problems where dim(output)<dim(state)
+- Test alternative canonizations: orthomax, varimax, promax, eyeQ (need to implement the last one)
 Non-priority:
 - Allow for partially unknown (diffuse) initial conditions (Follow Durbin and Koopman book, Chapter 5.) -> Is this not equivalent to the information filter currently used?
 - Compute a proper (formal) likelihood when initial conditions are diffuse (Durbin and Koopman again).
 - Allow for partially unknown/missing data (as opposed to fully missing samples).
 - C code: figure out why EM sometimes returns NaN for logL, & why 1 state estimation always fails.
 - C code: improve handling of infinite initial uncertainty, right now is just a workaround
-- C code: use chol instead of LU decomp, enforce symmetry of uncertainty matrices.
+- C code: use (modified) chol instead of LU decomp, enforce symmetry of uncertainty matrices.
 - logL() computation, and sample rejection for informationFilter2 and informationSmoother.
 - Implement fwd/backward algorithm for discrete state markov chains (genKF).
 - Test EM using fixed values for A,B,C,D,Q,R (any combination of them).
