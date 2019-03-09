@@ -13,7 +13,8 @@ classdef initCond < stateEstimate
               x=zeros(N,1);
               P=diag(Inf*ones(N,1));
           end
-          %obj=stateEstimate(x,P);
+          obj.state=x;
+          obj.covar=P;
         end
     end
 end

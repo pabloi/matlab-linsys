@@ -60,7 +60,9 @@ classdef dset
             end
             newIn=mat2cell(this.in,this.Ninput,diff(breaks));
             newOut=mat2cell(this.out,this.Noutput,diff(breaks));
-            for i=1:length(newIn)
+            N=length(newIn);
+            multiSet=cell(N,1);
+            for i=1:N
               multiSet{i}=dset(newIn{i},newOut{i});
             end
         end

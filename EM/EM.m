@@ -9,11 +9,15 @@ function [A,B,C,D,Q,R,X,P,bestLogL,outLog]=EM(Y,U,Xguess,opts,Pguess)
 %Scaling: (Note: scaling is not important to EM, the optimal solution is
 %scale invariant. However, some constants here have been fine-tuned
 %presuming a certain scaling of the data for convergence issues.)
+%Is this a good idea? While the optimal model is scale-invariant, the log-L
+%is NOT. As long as every comparison of log-L is made across equally-scaled
+%data, this is fine. Other comparisons will not be appropriate. Does that
+%ever happen?
 if ~isa(Y,'cell')
-    scale=sqrt(nanmean(Y.^2,2));
+    scale=sqrt(nanmean(Y.^2,2)); %Should I normalize to the variance instead of the second moment?
     Y=Y./scale;
 else
-    scale=sqrt(nanmean(cell2mat(Y).^2,2));
+    scale=sqrt(nanmean(cell2mat(Y).^2,2)); %Single scale for all data
     Y=cellfun(@(x) x./scale,Y,'UniformOutput',false);
 end
 
