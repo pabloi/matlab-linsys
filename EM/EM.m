@@ -20,6 +20,7 @@ else
     scale=sqrt(nanmean(cell2mat(Y).^2,2)); %Single scale for all data
     Y=cellfun(@(x) x./scale,Y,'UniformOutput',false);
 end
+%Would randomly changing the scale every N iterations help in convergence speed? Maybe get unstuck from local saddles?
 
 if nargin<4
     opts=[];
@@ -81,6 +82,8 @@ end
 %% ----------------Now, do E-M-----------------------------------------
 breakFlag=false;
 improvement=true;
+initialLogLgap=opts.targetLogL-bestLogL;
+nonNaNsamples=sum(~any(isnan(Y)));
 disp(['Iter = 1, target logL = ' num2str(opts.targetLogL,8) ', current logL=' num2str(bestLogL,8) ', \tau =' num2str(-1./log(sort(eig(A)))')])
 for k=1:opts.Niter-1
 	%E-step: compute the distribution of latent variables given current parameter estimates
@@ -122,9 +125,10 @@ for k=1:opts.Niter-1
     logl(k+1)=l;
     delta=l-logl(k);
     improvement=delta>=0;
-    targetRelImprovement50=(l-logl(max(k-50,1),1))/(opts.targetLogL-logl(max(k-50,1),1));
+    logL100ago=logl(max(k-100,1),1);
+    targetRelImprovement100=(l-logL100ago)/(opts.targetLogL-logL100ago);
     belowTarget=max(l,bestLogL)<opts.targetLogL;
-    relImprovementLast50=l-logl(max(k-50,1)); %Assessing the improvement on logl over the last 50 iterations (or less if there aren't as many)
+    relImprovementLast100=l-logL100ago; %Assessing the improvement on logl over the last 50 iterations (or less if there aren't as many)
 
     %Check for warning conditions:
     if ~improvement %This should never happen, except that our loglikelihood is approximate, so there can be some error
@@ -152,10 +156,10 @@ for k=1:opts.Niter-1
     end
 
     %Check if we should stop early (to avoid wasting time):
-    if k>50 && (belowTarget && (targetRelImprovement50)<opts.targetTol) && ~opts.robustFlag%Breaking if improvement less than tol of distance to targetLogL
+    if k>100 && (belowTarget && (targetRelImprovement100)<opts.targetTol) && ~opts.robustFlag%Breaking if improvement less than tol of distance to targetLogL
        msg='Unlikely to reach target value. Stopping.';
        breakFlag=true;
-    elseif k>50 && (relImprovementLast50)<opts.convergenceTol && ~opts.robustFlag %Considering the system stalled if relative improvement on logl is <tol
+    elseif k>100 && (relImprovementLast100*nonNaNsamples)<opts.convergenceTol && ~opts.robustFlag %Considering the system stalled if relative improvement on logl is <tol
         msg='Increase is within tolerance (local max). Stopping.';
         breakFlag=true;
     elseif k==opts.Niter-1

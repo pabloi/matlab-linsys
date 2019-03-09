@@ -12,7 +12,7 @@ opts=processEMopts(opts,Nu);
 outLog=struct();
 opt1=opts;
 opt1.fastFlag=true; %Enforcing fast filtering
-opt1.Niter=max([opt1.Niter,500]); %Very fast evaluation of initial case, just to get a benchmark.
+opt1.Niter=min([opt1.Niter,500]); %Very fast evaluation of initial case, just to get a benchmark.
 warning('off','EM:logLdrop') %If samples are NaN, fast filtering may make the log-L drop (smoothing is not exact, so the expectation step is not exact)
 warning('off','EM:fastAndLoose')%Disabling the warning that NaN and fast may be happening
 [A,B,C,D,Q,R,X,P,bestLL,startLog]=EM(Y,U,nd,opt1);
@@ -24,8 +24,9 @@ if opts.logFlag
     tic;
 end
 opts.targetLogL=bestLL;
+lastSuccess=0;
 for i=1:opts.Nreps
-    fprintf(['\n Starting rep ' num2str(i) '. Best logL so far=' num2str(bestLL,8) '... \n']);
+    fprintf(['\n Starting rep ' num2str(i) '. Best logL so far=' num2str(bestLL,8) ' (iter=' num2str(lastSuccess) ') \n']);
 
     %Initialize starting point:
     Xguess=guess(nd,Y,U,opts);
@@ -37,16 +38,21 @@ for i=1:opts.Nreps
       if logl>bestLL
           A=Ai; B=Bi; C=Ci; D=Di; Q=Qi; R=Ri; X=Xi; P=Pi;
           bestLL=logl;            opts.targetLogL=bestLL;
-          disp(['Success, best logL=' num2str(bestLL,8)])
+          lastSuccess=i;
+          disp('--')
+          disp('--')
+          disp(['Success, best logL=' num2str(bestLL,8) '(iter=' num2str(lastSuccess) ')'])
+          disp('--')
+          disp('--')
       end
       if opts.logFlag
           outLog.repLog{i}=repLog;  outLog.repRunTime(i)=toc;   tic;
       end
 end
 
-disp(['Refining solution...']);
-opts.Niter=1e4;
-opts.convergenceTol=1e-9;
+disp(['Refining solution... Best logL so far=' num2str(bestLL,8) '(iter=' num2str(lastSuccess) ')']);
+opts.Niter=2e4;
+opts.convergenceTol=1e-5;
 opts.targetTol=0;
 opts.fastFlag=false; %Patience
 [Ai,Bi,Ci,Di,Qi,Ri,Xi,Pi,bestLL1,refineLog]=EM(Y,U,X,opts,P); %Refine solution, sometimes works

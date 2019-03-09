@@ -180,7 +180,8 @@ if ~isempty(opts.fixP0)
   P0=opts.fixP0;
 end
 
-%[A,B,C,x0,~,Q,P0] = canonize(A,B,C,x0,Q,P0); %Avoid run-away parameters to ill-conditioned situations
+%Avoid run-away parameters to ill-conditioned situations
+%[A,B,C,x0,~,Q,P0] = canonize(A,B,C,x0,Q,P0,'canonicalAlt');
 end
 
 function [x0,P0]=estimateInit(X,P,A,Q)

@@ -12,8 +12,8 @@ datSetAP=datSetAP([1,3]); %Discarding the middle part
 %% Get odd/even data
 datSetOE=alternate(simDatSet,2);
 %% Step 2: identify models for various orders
-opts.Nreps=10;
-opts.fastFlag=1;
+opts.Nreps=50;
+opts.fastFlag=100;
 opts.indB=1;
 opts.indD=[];
 warning('off','statKSfast:fewSamples') %This is needed to avoid a warning bombardment
@@ -26,7 +26,7 @@ outlogAP=fitMdl(:,1:2);
 outlogOE=fitMdl(:,3:4);
 
 %%
-save CVmodelOrderTestS10Reps.mat fitMdlAP fitMdlOE outlogOE outlogAP simDatSet datSetAP datSetOE model stateE
+save CVmodelOrderTestS50Reps.mat fitMdlAP fitMdlOE outlogOE outlogAP simDatSet datSetAP datSetOE model stateE
 
 %% Step 5: use fitted models to evaluate log-L and goodness of fit
 %Odd-trained on even data
@@ -78,4 +78,3 @@ ah1(1).Title.String={'Even-model';'-BIC/2'};
 set(gcf,'Name','Odd/even cross-validation');
 close(f1)
 close(f2)
-

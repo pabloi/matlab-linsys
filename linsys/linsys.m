@@ -98,7 +98,8 @@ classdef linsys
             else
                 unusedSamp=0;
                 if nargin<3 || isempty(initC)
-                    initC=initCond(zeros(this.order,0)); %Improper prior
+                    initC=initCond(zeros(this.order,0)); %Improper prior: can be problematic
+                    %initC=initCond(zeros(this.order,1),1e5*eye(this.order)); %Improper-ish prior
                     unusedSamp=1;
                 end
                 [X,P,Pt,Xf,Pf,Xp,Pp,rejSamples,logL]=statKalmanSmoother(datSet.out,this.A,this.C,this.Q,this.R,initC.state,initC.covar,this.B,this.D,datSet.in,opts);
@@ -139,7 +140,7 @@ classdef linsys
             end
             [out,state]=fwdSim(input,this.A,this.B,this.C,this.D,iC,this.Q,this.R);
             datSet=dset(input,out);
-            stateE=stateEstimate(state,zeros(this.order,this.order,datSet.Nsamp));
+            stateE=stateEstimate(state,zeros(this.order));
         end
         function mdl=linsys2struct(this)
             warning('off'); %Prevents complaint about making structs from objects
@@ -202,7 +203,7 @@ classdef linsys
                 opts.Nreps=0; %Simple EM, starting from PCA approximation
             end
             M=numel(order);
-            if isa(datSet,'cell') %Many datSets provided
+            if isa(datSet,'cell') && numel(datSet)>1 %Many datSets provided
                 N=numel(datSet);
                 this=cell(M,N);
                 outlog=cell(M,N);
@@ -210,6 +211,9 @@ classdef linsys
                     [this(:,j),outlog(:,j)]=linsys.id(datSet{j},order,opts);
                 end
             else
+                if isa(datSet,'cell')
+                    datSet=datSet{1};
+                end
                 if M>1
                     this=cell(M,1);
                     outlog=cell(M,1);

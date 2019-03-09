@@ -13,7 +13,7 @@ noiselessModel.R=zeros(size(model.R));
 cR=chol(model.R);
 D2=size(model.C,1);
 N=size(simDatSetNoiseless.out,2);
-noise=cR*randn(D2,N);
+noise=cR*randn(D2,N); 
 simDatSetFixedNoise=dset(simDatSetNoiseless.in,simDatSetNoiseless.out+noise);
 
 %% Step 2: generate a similar model but with decreasing noise levels
@@ -24,18 +24,27 @@ for i=1:N
 end
 simDatSetVariableNoise=dset(simDatSetNoiseless.in,simDatSetNoiseless.out+noise);
 
-%% Step 3: identify models
-opts.Nreps=1; %Single rep, yes. Based on the fact that the first rep is almost always the definitive one.
-opts.fastFlag=200; %Set to 1
+%% Step 3: identify models 
+opts.Nreps=10;
+opts.fastFlag=1;
 opts.indB=1;
 opts.indD=[];
 warning('off','statKSfast:fewSamples') %This is needed to avoid a warning bombardment
-[fitMdl,outlog]=linsys.id(simDatSetFixedNoise,1:6,opts); %Fixed noise only
+%[fitMdl,outlog]=linsys.id({simDatSetFixedNoise},1:6,opts); %Fixed noise only
+[fitMdl,outlog]=linsys.id({simDatSetFixedNoise; simDatSetVariableNoise},1:6,opts);
+fitMdlFixedNoise=fitMdl(:,1);
+outlogFixedNoise=outlog(:,1);
+fitMdlVariableNoise=fitMdl(:,2);
+outlogVariableNoise=outlog(:,2);
 
 %% Save
-save modelOrderTestS1Reps.mat fitMdl outlog simDatSetFixedNoise datSet model simDatSetNoiseless stateE
+save modelOrderTestS10RepsWVariableNoise.mat fitMdlFixedNoise fitMdlVariableNoise outlogFixedNoise outlogVariableNoise simDatSetFixedNoise simDatSetVariableNoise datSet model simDatSetNoiseless stateE
 
 %% Step 5: use fitted models to evaluate log-L and goodness of fit
 %%
 legacy_vizDataLikelihood(fitMdlFixedNoise,simDatSetFixedNoise) %Fixed noise
 set(gcf,'Name','E-M fits to synthetic data from 4th order LTI-SSM')
+
+%%
+legacy_vizDataLikelihood(fitMdlVariableNoise,simDatSetVariableNoise) %Variable noise
+set(gcf,'Name','E-M fits to synthetic data from 4th order LTI-SSM, with variable R')

@@ -26,18 +26,16 @@ methods
                       this.covar=P;
                       for i=1:size(P,3)
                           M=P(:,:,i);
-                          try
-                            cM=chol(M); %This may fail if not psd
-                          catch
+                          [~,D]=ldl(M);
+                          if any(diag(D))<0
                             warning('stateEstimate:constructor','Uncertainty matrix is not PSD');
                           end
                       end
                   elseif size(P,3)==1
-                     try 
-                         chol(P);
-                     catch
-                         warning('stateEstimate:constructor','Uncertainty matrix is not PSD');
-                     end
+                      [~,D]=ldl(P);
+                      if any(diag(D))<0
+                        warning('stateEstimate:constructor','Uncertainty matrix is not PSD');
+                      end
                      this.covar=repmat(P,1,1,size(x,2));
                   else
                      error('stateEstimateConstructor:inconsistentCovarSize',...

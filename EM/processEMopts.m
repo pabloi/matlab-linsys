@@ -1,7 +1,7 @@
 function [opts] = processEMopts(opts,nu)
 
 if ~isfield(opts,'Niter')
-    opts.Niter=1e3; %Max number of iters
+    opts.Niter=2e3; %Max number of iters
 end
 if ~isfield(opts,'Nreps')
     opts.Niter=10; %Number of repetitions for randomStartEM
@@ -16,11 +16,12 @@ if ~isfield(opts,'fastFlag')
 end
 
 if ~isfield(opts,'convergenceTol')
-    opts.convergenceTol=1e-7; % 1e-7 minimum improvement in logL every 50 strides
+    opts.convergenceTol=1e-3; % 1e-3 minimum improvement in logL (per dim, but not per sample) every 100  iterations
 end
 
 if ~isfield(opts,'targetTol')
-    opts.targetTol=1e-3; % .1% minimum improvement towards target every 50 iters
+    opts.targetTol=1e-3; % .1% minimum improvement towards target every 100 iters
+    %This is possibly TOO tolerant, it never stops an iteration early, no matter what.
 end
 
 if ~isfield(opts,'targetLogL')
