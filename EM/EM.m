@@ -59,7 +59,12 @@ warning('off','statKSfast:fewSamples');
 % Init params:
  [A1,B1,C1,D1,Q1,R1,x01,P01]=initEM(Y,U,Xguess,opts,Pguess);
  [X1,P1,Pt1,~,~,~,~,~,bestLogL]=statKalmanSmoother(Y,A1,C1,Q1,R1,x01,P01,B1,D1,U,opts);
-
+  if numel(x01)~=1
+  %Over-writing the bestLogL, because the C version does a slightly different log-l computation (why?)
+  %Why is this all needed? Why does this not work at all with the C version???
+   [X1,P1,Pt1,bestLogL]=statKalmanSmootherCS2006Matlab(Y,A1,C1,Q1,R1,x01,P01,B1,D1,U,opts);
+   %bestLogL
+ end
 %Initialize log-likelihood register & current best solution:
 logl=nan(opts.Niter,1);
 logl(1)=bestLogL;
@@ -103,7 +108,7 @@ for k=1:opts.Niter-1
         sampleSize=cellfun(@(y) size(y,2),Y);
         l=(cell2mat(l1)*sampleSize')/sum(sampleSize);
     else
-        [X1,P1,Pt1,~,~,~,~,~,l]=statKalmanSmoother(Y,A1,C1,Q1,R1,x01,P01,B1,D1,U,opts);
+        [X1,P1,Pt1,~,~,Xp,Pp,rejSamples,l]=statKalmanSmoother(Y,A1,C1,Q1,R1,x01,P01,B1,D1,U,opts);
         if any(imag(X1(:))~=0)
             msg='Complex states detected, stopping.';
             breakFlag=true;
