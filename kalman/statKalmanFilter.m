@@ -90,19 +90,25 @@ end
 
 %For the first steps do an information update if P0 contains infinite elements
 firstInd=1;
-infVariances=isinf(diag(prevP));
-while any(infVariances) && firstInd<N %In practice, this only gets executed until the first non-NaN data sample is found
-    %Run info filter for just 1 step: (this is a good idea only if D2>=D1, otherwise there are inifinte uncertainties that will be left)
-    [ii,I,ip,Ip]=statInfoFilter2(Y_D(:,firstInd),A,C,Q,R,prevX,prevP,B,zeros(D2,size(U,1)),U(:,firstInd),opts);
-    logL(firstInd)=-Inf; %Warning: if variance was inifinte, then logL(firstInd)=-Inf!
-
-    %Transform results from information to state estimates:
-    [X(:,firstInd),P(:,:,firstInd)]=info2state(ii,I);
-    firstInd=firstInd+1;
-    [prevX,prevP]=info2state(ip(:,2),Ip(:,:,2));
-    Xp(:,firstInd)=prevX;    Pp(:,:,firstInd)= prevP;
-
-    infVariances=isinf(diag(prevP));
+infVariances=isinf(diag(prevP)); 
+if any(infVariances) %At least one initial variance was infinite
+    %Run info filter until D1 non-nan samples have been processed: this is enough to resolve all uncertainties down from infinity if the system is observable
+    %Strictly speaking, we should only need to process N = G - D2 + 1 ;
+    %non-NaN samples, where G is the number of infinity uncertainties, D2 is the
+    %dimension of the observation. This is true for an observable system,
+    %otherwise we would need to find the observable/unobservable
+    %decomposition and use the number of dimensions corresponding to the
+    %observable part.
+    Nsamp=find(cumsum(~any(isnan(Y_D)))>=D1,1,'first');
+    [ii,I,ip,Ip]=statInfoFilter2(Y_D(:,1:Nsamp),A,C,Q,R,prevX,prevP,B,zeros(D2,size(U,1)),U(:,1:Nsamp),opts);
+    for kk=1:Nsamp    
+        logL(kk)=-Inf; %Warning: if variance was inifinte, then logL(firstInd)=-Inf!
+        %Transform results from information to state estimates:
+        [X(:,kk),P(:,:,kk)]=info2state(ii(:,kk),I(:,:,kk));
+        [prevX,prevP]=info2state(ip(:,kk+1),Ip(:,:,kk+1));
+        Xp(:,kk+1)=prevX;    Pp(:,:,kk+1)= prevP;
+    end
+    firstInd=Nsamp+1;
 end
 
 %Run filter for remaining steps:

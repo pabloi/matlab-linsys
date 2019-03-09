@@ -57,6 +57,9 @@ for i=1:slowSamples
   elseif any(properPriors)
       %At least some info available: doing alternative way, which: 
       %guarantees PSD, works with non-inv Q, and as a bonus computes P and x
+      %Con: if C'*inv(R)*C is under-rank (e.g. when dim of obs is less than
+      %dim of state), the inverse of prevI will contain infinite elements
+      %and this may be crap.
       [cOldP,~,oldP]=pinvchol(prevI);
       oldX=oldP*previ;
       AcP=A*cOldP;

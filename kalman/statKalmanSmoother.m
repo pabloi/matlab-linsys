@@ -59,7 +59,8 @@ end
 %prevDelta=0; prevLambda=zeros(D1,1);
 %Innov=Y-C*Xp(:,1:N);
 pp=Pp(:,:,end);
-[cholInvA,~,iA]=pinvchol(A);
+iA=inv(A); %If this throws a warning A may not be invertible
+cQ=mycholcov2(Q);
 for i=N-1:-1:N-M1
   %First, get estimates from forward pass:
   xf=Xf(:,i); %Previous posterior estimate of covariance at this step
@@ -70,7 +71,7 @@ for i=N-1:-1:N-M1
   bu=BU(:,i);
 
   %Backward pass:
-  [prevPs,prevXs,newPt]=backStepRTS(pp,pf,prevPs,xp,xf,prevXs,A,Q,bu,iA);
+  [prevPs,prevXs,newPt]=backStepRTS(pp,pf,prevPs,xp,xf,prevXs,A,cQ,bu,iA);
   %Alt: Bryson-Frazier recursion. Faster, but error-prone
   %innov=Innov(:,i);
   %[prevPs,prevXs,newPt,prevDelta,prevLambda]=backStepBF(xf,pf,innov,pp,prevpp,A,C,invSchol(:,:,i),prevDelta,prevLambda);
@@ -82,7 +83,7 @@ end
 %Fast smoothing for the middle (N-2*M) samples (using the
 %Rauch-Tung-Striebel equations, should see how to do the BF equations)
 if Nfast>0 %Assume steady-state:
-    [~,~,newPt,H]=backStepRTS(pp,pf,prevPs,Xp(:,i+1),xf,prevXs,A,Q,bu,iA); %Get gain H
+    [~,~,newPt,H]=backStepRTS(pp,pf,prevPs,Xp(:,i+1),xf,prevXs,A,cQ,bu,iA); %Get gain H
      if any(abs(eig(H))>1) %TODO: check for stability efficiently
          warning('statKS:unstableSmooth','Unstable smoothing, skipping the backward pass.')
          H=zeros(size(H));
@@ -109,7 +110,7 @@ for i=M2:-1:1
   bu=BU(:,i);
 
   %Backward pass:
-  [prevPs,prevXs,newPt]=backStepRTS(pp,pf,prevPs,xp,xf,prevXs,A,Q,bu,iA);
+  [prevPs,prevXs,newPt]=backStepRTS(pp,pf,prevPs,xp,xf,prevXs,A,cQ,bu,iA);
   %Alt:
   %innov=Innov(:,i);
   %[prevPs,prevXs,newPt,prevDelta,prevLambda]=backStepBF(xf,pf,innov,pp,prevpp,A,C,invSchol(:,:,i),prevDelta,prevLambda);
@@ -120,39 +121,67 @@ end
 
 end
 
-function [newPs,newXs,newPt,H]=backStepRTS(pp,pf,ps,xp,xf,prevXs,A,Q,bu,iA)
+function [newPs,newXs,newPt,H]=backStepRTS(pp,pf,ps,xp,xf,prevXs,A,cQ,bu,iA)
   %Implements the Rauch-Tung-Striebel backward recursion
   %https://en.wikipedia.org/wiki/Kalman_filter#Fixed-interval_smoothers)
-  if ~any(isinf(diag(pf))) %The usual case: we have a proper prior from filter
+
+  %Four cases to consider:
+  %1) Pp has very large entries (possibly infinite): if A is invertible, use the alternate form, which is well conditioned.
+  %2) Pp has very small ones (possibly 0): inverse of Pp does not exist. Bad idea. This means that two states are highly coupled or one state is known exactly (and therefore should not get updated on the smoothing pass). A possible strategy is to rotate the space such that one state is known exactly and try again with the remaining states. Another strategy is to inject artificial uncertainty.
+  %3) Pp has both: As before, remove 0's and try again.
+  %4) Pp has neither: standard recursion!
+  cPs=mycholcov(ps);
+  infIdx=isinf(diag(pp));
+  if ~any(infIdx) %The usual case: we have a proper/numerically well-conditioned prior from filter
+      [icP,~]=pinvchol(pp); %What happens if pp is NOT invertible (null eigenvalues)?
       %First, compute gain:
-      [icP,cP]=pinvchol(pp);
       HcP=(pf*(A'*icP)); %H*cP'
       H=HcP*icP'; %H=AP'/pp; %Faster, although worse conditioned, matters a lot when smoothing
-      %Compute relevant covariances
+      %Equivalent: (numerically too?)
+      %H=pf*(A'*invPp);
+      %HcP=H*cP';
+      %State update:
+      newXs=xf+H*(prevXs-xp); %=H*prevXs +(xf-H*xp); 
+      %Compute across-steps covariance:
       newPt=ps*H'; %This should be such that A*newPt' is hermitian
-      %Updates: Improved (smoothed) state estimate
-      %Hext=H*(mycholcov(pp-ps)');
-      %newPs=pf-Hext*Hext'; %newPs=pf-H*(pp-ps)*H';  %Faster, but worse conditioned
-      %newXs=xf + H*(prevXs-xp);
-      %More stable update:
-      cPs=mycholcov(ps);
+      %More stable state covariance update:
       HcPs=H*cPs';
-      newPs= HcPs*HcPs' + (pf - HcP*HcP'); %The term in parenthesis is psd = inv(inv(pf)+a'*inv(Q)*A)
-      newXs=H*prevXs +(xf-H*xp);
+      newPs= HcPs*HcPs' + (pf - HcP*HcP'); %The term in parenthesis is psd although this is not numerically enforced
+      %To enforce: (makes it slower)
+      %cS=mycholcov(pf - HcP*HcP'); %Should be psd: proof? Can also be computed in a PSD-enforcing way by using chol(Pf). Solution: cS'*cS = cPf'*(eye - (cPf*A'*icP)*(cPf*A'*icP)')*cPf;
+      %newPs=HcPs*HcPs'+cS'*cS;%=HcPs*HcPs' + (pf - HcP*HcP');%=pf- H*(pp-ps)*H'; %The term in parenthesis is psd = inv(inv(pf)+A'*inv(Q)*A)    
   else %This happens when we started filtering from an improper prior
-  %(infinite uncertainty) or very large uncertainties and we go back to smooth
-  %those (almost) infinitely uncertain samples
-  %This is fine if A is invertible. Otherwise it will be problematic 
-  %(we cannot infer the previous state solely from the current one)
-  %Should find a proper way to handle mixed cases, where one uncertainty is
-  %very large or infinite but others are normal-sized.
-    cholPs=mycholcov(ps);
-    Hext=iA*cholPs';
-    newPs=Hext*Hext'+Q; %The input Q is only used here. This is equivalent to pf-iA*(pp-ps)*iA', but if pp was larger, then pf-iA*pp*iA' may not reduce exactly to Q
-    newPt=cholPs'*Hext';
-    H=iA;
-    newXs=iA*(prevXs-bu); %This should be the same as xf+iA*(prevXs-xp), but may be numerically ill-conditioned (if uncertainty was large, xf and xp are possibly large, ugly numbers, and the cancellation only happens if indeed iA*A=eye)
+    %(infinite uncertainty) or very large uncertainties and we go back to smooth
+    %those (almost) infinitely uncertain samples
+    %This is fine if A is invertible. Otherwise it will be problematic
+    %(we cannot infer the previous state solely from the current one)
+    [icP,~]=pinvchol2(pp); %Handles infinite (and 0 covariances) covariances. Substitutes non-diagonal Inf elements by 0.
+    [newPs,newXs,newPt,H]=backStepRTS_invA(icP,cPs,xp,prevXs,cQ,bu,iA);
+    %This function could be used whenever inv(A) is defined, not just with inifinte elements in Pp.
+    %It may be better conditioned that standard RTS to deal with large Pp (trace(Pp)>> trace(Ps))
   end
+end
+function [newPs,newXs,newPt,H]=backStepRTS_invA(invCholPp,cholPs,xp,prevXs,cholQ,bu,iA)
+  %An RTS-equivalent backward recursion assuming that A is invertible
+  %Note that inverting Pp (as RTS requires), implies that A*Pf*A'+Q is invertible,
+  %which in the general case requires invertible Pf and A, OR invertible Q.
+  %Notably, this formulation does not require xf, Pf, or A, and can be understood as an
+  %additive improvement on the estimate coming from (xs,Ps) of step k+1, whereas
+  %the regular RTS is formulated as an additive improvement on (xf,Pf) form the
+  %forward pass at step k.
+  %This form makes it easy to update when Pp has infinite elements.
+  %The main insight here is that if A is invertible, then:
+  %H=inv(A)*(eye-Q*inv(pp));
+  icP=invCholPp;
+  %iP=icP*icP';
+  iAcQ=iA*cholQ'; %Could precompute outside loop
+  cQcP=cholQ*icP;
+  F=iAcQ*cQcP*icP';
+  H=iA-F;%=iA*(eye(size(Q))-Q*invPp); %Diagonal elements of Q*invPp have to be ALL less than 1
+  HcPs=H*cholPs';
+  newPt=cholPs'*HcPs';
+  newPs= HcPs*HcPs' + iAcQ*(eye(size(iA))-cQcP*cQcP')*iAcQ'; %=H*Ps*H'+F*Pp*F'+iA*Q*iA';
+  newXs=iA*(prevXs-bu) +F*(xp-prevXs);
 end
 
 function [newPs,newXs,newPt,newDelta,newLambda]=backStepBF(xf,Pf,innov,Pp,prevPp,A,C,icS,prevDelta,prevLambda)

@@ -101,20 +101,20 @@ tc(mdl)=toc;
 fh=figure;
 subplot(5,1,1) %Bar of residuals
 bar(sqrt(res),'EdgeColor','none')
-set(gca,'XTickLabel',name)
+set(gca,'XTickLabel',name,'YScale','log')
 title('RMSE residuals')
 axis tight
 aa=axis;
-axis([aa(1:2) 0 sqrt(max(res))*1.1])
+axis([aa(1:2) min(sqrt(res))*.9999 sqrt(max(res))*1.0001])
 grid on
 
 subplot(5,1,2) %Bar of residuals to KS
 bar(res2KS,'EdgeColor','none')
-set(gca,'XTickLabel',name)
+set(gca,'XTickLabel',name,'Yscale','log','YTick',[1e-15, 1e-10, 1e-5, 1e0])
 title('RMSE residuals to KS')
 axis tight
 aa=axis;
-axis([aa(1:2) 0 2])
+axis([aa(1:2) 1e-16 10])
 grid on
 
 subplot(5,1,3) %Bar of max res

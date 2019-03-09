@@ -27,7 +27,6 @@ NN=size(U,2);
 x0=zeros(D1,1);
 [Y,X]=fwdSim(U,A,B,C,D,x0,Q,R);
 [Y1,X1]=fwdSim(U,A,B,C,D,x0,[],[]); %Noiseless simulation, for comparison
-Y(:,1:2)=NaN;
 X=X(:,1:end-1);
 
 %% Define initial uncertainty
@@ -73,8 +72,21 @@ name{mdl}='KSred fast';
 res2KS(mdl)=norm(Xs-Xcs,'fro');
 tc(mdl)=toc;
 
-%% Use Info smoother:
+%% Do kalman smoothing with true params, fast mode, reduction
+tic
 mdl=4;
+opts.noReduceFlag=false;
+opts.fastFlag=100;
+[Xs,Ps,Pt,Xf,Pf,Xp,Pp,~,logL(mdl)]=statKalmanSmoother(Y,A,C,Q,R,x0,P0,B,D,U,opts); %Kalman smoother estimation of states, given the true parameters (this is the best possible estimation of states)
+res(mdl)=norm(Xs-X,'fro')^2;
+maxRes(mdl)=max(sum((Xs-X).^2));
+name{mdl}='KSred fast100';
+res2KS(mdl)=norm(Xs-Xcs,'fro');
+tc(mdl)=toc;
+
+
+%% Use Info smoother:
+mdl=5;
 tic;
 [is,Is,iif,If,ip,Ip,Xs,Ps,~]=statInfoSmoother2(Y,A,C,Q,R,x0,P0,B,D,U,opts);
 res(mdl)=norm(Xs-X,'fro')^2;
@@ -89,11 +101,11 @@ tc(mdl)=toc;
 fh=figure;
 subplot(5,1,1) %Bar of residuals
 bar(sqrt(res),'EdgeColor','none')
-set(gca,'XTickLabel',name)
+set(gca,'XTickLabel',name,'YScale','log')
 title('RMSE residuals')
 axis tight
 aa=axis;
-axis([aa(1:2) 0 sqrt(max(res))*1.1])
+axis([aa(1:2) min(sqrt(res))*.9999 sqrt(max(res))*1.0001])
 grid on
 
 subplot(5,1,2) %Bar of residuals to KS
