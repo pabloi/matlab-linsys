@@ -60,7 +60,7 @@ methods
     end
     function initC=getSample(this,N)
       %Gets a single sample to be used as initial condition in other functions
-        initC=initCond(this.x(:,N),this.P(:,:,N));
+        initC=initCond(this.state(:,N),this.covar(:,:,N));
     end
 
 end

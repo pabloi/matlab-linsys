@@ -99,7 +99,7 @@ if any(infVariances) %At least one initial variance was infinite
     %otherwise we would need to find the observable/unobservable
     %decomposition and use the number of dimensions corresponding to the
     %observable part.
-    Nsamp=find(cumsum(~any(isnan(Y_D)))>=D1,1,'first');
+    Nsamp=find(cumsum(~any(isnan(Y_D),1))>=D1,1,'first');
     [ii,I,ip,Ip]=statInfoFilter2(Y_D(:,1:Nsamp),A,C,Q,R,prevX,prevP,B,zeros(D2,size(U,1)),U(:,1:Nsamp),opts);
     for kk=1:Nsamp    
         logL(kk)=-Inf; %Warning: if variance was inifinte, then logL(firstInd)=-Inf!

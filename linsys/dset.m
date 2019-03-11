@@ -84,6 +84,18 @@ classdef dset
         function fh=compareModels(this,models)
             [fh] = vizDataLikelihood(models,this);
         end
+        function l=logL(this,mdl,initC)
+            if nargin<3
+                initC=initCond([],[]);
+            end
+            if isa(mdl,'cell')
+              for i=1:numel(mdl)
+                l(i)=this.logL(mdl{i},initC); %Recursive call to this func
+              end
+            else
+              l=mdl.logL(this);
+            end
+        end
     end
     methods(Hidden,Static)
         function H = GetMD5(Data)

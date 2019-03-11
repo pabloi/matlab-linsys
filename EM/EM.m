@@ -42,7 +42,8 @@ else
 end
 [opts] = processEMopts(opts,Nu); %This is a fail-safe to check for proper options being defined.
 if opts.fastFlag~=0 && ( (~isa(Y,'cell') && any(isnan(Y(:)))) || (isa(Y,'cell') && any(any(isnan(cell2mat(Y)))) ) )
-   warning('EM:fastAndLoose','Requested fast filtering but data contains NaNs. No steady-state can be found for filtering. Filtering will not be exact. Proceed at your own risk.')
+   warning('EM:fastAndLoose','Requested fast filtering but data contains NaNs. No steady-state can be found for filtering. Filtering will not be exact, log-L is not guaranteed to be non-decreasing (disabling warning).')
+   warning('off','EM:logLdrop') %If samples are NaN, fast filtering may make the log-L drop (smoothing is not exact, so the expectation step is not exact)
   %opts.fastFlag=0; %No fast-filtering in nan-filled data
 elseif opts.fastFlag~=0 && opts.fastFlag~=1
     warning('EM:fastFewSamples','Requested an exact number of samples for fast filtering. This is guaranteed to be equivalent to fast filtering only if the slowest time-constant of the system is much smaller than the requested number of samples, otherwise this is an appoximation.')
@@ -52,13 +53,14 @@ if opts.logFlag
   outLog.opts=opts;
   tic
 end
-
+if opts.fastFlag~=0
 %Disable some annoying warnings related to fast filtering (otherwise these 
 %warnings appear on each iteration when the Kalman filter is run):
 warning('off','statKFfast:unstable');
 warning('off','statKFfast:NaN');
 warning('off','statKSfast:unstable');
 warning('off','statKSfast:fewSamples');
+end
 
 %% ------------Init stuff:-------------------------------------------
 % Init params:
@@ -82,7 +84,7 @@ end
 %% ----------------Now, do E-M-----------------------------------------
 breakFlag=false;
 improvement=true;
-initialLogLgap=opts.targetLogL-bestLogL;
+%initialLogLgap=opts.targetLogL-bestLogL;
 nonNaNsamples=sum(~any(isnan(Y)));
 disp(['Iter = 1, target logL = ' num2str(opts.targetLogL,8) ', current logL=' num2str(bestLogL,8) ', \tau =' num2str(-1./log(sort(eig(A)))')])
 for k=1:opts.Niter-1
@@ -132,9 +134,12 @@ for k=1:opts.Niter-1
 
     %Check for warning conditions:
     if ~improvement %This should never happen, except that our loglikelihood is approximate, so there can be some error
-        %Update Jan 2019: I think with the latest versions the logL is now
-        %exact.
-        if abs(delta)>1e-5 %Drops of about 1e-5 can be expected because (conjectures):
+        %Update Jan 2019: I think with the latest versions the logL is now exact.
+        %Drops in logL may still happen when using fast filtering in
+        %conjunction with the presence of NaN samples. In that case, there
+        %is no steady-state for the Kalman filter/smoother, and thus
+        %filtering is approximate/not-optimal. 
+        if abs(delta)>1e-9 %Drops of about 1e-5 can be expected because (conjectures):
           %1) we are computing an approximate logl (which differs from the exact one, especially at the early stages of EM)
           %2) logL is only guaranteed to increase if there is no structural model mismatch (e.g. data having non-gaussian observation noise). Although it may work in other circumstances. Need to prove.
           %3)numerical precision.
@@ -191,9 +196,11 @@ end %for loop
 
 %%
 if opts.fastFlag==0 %Re-enable disabled warnings
-    warning ('on','statKFfast:unstable');
-    warning ('on','statKFfast:NaNsamples');
-    warning ('on','statKSfast:unstable');
+    warning('on','statKFfast:unstable');
+    warning('on','statKFfast:NaN');
+    warning('on','statKSfast:fewSamples');
+    warning('on','statKSfast:unstable');
+    warning('on','EM:logLdrop')
 end
 if opts.logFlag
   outLog.vaps(k,:)=sort(eig(A1));

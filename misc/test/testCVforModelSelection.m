@@ -12,18 +12,20 @@ datSetAP=datSetAP([1,3]); %Discarding the middle part
 %% Get odd/even data
 datSetOE=alternate(simDatSet,2);
 %% Step 2: identify models for various orders
-opts.Nreps=50;
-opts.fastFlag=100;
+opts.Nreps=1; %Single rep, this works well enough for full (non-CV) data
+opts.fastFlag=200;
 opts.indB=1;
 opts.indD=[];
 warning('off','statKSfast:fewSamples') %This is needed to avoid a warning bombardment
-[fitMdl,outlog]=linsys.id([datSetAP;datSetOE],1:6,opts); %Fit all models jointly, to better exploit parallelism
-%[fitMdl,outlog]=linsys.id([datSetAP],1:6,opts);
+%[fitMdl,outlog]=linsys.id([datSetAP;datSetOE],1:6,opts); %Fit all models jointly, to better exploit parallelism
+[fitMdlOE,outlogOE]=linsys.id([datSetOE],1:6,opts);
+[fitMdlAP,outlogAP]=linsys.id([datSetAP],1:6,opts);
+
 %Separate models:
-fitMdlAP=fitMdl(:,1:2);
-fitMdlOE=fitMdl(:,3:4);
-outlogAP=fitMdl(:,1:2);
-outlogOE=fitMdl(:,3:4);
+%fitMdlAP=fitMdl(:,1:2);
+%fitMdlOE=fitMdl(:,3:4);
+%outlogAP=fitMdl(:,1:2);
+%outlogOE=fitMdl(:,3:4);
 
 %%
 save CVmodelOrderTestS50Reps.mat fitMdlAP fitMdlOE outlogOE outlogAP simDatSet datSetAP datSetOE model stateE

@@ -175,7 +175,7 @@ classdef linsys
             if nargin<3
                 initC=initCond([],[]);
             end
-            l=dataLogLikelihood(datSet.out,datSet.in,this.A,this.B,this.C,this.D,this.Q,this.R,initC.x,initC.P);
+            l=dataLogLikelihood(datSet.out,datSet.in,this.A,this.B,this.C,this.D,this.Q,this.R,initC.state,initC.covar,'exact');
         end
         function ord=get.order(this)
             ord=size(this.A,1);
