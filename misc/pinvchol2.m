@@ -1,4 +1,4 @@
-function [cInvA,cA,invA]=pinvchol2(A)
+function [cInvA,cA,invA,L,D]=pinvchol2(A)
 %Computes the pseudo-inverse of an positive semidefinite matrix A, using
 %its Cholesky decomposition, as given by mycholcov(). Returns both the
 %pseudo inverse and the transpose Chol decomp of pinv(A) and the Chol
@@ -6,7 +6,7 @@ function [cInvA,cA,invA]=pinvchol2(A)
 %See also: mycholcov, chol, invchol
 
 [cA,L,D]=mycholcov2(A);
-opts.LT=true;
+%opts.LT=true;
 %invL=linsolve(L,eye(size(L)),opts);
 invL=L\eye(size(L));
 cInvA=sqrt(1./diag(D))'.*invL';

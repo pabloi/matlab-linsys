@@ -133,7 +133,7 @@ classdef linsys
             if nargin>3 && deterministicFlag
                 this.Q=zeros(size(this.Q));
             end
-            if nargin<3
+            if nargin<3 || isempty(initC)
                 iC=[];
             else
                 iC=initC.state;
@@ -194,6 +194,29 @@ classdef linsys
             Nredundant= this.order; %Up to this.order parameters can be arbitrarily set. For example, arbitrarily scaling all states and C accordingly.
             df=Na+Nb+Nc+Nd+Nq+Nr-Nredundant; %Model free parameters
         end
+        function M=noiseCovar(this,N)
+           %Computes the covariance of the stochastic component of the states after N steps
+           I=eye(size(this.Q));
+           M=this.Q;
+           A=this.A;
+           for i=1:N; M=A*M*A'+this.Q; end
+        end
+        function X=detPredict(this,N)
+            %Computes the deterministic component of the state after N steps starting from null initial
+            %condition, assuming a step input in the first input.
+            A=this.A;
+            I=eye(size(this.Q));
+            B=this.B;
+            X=(I-A)\(I-A^N)*B(:,1);
+        end
+        function s=SNR(this,N)
+           %Estimates a SNR-like covariance estimate
+           X=this.detPredict(N);
+           M=this.noiseCovar(N);
+           %s=X'*M*X;
+           s=(X.^2)./diag(M);
+        end
+
     end
 
     methods (Static)

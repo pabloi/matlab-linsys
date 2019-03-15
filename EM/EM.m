@@ -54,7 +54,7 @@ if opts.logFlag
   tic
 end
 if opts.fastFlag~=0
-%Disable some annoying warnings related to fast filtering (otherwise these 
+%Disable some annoying warnings related to fast filtering (otherwise these
 %warnings appear on each iteration when the Kalman filter is run):
 warning('off','statKFfast:unstable');
 warning('off','statKFfast:NaN');
@@ -85,7 +85,7 @@ end
 breakFlag=false;
 improvement=true;
 %initialLogLgap=opts.targetLogL-bestLogL;
-nonNaNsamples=sum(~any(isnan(Y)));
+nonNaNsamples=sum(~any(isnan(Y),1));
 disp(['Iter = 1, target logL = ' num2str(opts.targetLogL,8) ', current logL=' num2str(bestLogL,8) ', \tau =' num2str(-1./log(sort(eig(A)))')])
 for k=1:opts.Niter-1
 	%E-step: compute the distribution of latent variables given current parameter estimates
@@ -133,16 +133,13 @@ for k=1:opts.Niter-1
     relImprovementLast100=l-logL100ago; %Assessing the improvement on logl over the last 50 iterations (or less if there aren't as many)
 
     %Check for warning conditions:
-    if ~improvement %This should never happen, except that our loglikelihood is approximate, so there can be some error
-        %Update Jan 2019: I think with the latest versions the logL is now exact.
-        %Drops in logL may still happen when using fast filtering in
+    if ~improvement %This should never happen
+        %Drops in logL may happen when using fast filtering in
         %conjunction with the presence of NaN samples. In that case, there
         %is no steady-state for the Kalman filter/smoother, and thus
-        %filtering is approximate/not-optimal. 
-        if abs(delta)>1e-9 %Drops of about 1e-5 can be expected because (conjectures):
-          %1) we are computing an approximate logl (which differs from the exact one, especially at the early stages of EM)
-          %2) logL is only guaranteed to increase if there is no structural model mismatch (e.g. data having non-gaussian observation noise). Although it may work in other circumstances. Need to prove.
-          %3)numerical precision.
+        %filtering is approximate/not-optimal.
+         %Drops of 1e-9 to 1e-8 happen even without NaN samples, specially if number of samples is not too large and model order is. This may be a numerical issue.
+        if abs(delta)>1e-7
           %Report only if drops are larger than this. This value probably is sample-size dependent, so may need adjusting.
           warning('EM:logLdrop',['logL decreased at iteration ' num2str(k) ', drop = ' num2str(delta)])
         end

@@ -53,47 +53,61 @@ for kk=1:maxK
     scatter(1:size(Y,2),cc(:,kk)'*Y,5,.5*ones(1,3),'filled')
      set(gca,'ColorOrderIndex',1)
     for i=1:length(model)
-    [~,modelOut]=datSet.getOneAheadResiduals(dFit{i});
+        [~,modelOut]=datSet.getOneAheadResiduals(dFit{i});
         p(i)=plot(cc(:,kk)'*(modelOut),'LineWidth',2);
     end
 
     if kk==1
-        title('Output projection over main PCs')
+        title('One-ahead (KF) output projected onto data PCs')
     end
     axis tight
 end
 
 %% Measures of output error:
 binw=11;
-for ll=3
-    subplot(Nx,Ny,2+(ll-1)*Ny)
-    hold on
+for ll=1:2
     for k=1:length(model)
         switch ll
-            case 1 %Smooth output RMSE
-
-                title('Smooth output error (RMSE, mov. avg.)')
-            case 2 % MLE state output error
-
-                title('KS one-ahead output error (RMSE, mov. avg.)')
-            case 3 %One ahead error
-              res=datSet.getOneAheadResiduals(dFit{k});
+            case 1 %Deterministic output RMSE
+                iC=dFit{k}.MLEstate.getSample(1); %MLE estimate of init cond
+                [simSet]=model{k}.simulate(U,iC,true);
+                res=datSet.out -simSet.out;
                 aux1=sqrt(sum((res).^2));
-                title('KF prediction output error (RMSE, mov. avg.)')
+                tt=('Deterministic output error (RMSE, mov. avg.)');
+            case 3 % MLE state output error
+                tt=('KS one-ahead output error (RMSE, mov. avg.)');
+            case 2 %One ahead error
+                res=datSet.getOneAheadResiduals(dFit{k});
+                aux1=sqrt(sum((res).^2));
+                tt=('KF prediction output error (RMSE, mov. avg.)');
         end
         idx=find(~isnan(aux1));
         aux2=aux1(idx);
         aux2=conv(aux2,ones(1,binw)/binw,'valid');
+        subplot(Nx,Ny,2+(2*ll-2)*Ny) %Time-course of residuals
+        hold on
         set(gca,'ColorOrderIndex',k)
         s1=scatter(1:length(aux1),aux1,5,'filled','MarkerEdgeColor','none','MarkerFaceAlpha',.5);
         %p1=plot(idx((binw-1)/2+1:end-(binw-1)/2),aux2,'LineWidth',1,'LineColor',s1.MarkerFaceColor);
+        if k==1
+            title(tt)
+            axis tight
+            grid on
+            set(gca,'YScale','log')
+        end
+        subplot(Nx,Ny,2+(2*ll-1)*Ny) %Bars of residuals
+        hold on
         RMSE=sqrt(mean([aux1].^2)); %Normalized Frobenius norm
-        bar2=bar([yoff+k*100],RMSE,'EdgeColor','none','BarWidth',100,'FaceColor',s1.MarkerFaceColor);
-        text(yoff+(k-1)*100+100,.9*RMSE,[num2str(RMSE,4)],'Color','w','FontSize',6,'Rotation',270)
+        bar2=bar(k,RMSE,'EdgeColor','none','BarWidth',1,'FaceColor',s1.MarkerFaceColor);
+        text(k,.9*RMSE,[num2str(RMSE,4)],'Color','w','FontSize',6,'Rotation',270)
+        set(gca,'XTick',1:length(model))
+         if k==length(model)
+            axis tight
+            grid on
+            set(gca,'YScale','log')
+        end
     end
-    axis tight
-    grid on
-    set(gca,'YScale','log')
+
 end
 
 %% Plot STATES
@@ -102,7 +116,12 @@ for k=1:length(model)
     taus=-1./log(sort(eig(model{k}.A)));
     [projectedX,projectedXLS]=getDataProjections(datSet,model{k});
     Xs=dFit{k}.MLEstate.state;
+    %dXs=Xs(:,2:end)-model{k}.A*Xs(:,1:end-1)-model{k}.B*U(:,1:end-1);
     Ps=dFit{k}.MLEstate.covar;
+    iC=dFit{k}.MLEstate.getSample(1); %MLE estimate of init cond
+    [simSet,simState]=model{k}.simulate(U,iC,true);
+    Xsim=simState.state;
+    Psim=simState.covar;
     for i=1:size(model{k}.A,1)
         subplot(Nx,Ny,Ny*(i-1)+3) %States
         hold on
@@ -124,21 +143,38 @@ for k=1:length(model)
         %plot(model{k}.Xp(i,:),'LineWidth',1,'DisplayName',nn,'Color','k');
         if k==length(model)
             legend(findobj(gca,'Type','Line','LineWidth',2),'Location','Best')
-            title('(Smoothed) States')
+            title('(Smoothed) States vs. projection')
             ylabel(['State ' num2str(i)])
         end
         axis tight
         grid on
 
+        %subplot(Nx,Ny,Ny*(i-1)+4) %State residuals
+        %hold on
+        %set(gca,'ColorOrderIndex',k)
+        %scatter(1:size(projectedX,2),Xs(i,:)-projectedX(i,:),5,'filled','MarkerEdgeColor','none','MarkerFaceAlpha',.5);
+        %if k==length(model)
+        %    title('(KS) State residual (vs. projection)')
+        %    grid on
+        %end
+        %axis tight
+        
         subplot(Nx,Ny,Ny*(i-1)+4) %State residuals
         hold on
+        %Smooth states
         set(gca,'ColorOrderIndex',k)
-        scatter(1:size(projectedX,2),Xs(i,:)-projectedX(i,:),5,'filled','MarkerEdgeColor','none','MarkerFaceAlpha',.5);
+        %Det states:
+        p(k,i)=plot(Xsim(i,:),'LineWidth',2,'DisplayName',nn);
+        patch([1:size(Xsim,2),size(Xsim,2):-1:1]',[Xsim(i,:)+sqrt(squeeze(Psim(i,i,:)))', fliplr(Xsim(i,:)-sqrt(squeeze(Psim(i,i,:)))')]',p(k).Color,'EdgeColor','none','FaceAlpha',.3)
+        s1=scatter(1:size(projectedX,2),projectedX(i,:),5,'filled','MarkerEdgeColor','none','MarkerFaceAlpha',.2,'MarkerFaceColor',p(k).Color);
+        uistack(s1,'bottom')
         if k==length(model)
-            title('(KS) State residual (vs. projection)')
-            grid on
+            legend(findobj(gca,'Type','Line','LineWidth',2),'Location','Best')
+            title('(Deterministic) States vs. projection')
+            ylabel(['State ' num2str(i)])
         end
         axis tight
+        grid on
     end
 end
 

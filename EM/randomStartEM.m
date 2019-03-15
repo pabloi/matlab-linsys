@@ -52,7 +52,7 @@ end
 
 disp(['Refining solution... Best logL so far=' num2str(bestLL,8) '(iter=' num2str(lastSuccess) ')']);
 opts.Niter=2e4;
-opts.convergenceTol=1e-5;
+opts.convergenceTol=1e-5; %This may be an abuse of precision. LEss than 1e-5 change in 100 iters means less than 1e-3 change in 1e4 iters, which is a meaningless change in logL for practical applications. Thje only reason to have a very small number here is to avoid stopping the algorithm prematurely when it encounters a shallow region that is not a local max.
 opts.targetTol=0;
 opts.fastFlag=false; %Patience
 [Ai,Bi,Ci,Di,Qi,Ri,Xi,Pi,bestLL1,refineLog]=EM(Y,U,X,opts,P); %Refine solution, sometimes works
