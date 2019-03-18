@@ -51,24 +51,27 @@ if ~opts.diagA || ~isempty(opts.fixA) %Asked for fixed A or full-matrix A
     A=AB(:,1:D1);
     B(:,opts.indB)=AB(:,D1+1:end);
   elseif isempty(opts.fixA) && ~isempty(opts.fixB) %Only A is to be estimated
-    A=([SPt+xx1 xu1] - opts.fixB*[xu_' uu_])/[SP_+xx_ xu_];
     B=opts.fixB;
+    A=(SPt+xx1-B(:,opts.indB)*xu_')/[SP_+xx_];
+    %A=([SPt+xx1 xu1] - opts.fixB*[xu_' uu_])/[SP_+xx_ xu_];
   elseif isempty(opts.fixB) && ~isempty(opts.fixA) %Only B
-    B(:,opts.indB)=([SPt+xx1 xu1] - opts.fixA*[SP_+xx_ xu_])/[xu' uu_];
     A=opts.fixA;
+    B(:,opts.indB)=(xu1-A*xu_)/uu_;
+    %B(:,opts.indB)=([SPt+xx1 xu1] - opts.fixA*[SP_+xx_ xu_])/[xu' uu_];
   else
     A=opts.fixA;
     B=opts.fixB;
   end
 else %Non-fixed diagonal A Enforcing
-  error('EM:diagA','Unimplemented')
-  if isempty(opts.fixB) %Estimate A and B
-
+  %error('EM:diagA','Unimplemented')
+  if isempty(opts.fixB) %Estimate diag A and B
+    O=[diag(diag(SP_+xx_)) xu_; xu_' uu_];
+    AB=[diag(diag(SPt+xx1)) xu1]/O; %Guess as to what the correct solution is
+    A=AB(:,1:D1);
+    B(:,opts.indB)=AB(:,D1+1:end);
   else %Estimate A only
-    A=zeros(D1);
-      for i=1:D1
-        A(i,i)=0; %doxy
-      end
+    B=opts.fixB;
+    A=diag(SPt+xx1-B(:,opts.indB)*xu_')./diag(SP_+xx_);
   end
 end
 
@@ -83,11 +86,11 @@ if isempty(opts.fixC) && isempty(opts.fixD)
   C=CD(:,1:D1);
   D(:,opts.indD)=CD(:,D1+1:end);
 elseif isempty(opts.fixC) && ~isempty(opts.fixD) %Only C is to be estimated
-  C=([yx yu] - opts.fixD*[xu' uu])/[SP+xx xu];
   D=opts.fixD;
-elseif isempty(opts.fixB) && ~isempty(opts.fixA) %Only B
-  D(:,opts.indD)=([yx yu] - opts.fixC*[SP+xx xu])/[xu' uu];
-  C=opts.fixC;
+  C=(yx - D(:,opts.indD)*xu')/[SP+xx];
+elseif isempty(opts.fixD) && ~isempty(opts.fixC) %Only D
+    C=opts.fixC;
+    D(:,opts.indD)=(yu - C*xu)/[uu];
 else
   C=opts.fixC;
   D=opts.fixD;
@@ -188,9 +191,9 @@ function [x0,P0]=estimateInit(X,P,A,Q)
   x0=X(:,1); %Smoothed estimate
   P0=P(:,:,1); %Smoothed estimate, the problem with this estimate is that trace(P0) is monotonically decreasing on the iteration of EM(). More likely it should converge to the same prior uncertainty we have for all other states.
   %A variant to not make it monotonically decreasing:
-  %aux=mycholcov(P0);
-  %Aa=A*aux';
-  %P0=Q+Aa*Aa';
+  aux=mycholcov(P0);
+  Aa=A*aux';
+  P0=Q+Aa*Aa';
   %P0=Q;
 end
 

@@ -52,7 +52,7 @@ end
 
 disp(['Refining solution... Best logL so far=' num2str(bestLL,8) '(iter=' num2str(lastSuccess) ')']);
 opts.Niter=2e4;
-opts.convergenceTol=1e-5; %This may be an abuse of precision. LEss than 1e-5 change in 100 iters means less than 1e-3 change in 1e4 iters, which is a meaningless change in logL for practical applications. Thje only reason to have a very small number here is to avoid stopping the algorithm prematurely when it encounters a shallow region that is not a local max.
+opts.convergenceTol=5e-4; %This is in logL per output dimension every 1e2 iterations (see EM). Implies that in 1e4 iterations the logL will increase 5e-2 at least. For high dimensional output with a single state, this is a sensible choice as it limits iterations when is too slow with respect to Wilk's logL overfit limiting theorem. For mulitple states we are being conservative (more free parameters means that logL should increase even more to be signficant).
 opts.targetTol=0;
 opts.fastFlag=false; %Patience
 [Ai,Bi,Ci,Di,Qi,Ri,Xi,Pi,bestLL1,refineLog]=EM(Y,U,X,opts,P); %Refine solution, sometimes works
@@ -76,19 +76,45 @@ function Xguess=guess(nd,Y,U,opts)
         u=U;
     end
     [ny,N]=size(y);
-    A1=diag(exp(-1./exp(log(N)*rand(nd,1)))); %WLOG, diagonal matrix with log-uniformly spaced time-constants in the [1,N] interval
-    %I think the sign above is unnecessary
-    B1=ones(nd,size(u,1)); %WLOG
-    Q1=(abs(randn)+1e-4)*eye(nd); %Needs to be psd
-    C1=randn(ny,nd)/ny; %WLOG
-    D1=randn(ny,size(u,1));
-    [~,Xsmooth]=fwdSim(u,A1,B1,zeros(1,nd),zeros(1,size(u,1)),[],Q1,[]);
-    z=y-C1*Xsmooth(:,1:end-1)-D1*u;
-    idx=~any(isnan(z));
-    z=z(:,idx);
-    R1=z*z'/size(z,2) + C1*Q1*C1'; %Reasonable estimate of R
+    if isempty(opts.fixA)
+      A1=diag(exp(-1./exp(log(N)*rand(nd,1)))); %WLOG, diagonal matrix with log-uniformly spaced time-constants in the [1,N] interval
+        %I think the sign above is unnecessary
+    else
+      A1=opts.fixA;
+    end
+    if isempty(opts.fixB)
+      B1=ones(nd,size(u,1)); %WLOG
+    else
+      B1=opts.fixB;
+    end
+    if isempty(opts.fixQ)
+      Q1=(abs(randn)+1e-4)*eye(nd); %Needs to be psd
+    else
+      Q1=opts.fixQ;
+    end
+    if isempty(opts.fixC)
+      C1=randn(ny,nd)/ny; %WLOG
+    else
+      C1=opts.fixC;
+    end
+    if isempty(opts.fixD)
+      D1=randn(ny,size(u,1));
+    else
+      D1=opts.fixD;
+    end
+    x0=opts.fixX0; %These are empty by default
+    P0=opts.fixP0;
+    [~,Xsmooth]=fwdSim(u,A1,B1,zeros(1,nd),zeros(1,size(u,1)),x0,Q1,[]);
+    if isempty(opts.fixR)
+      z=y-C1*Xsmooth(:,1:end-1)-D1*u;
+      idx=~any(isnan(z));
+      z=z(:,idx);
+      R1=z*z'/size(z,2) + C1*Q1*C1'; %Reasonable estimate of R
+    else
+      R1=opts.fixR;
+    end
     warning('off','statKF:logLnoPrior') %Using uninformative prior
-    [Xguess]=statKalmanSmoother(y,A1,C1,Q1,R1,[],[],B1,D1,u,opts);
+    [Xguess]=statKalmanSmoother(y,A1,C1,Q1,R1,x0,P0,B1,D1,u,opts);
     warning('on','statKF:logLnoPrior')
     %Alternative: [Xguess]=statInfoSmoother2(y,A1,C1,Q1,R1,[],[],B1,D1,u,opts);
     Xguess=medfilt1(Xguess,9,[],2); %Some smoothing to avoid starting with very ugly estimates

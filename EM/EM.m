@@ -16,9 +16,27 @@ function [A,B,C,D,Q,R,X,P,bestLogL,outLog]=EM(Y,U,Xguess,opts,Pguess)
 if ~isa(Y,'cell')
     scale=sqrt(nanmean(Y.^2,2)); %Should I normalize to the variance instead of the second moment?
     Y=Y./scale;
+    if ~isempty(opts.fixC)
+      opts.fixC=opts.fixC./scale;
+    end
+    if ~isempty(opts.fixD)
+      opts.fixD=opts.fixD./scale;
+    end
+    if ~isempty(opts.fixR)
+      opts.fixR=opts.fixR./(scale.*scale');
+    end
 else
     scale=sqrt(nanmean(cell2mat(Y).^2,2)); %Single scale for all data
     Y=cellfun(@(x) x./scale,Y,'UniformOutput',false);
+    if ~isempty(opts.fixC)
+      opts.fixC=opts.fixC./scale;
+    end
+    if ~isempty(opts.fixD)
+      opts.fixD=opts.fixD./scale;
+    end
+    if ~isempty(opts.fixR)
+      opts.fixR=opts.fixR./(scale.*scale');
+    end
 end
 %Would randomly changing the scale every N iterations help in convergence speed? Maybe get unstuck from local saddles?
 
@@ -124,6 +142,10 @@ for k=1:opts.Niter-1
 
 
     %Check improvements:
+    %There are three stopping criteria:
+    %1) number of iterations
+    %2) improvement in logL per dimension of output less than some threshold. It makes sense to do it per dimension of output because in high-dimensional models, the number of parameters of the model is roughly proportional to the number of output dimensions. IDeally, this would be done per number of free model parameters, so it has a direct link to significant improvements in log-L (Wilk's theorem suggests we should expect an increase in logL of 1 per each extra free param, so when improvement is well below this, we can stop).
+    %3) relative improvement towards target value. The idea is that logL may be increasing fast according to criterion 2, but nowhere fast enough to ever reach the target value.
     logl(k+1)=l;
     delta=l-logl(k);
     improvement=delta>=0;
@@ -175,7 +197,8 @@ for k=1:opts.Niter-1
         pOverTarget=100*((l-opts.targetLogL)/abs(opts.targetLogL));
         if k>=step && ~breakFlag
             lastChange=l-logl(k+1-step,1);
-            disp(['Iter = ' num2str(k)  ', logL = ' num2str(l,8) ', \Delta logL = ' num2str(lastChange,3) ', % over target = ' num2str(pOverTarget,3) ', \tau =' num2str(-1./log(sort(eig(A1)))',3)])
+            %disp(['Iter = ' num2str(k)  ', logL = ' num2str(l,8) ', \Delta logL = ' num2str(lastChange,3) ', % over target = ' num2str(pOverTarget,3) ', \tau =' num2str(-1./log(sort(eig(A1)))',3)])
+            disp(['Iter = ' num2str(k) ', \Delta logL = ' num2str(lastChange*length(scale)*nonNaNsamples,3) ', over target = ' num2str(length(scale)*nonNaNsamples*(l-opts.targetLogL),3) ', \tau =' num2str(-1./log(sort(eig(A1)))',3)]) %This displays logL over target, not in a per-sample per-dim way (easier to probe if logL is increasing significantly)
             %sum(rejSamples)
         else %k==1 || breakFlag
             l=bestLogL;

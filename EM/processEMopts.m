@@ -16,7 +16,7 @@ if ~isfield(opts,'fastFlag')
 end
 
 if ~isfield(opts,'convergenceTol')
-    opts.convergenceTol=1e-3; % 1e-3 minimum improvement in logL (per dim, but not per sample) every 100  iterations
+    opts.convergenceTol=5e-3; % 5e-3 minimum improvement in logL (per dim, but not per sample) every 100  iterations
 end
 
 if ~isfield(opts,'targetTol')
@@ -55,17 +55,21 @@ end
 if ~isfield(opts,'logFlag')
   opts.logFlag=false;
 end
-if ~isfield(opts,'fixA')
+if ~isfield(opts,'fixA') || isempty(opts.fixA)
   opts.fixA=[];
 end
-if ~isfield(opts,'fixB')
+if ~isfield(opts,'fixB') || isempty(opts.fixB)
   opts.fixB=[];
+else %Fixed B, must match size of input
+  opts.indB=1:nu;
 end
-if ~isfield(opts,'fixC')
+if ~isfield(opts,'fixC') || isempty(opts.fixC)
   opts.fixC=[];
 end
-if ~isfield(opts,'fixD')
+if ~isfield(opts,'fixD') || isempty(opts.fixD)
   opts.fixD=[];
+else %Fixed D, must match size of input
+  opts.indD=1:nu;
 end
 if ~isfield(opts,'fixQ')
   opts.fixQ=[];

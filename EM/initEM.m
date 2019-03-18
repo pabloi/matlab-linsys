@@ -15,7 +15,7 @@ function [A,B,C,D,Q,R,x0,P0]=initEM(Y,U,X,opts,P)
         Y2=Y;
       end
       %[A,B,C,D,X,Q,R]=subspaceIDv2(Y2,U,d); %Works if no missing data, is slow
-      [X]=initGuessOld(Y2,U,d);
+      [X]=initGuessOld(Y2,U,d,opts);
   end
   [A,B,C,D,Q,R,x0,P0]=initParams(Y,U,X,opts,P);
 end
@@ -39,7 +39,8 @@ function [A1,B1,C1,D1,Q1,R1,x01,P01]=initParams(Y,U,X,opts,Pguess)
 
 %Initialize guesses of A,B,C,D,Q,R
 [A1,B1,C1,D1,Q1,R1,x01,P01]=estimateParams(Y,U,X,P,Pt,opts);
-[A1,B1,C1,x01,~,Q1,P01] = canonize(A1,B1,C1,x01,Q1,P01,'canonicalAlt');
+%[A1,B1,C1,x01,~,Q1,P01] = canonize(A1,B1,C1,x01,Q1,P01,'canonicalAlt');
+%UPDATE: Canonization is incompatible with fixed values for some parameters.
 end
 
 function [P,Pt]=initCov(X,U,P)
@@ -60,13 +61,17 @@ function [P,Pt]=initCov(X,U,P)
 end
 
 %This function used to be used instead of the subspace method
-function [X]=initGuessOld(Y,U,D1)
+function [X]=initGuessOld(Y,U,D1,opts)
   if isa(Y,'cell')
-      X=initGuessOld(cell2mat(Y),cell2mat(U),D1);
+      X=initGuessOld(cell2mat(Y),cell2mat(U),D1,opts);
       X=mat2cell(X,size(X,1),cellfun(@(x) size(x,2),Y));
   else
       idx=~any(isnan(Y),1);
-      D=Y(:,idx)/U(:,idx);
+      if ~isempty(opts.fixD) %If D was provided, no need to estimate
+        D=opts.fixD;
+      else
+        D=Y(:,idx)/U(:,idx);
+      end
       if isa(Y,'gpuArray')
           [pp,~,~]=pca(gather(Y(:,idx)-D*U(:,idx)),'Centered','off'); %Can this be done in the gpu?
       else

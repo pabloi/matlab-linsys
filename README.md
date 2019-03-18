@@ -23,6 +23,8 @@ The constrained filter allows better handling of unknown dynamics (see testConst
 PRIORITY:
 - Figure out why EM algorithm does not seem to converge for problems where dim(output)<dim(state)
 - Test alternative canonizations: orthomax, varimax, promax, eyeQ (need to implement the last one)
+- Change termination criterion for EM: use logL per free parameter instead of current (logL per dimension of output). Requires doing parameter counting inside EM, dependent on fixed parameters that may have been set.
+- Consider alternative initializations of Q,R, or at least mechanisms to escape from local maxima: if either of these matrices are too small with respect to the other, algorithm may get stuck. For example, if Q is small, state uncertainty will be small, and smoothing will have little/no effect when updating states. Consequently, Q will be re-evaluated to a small value in estimateParams, never escaping. Analogous with small R.
 Non-priority:
 - Allow for partially unknown (diffuse) initial conditions (Follow Durbin and Koopman book, Chapter 5.) -> Is this not equivalent to the information filter currently used?
 - Compute a proper (formal) likelihood when initial conditions are diffuse (Durbin and Koopman again).
