@@ -11,18 +11,17 @@ classdef linsys
         D
         Q
         R
-        %Optional: training info, could contain anything
-        trainingInfo=trainInfo();
         name='';
     end
     properties (Dependent)
         order %Model order, number of stats
         Ninput %Number of inputs
         Noutput %Number of outputs
+        hash
     end
 
     methods
-        function this = linsys(A,C,R,B,D,Q,trainInfo) %Constructor
+        function this = linsys(A,C,R,B,D,Q) %Constructor
             if size(A,1)~=size(A,2)
                 error('A matrix is not square')
             end
@@ -53,9 +52,6 @@ classdef linsys
             this.B=B;
             this.D=D;
             this.Q=Q;
-            if nargin>6
-                this.trainingInfo=trainInfo;
-            end
         end
         function dfit=fit(this,datSet,initC)
             if nargin<3
@@ -125,13 +121,16 @@ classdef linsys
                 end
             end
         end
-        function [datSet,stateE]=simulate(this,input,initC,deterministicFlag)
+        function [datSet,stateE]=simulate(this,input,initC,deterministicFlag,noiselessFlag)
             %Simulates a realization of the modeled system given the initial
             %conditions (uncertainty in inital condition is ignored)
             %If deterministicFlag=true, then Q is set to 0 before simulating
             %(there is still observational noise, but states evolve in a deterministic way)
             if nargin>3 && deterministicFlag
                 this.Q=zeros(size(this.Q));
+            end
+            if nargin>4 && noiselessFlag
+                this.R=zeros(size(this.R));
             end
             if nargin<3 || isempty(initC)
                 iC=[];
@@ -157,6 +156,9 @@ classdef linsys
           end
           [this.A,this.B,this.C,~,V,this.Q,~] = canonize(this.A,this.B,this.C,[],this.Q,[],method);
         end
+        function [this]=transform(this,V)
+            [this.A,this.B,this.C,this.Q]=transform(V,this.A,this.B,this.C,this.Q);
+        end
         function newThis=upsample(this,Nfactor)
             error('unimplemented')
            newThis=this; %Doxy
@@ -172,6 +174,7 @@ classdef linsys
             [fh]=datSet.vizRes(this);
         end
         function l=logL(this,datSet,initC)
+            %Per sample, per dim of output
             if nargin<3
                 initC=initCond([],[]);
             end
@@ -180,19 +183,11 @@ classdef linsys
         function ord=get.order(this)
             ord=size(this.A,1);
         end
-        function df=dof(this)
-            %Computes effective degrees of freedom of the system, assuming all non-zero parameters were freely selected.
-            %Warning: this presumes a diagonal A matrix, and counting non-zero entries post-diagonalization. This is not necessarily the way that results in the least amount of non-zero parameters (can this be proved?).
-            this=this.canonize; %Diagonalizing
-            Na=this.order; %Using diagonal A.
-            Nb=sum(sum(this.B~=0));
-            Nc=sum(sum(this.C~=0));
-            if all(this.C==1); Nc=0; end; %The 1 value is assigned for flat models, this is an ugly workaround
-            Nd=sum(sum(this.D~=0));
-            Nq=sum(sum(triu(this.Q)~=0));
-            Nr=sum(sum(triu(this.R)~=0));
-            Nredundant= this.order; %Up to this.order parameters can be arbitrarily set. For example, arbitrarily scaling all states and C accordingly.
-            df=Na+Nb+Nc+Nd+Nq+Nr-Nredundant; %Model free parameters
+        function ord=get.Ninput(this)
+            ord=size(this.B,2);
+        end
+        function ord=get.Noutput(this)
+            ord=size(this.C,1);
         end
         function M=noiseCovar(this,N)
            %Computes the covariance of the stochastic component of the states after N steps
@@ -216,7 +211,49 @@ classdef linsys
            %s=X'*M*X;
            s=(X.^2)./diag(M);
         end
-
+        function newThis=pad(this,padIdx,Dpad,Cpad,Rpad)
+            %This takes a model and expands its output by padding C,D,R
+            %If not given, C and D are padded with 0, R is padded with the infinite variances
+            %If given, C has to be length(padIdx) x this.order
+            %D has to be length(padIdx) x this.Ninput
+            %R has to be length(padIdx) x 1 (vector representing diagonal entries only)
+            %Check: padIdx is an integer vector (not boolean), without repeats
+            if islogical(padIdx) %Transform boolean to index list
+                padIdx=find(padIdx);
+            end
+            if any(padIdx==0) || length(unique(padIdx))~=length(padIdx)
+              error('')
+            end
+            %To Do: check that C,D do not contain NaN, R does not contain Nan or <=0.
+            newThis=this;
+            newIdx=length(padIdx);
+            oldIdx=this.Noutput;
+            newSize=newIdx+oldIdx;
+            newThis.C=nan(newSize,this.order);
+            newThis.D=nan(newSize,this.Ninput);
+            newThis.R=zeros(newSize);
+            if nargin<4 ||isempty(Cpad)
+              Cpad=zeros(newIdx,this.order);
+            end
+            if nargin<3 || isempty(Dpad)
+              Dpad=zeros(newIdx,this.Ninput);
+            end
+            if nargin<5 || isempty(Rpad)
+              Rpad=Inf(newIdx,1);
+            end
+            oldIdx=true(newSize,1);
+            oldIdx(padIdx)=false;
+            newThis.C(padIdx,:)=Cpad;
+            newThis.C(oldIdx,:)=this.C;
+            newThis.D(padIdx,:)=Dpad;
+            newThis.D(oldIdx,:)=this.D;
+            newThis.R(sub2ind([newSize, newSize],padIdx,padIdx))=Rpad;
+            newThis.R(oldIdx,oldIdx)=this.R;
+        end
+        function hs=get.hash(this)
+           %This uses an external MEX function to compute the MD5 hash
+           hs=GetMD5([this.A, this.B, this.Q, this.C'; this.C, this.D, this.C, this.R]);
+        end
     end
 
     methods (Static)
@@ -240,19 +277,25 @@ classdef linsys
                 if M>1
                     this=cell(M,1);
                     outlog=cell(M,1);
-                    parfor ord=1:M %This allows for parallelism if there was a single datset 
+                    parfor ord=1:M %This allows for parallelism if there was a single datset
                         %(otherwise we are already in a parfor loop and this is ignored)
                         [this{ord},outlog{ord}]=linsys.id(datSet,order(ord),opts);
                     end
                 else
                     if order==0
-                        [J,B,C,D,Q,R]=getFlatModel(datSet.out,datSet.in);
-                        this=linsys(J,C,R,B,D,Q,trainInfo(datSet.hash,'flatModel',[]));
+                        [J,B,C,D,Q,R,logLperSamplePerDim]=getFlatModel(datSet.out,datSet.in,opts);
+                        
+                        this=fittedLinsys(J,C,R,B,D,Q,initCond([],[]),datSet,'EM',opts,logLperSamplePerDim*datSet.nonNaNSamp*datSet.Noutput,[]);
                         this.name='Flat';
                         outlog=[];
+                        if isfield(opts,'fixR') && ~isempty(opts.fixR)
+                          this.R=opts.fixR;
+                        end
                     elseif order>0
-                        [A,B,C,D,Q,R,~,~,~,outlog]=randomStartEM(datSet.out,datSet.in,order,opts);
-                        this=linsys(A,C,R,B,D,Q,trainInfo(datSet.hash,'repeatedEM',opts));
+                        [A,B,C,D,Q,R,X,P,logLperSamplePerDim,outlog]=randomStartEM(datSet.out,datSet.in,order,opts);
+                        iC=initCond(X(:,1),P(:,:,1)); %MLE init condition
+                        %this=linsys(A,C,R,B,D,Q,trainInfo(datSet.hash,'repeatedEM',opts));
+                        this=fittedLinsys(A,C,R,B,D,Q,iC,datSet,'repeatedEM',opts,logLperSamplePerDim*datSet.nonNaNSamp*datSet.Noutput,outlog);
                         this.name=['rEM ' num2str(order)];
                     else
                         error('Order must be a non-negative integer.')

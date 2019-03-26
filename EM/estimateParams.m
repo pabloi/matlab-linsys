@@ -177,11 +177,12 @@ else
     [x0,P0]=estimateInit(X,P,A,Q);
 end
 if ~isempty(opts.fixX0)
-  x0=opts.fixX0;
+    x0=opts.fixX0;
 end
 if ~isempty(opts.fixP0)
-  P0=opts.fixP0;
+    P0=opts.fixP0;
 end
+
 
 %Avoid run-away parameters to ill-conditioned situations
 %[A,B,C,x0,~,Q,P0] = canonize(A,B,C,x0,Q,P0,'canonicalAlt');

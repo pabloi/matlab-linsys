@@ -5,10 +5,12 @@ fprintf(['\n Starting rep 0 (fast one)... \n']);
 %Pre-process optional flags:
 if isa(U,'cell')
   Nu=size(U{1},1);
+  ny=size(Y{1},1);
 else
   Nu=size(U,1);
+  ny=size(Y,1);
 end
-opts=processEMopts(opts,Nu);
+opts=processEMopts(opts,Nu,nd,ny);
 outLog=struct();
 opt1=opts;
 opt1.fastFlag=true; %Enforcing fast filtering
@@ -89,8 +91,10 @@ function Xguess=guess(nd,Y,U,opts)
     end
     if isempty(opts.fixQ)
       Q1=(abs(randn)+1e-4)*eye(nd); %Needs to be psd
-    else
+    elseif ~isnan(opts.fixQ)
       Q1=opts.fixQ;
+    else
+      Q1=zeros(size(A1));
     end
     if isempty(opts.fixC)
       C1=randn(ny,nd)/ny; %WLOG

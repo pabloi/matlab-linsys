@@ -6,38 +6,6 @@ function [A,B,C,D,Q,R,X,P,bestLogL,outLog]=EM(Y,U,Xguess,opts,Pguess)
 %Xguess - Either the number of states for the system (if scalar) or a guess
 %at the initial states of the system (if D1 x N matrix)
 
-%Scaling: (Note: scaling is not important to EM, the optimal solution is
-%scale invariant. However, some constants here have been fine-tuned
-%presuming a certain scaling of the data for convergence issues.)
-%Is this a good idea? While the optimal model is scale-invariant, the log-L
-%is NOT. As long as every comparison of log-L is made across equally-scaled
-%data, this is fine. Other comparisons will not be appropriate. Does that
-%ever happen?
-if ~isa(Y,'cell')
-    scale=sqrt(nanmean(Y.^2,2)); %Should I normalize to the variance instead of the second moment?
-    Y=Y./scale;
-    if ~isempty(opts.fixC)
-      opts.fixC=opts.fixC./scale;
-    end
-    if ~isempty(opts.fixD)
-      opts.fixD=opts.fixD./scale;
-    end
-    if ~isempty(opts.fixR)
-      opts.fixR=opts.fixR./(scale.*scale');
-    end
-else
-    scale=sqrt(nanmean(cell2mat(Y).^2,2)); %Single scale for all data
-    Y=cellfun(@(x) x./scale,Y,'UniformOutput',false);
-    if ~isempty(opts.fixC)
-      opts.fixC=opts.fixC./scale;
-    end
-    if ~isempty(opts.fixD)
-      opts.fixD=opts.fixD./scale;
-    end
-    if ~isempty(opts.fixR)
-      opts.fixR=opts.fixR./(scale.*scale');
-    end
-end
 %Would randomly changing the scale every N iterations help in convergence speed? Maybe get unstuck from local saddles?
 
 if nargin<4
@@ -55,10 +23,17 @@ outLog=[];
 %Process opts:
 if isa(U,'cell')
   Nu=size(U{1},1);
+  ny=size(Y{1},1);
 else
   Nu=size(U,1);
+  ny=size(Y,1);
 end
-[opts] = processEMopts(opts,Nu); %This is a fail-safe to check for proper options being defined.
+if numel(Xguess)==1
+  nx=numel(Xguess); %Order of model
+else
+  nx=size(Xguess,1);
+end
+[opts] = processEMopts(opts,Nu,nx,ny); %This is a fail-safe to check for proper options being defined.
 if opts.fastFlag~=0 && ( (~isa(Y,'cell') && any(isnan(Y(:)))) || (isa(Y,'cell') && any(any(isnan(cell2mat(Y)))) ) )
    warning('EM:fastAndLoose','Requested fast filtering but data contains NaNs. No steady-state can be found for filtering. Filtering will not be exact, log-L is not guaranteed to be non-decreasing (disabling warning).')
    warning('off','EM:logLdrop') %If samples are NaN, fast filtering may make the log-L drop (smoothing is not exact, so the expectation step is not exact)
@@ -83,7 +58,11 @@ end
 %% ------------Init stuff:-------------------------------------------
 % Init params:
  [A1,B1,C1,D1,Q1,R1,x01,P01]=initEM(Y,U,Xguess,opts,Pguess);
- [X1,P1,Pt1,~,~,~,~,~,bestLogL]=statKalmanSmoother(Y,A1,C1,Q1,R1,x01,P01,B1,D1,U,opts);
+ Yred=Y(opts.includeOutputIdx,:);
+ Cred=C1(opts.includeOutputIdx,:);
+ Dred=D1(opts.includeOutputIdx,:);
+ Rred=R1(opts.includeOutputIdx,opts.includeOutputIdx);
+ [X1,P1,Pt1,~,~,~,~,~,bestLogL]=statKalmanSmoother(Yred,A1,Cred,Q1,Rred,x01,P01,B1,Dred,U,opts);
 
 %Initialize log-likelihood register & current best solution:
 logl=nan(opts.Niter,1);
@@ -118,8 +97,11 @@ for k=1:opts.Niter-1
     end
 
     %E-step:
+    Cred=C1(opts.includeOutputIdx,:);
+    Dred=D1(opts.includeOutputIdx,:);
+    Rred=R1(opts.includeOutputIdx,opts.includeOutputIdx);
     if isa(Y,'cell') %Data is many realizations of same system
-        [X1,P1,Pt1,~,~,~,~,~,l1]=cellfun(@(y,x0,p0,u) statKalmanSmoother(y,A1,C1,Q1,R1,x0,p0,B1,D1,u,opts),Y,x01,P01,U,'UniformOutput',false);
+        [X1,P1,Pt1,~,~,~,~,~,l1]=cellfun(@(y,x0,p0,u) statKalmanSmoother(y,A1,Cred,Q1,Rred,x0,p0,B1,Dred,u,opts),Yred,x01,P01,U,'UniformOutput',false);
         if any(cellfun(@(x) any(imag(x(:))~=0),X1))
           msg='Complex states detected, stopping.';
           breakFlag=true;
@@ -130,7 +112,7 @@ for k=1:opts.Niter-1
         sampleSize=cellfun(@(y) size(y,2),Y);
         l=(cell2mat(l1)*sampleSize')/sum(sampleSize);
     else
-        [X1,P1,Pt1,~,~,~,~,~,l]=statKalmanSmoother(Y,A1,C1,Q1,R1,x01,P01,B1,D1,U,opts);
+        [X1,P1,Pt1,~,~,~,~,~,l]=statKalmanSmoother(Yred,A1,Cred,Q1,Rred,x01,P01,B1,Dred,U,opts);
         if any(imag(X1(:))~=0)
             msg='Complex states detected, stopping.';
             breakFlag=true;
@@ -198,7 +180,7 @@ for k=1:opts.Niter-1
         if k>=step && ~breakFlag
             lastChange=l-logl(k+1-step,1);
             %disp(['Iter = ' num2str(k)  ', logL = ' num2str(l,8) ', \Delta logL = ' num2str(lastChange,3) ', % over target = ' num2str(pOverTarget,3) ', \tau =' num2str(-1./log(sort(eig(A1)))',3)])
-            disp(['Iter = ' num2str(k) ', \Delta logL = ' num2str(lastChange*length(scale)*nonNaNsamples,3) ', over target = ' num2str(length(scale)*nonNaNsamples*(l-opts.targetLogL),3) ', \tau =' num2str(-1./log(sort(eig(A1)))',3)]) %This displays logL over target, not in a per-sample per-dim way (easier to probe if logL is increasing significantly)
+            disp(['Iter = ' num2str(k) ', \Delta logL = ' num2str(lastChange*ny*nonNaNsamples,3) ', over target = ' num2str(ny*nonNaNsamples*(l-opts.targetLogL),3) ', \tau =' num2str(-1./log(sort(eig(A1)))',3)]) %This displays logL over target, not in a per-sample per-dim way (easier to probe if logL is increasing significantly)
             %sum(rejSamples)
         else %k==1 || breakFlag
             l=bestLogL;
@@ -215,7 +197,7 @@ for k=1:opts.Niter-1
 end %for loop
 
 %%
-if opts.fastFlag==0 %Re-enable disabled warnings
+if opts.fastFlag~=0 %Re-enable disabled warnings
     warning('on','statKFfast:unstable');
     warning('on','statKFfast:NaN');
     warning('on','statKSfast:fewSamples');
@@ -231,8 +213,11 @@ if opts.logFlag
   %diary('off')
 end
 
-%% Restore scale:
-C=C.*scale;
-D=D.*scale;
-R=scale.*R.*scale';
+%If some outputs were excluded, replace the corresponding values in C,R:
+Raux=R1;
+R1=diag(inf(ny));
+R1(opts.includeOutputIdx,opts.includeOutputIdx)=Raux(opts.includeOutputIdx,opts.includeOutputIdx);
+Caux=C1;
+C1=zeros(size(C1));
+C1(opts.includeOutputIdx,:)=Caux(opts.includeOutputIdx,:);
 end  %Function

@@ -176,7 +176,7 @@ end
 
 %Compute mean log-L over samples and dimensions of the output:
 if firstInd~=1
-    warning('statKF:logLnoPrior','Filter was computed from an improper uniform prior as starting point. Ignoring first point for computation of log-likelihood.')
+    %warning('statKF:logLnoPrior',['Filter was computed from an improper uniform prior as starting point. Ignoring ' num2str(firstInd-1) ' points for computation of log-likelihood.'])
 end
 aux=logL+logLmargin;
 logL=nanmean(aux(firstInd:end))/size(Y,1); %Per-sample, per-dimension of output
