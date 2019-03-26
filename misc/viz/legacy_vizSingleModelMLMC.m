@@ -1,5 +1,10 @@
-function [fh] = vizSingleModel(singleModel,Y,U)
-
+function [fh] = legacy_vizSingleModelMLMC(singleModel,Y,U)
+if isa(singleModel,'linsys')
+    singleModel=struct(singleModel);
+end
+if ~isfield(singleModel,'J')
+    singleModel.J=singleModel.A;
+end
 M=size(singleModel.J,1);
 fh=figure('Units','Normalized','OuterPosition',[0 0 .5 1],'Color',ones(1,3));
 if nargin>1
@@ -26,8 +31,8 @@ for i=1:length(model)
     model{i}.smoothOut=Y2;
     model{i}.logLtest=dataLogLikelihood(Y,U,model{i}.J,model{i}.B,model{i}.C,model{i}.D,model{i}.Q,model{i}.R,[],[],'approx');
     if nargin>1
-        fastFlag=0;
-        [Xs,Ps,Pt,Xf,Pf,Xp,Pp,rejSamples]=statKalmanSmoother(Y,model{i}.J,model{i}.C,model{i}.Q,model{i}.R,[],[],model{i}.B,model{i}.D,U,false,fastFlag);
+        opts.fastFlag=0;
+        [Xs,Ps,Pt,Xf,Pf,Xp,Pp,rejSamples]=statKalmanSmoother(Y,model{i}.J,model{i}.C,model{i}.Q,model{i}.R,[],[],model{i}.B,model{i}.D,U,opts);
         model{i}.Xs=Xs; %Smoothed data
         model{i}.Pp=Pp; %One-step ahead uncertainty from filtered data.
         model{i}.Pf=Pf;

@@ -58,37 +58,40 @@ for kk=1:maxK
     end
 
     if kk==1
-        title('One-ahead (KF) output projected onto data PCs')
+        title({'One-ahead (KF) output';'projected onto data PCs'})
     end
     axis tight
 end
 
 %% Measures of output error:
-binw=11;
+dataVariance=sqrt(sum(size(datSet.out,2)*var(datSet.out')));
+%resDet=cellfun(@(x) norm(x.simulate(datSet.in,[],true).out-datSet.out,'fro'),model)/dataVariance;
 for ll=1:2
     for k=1:length(model)
         switch ll
             case 1 %Deterministic output RMSE
                 iC=dFit{k}.MLEstate.getSample(1); %MLE estimate of init cond
-                [simSet]=model{k}.simulate(U,iC,true);
+                %iC=[]; %Start from 0?
+                [simSet]=model{k}.simulate(U,iC,true,true);
                 res=datSet.out -simSet.out;
-                aux1=sqrt(sum((res).^2));
-                tt=('Deterministic output error (RMSE, mov. avg.)');
+                rmseTimeCourse=sum(res.^2);
+                aux1=norm(res,'fro')/dataVariance;
+                aux1=sum(sum(abs(res)));
+                tt={'Deterministic output error'; '(RMSE, mov. avg.)'};
             case 3 % MLE state output error
                 tt=('KS one-ahead output error (RMSE, mov. avg.)');
             case 2 %One ahead error
-                res=datSet.getOneAheadResiduals(dFit{k});
-                aux1=sqrt(sum((res).^2));
-                tt=('KF prediction output error (RMSE, mov. avg.)');
+                [~,modelOut]=datSet.getOneAheadResiduals(dFit{k});
+                res=modelOut-datSet.out;
+                rmseTimeCourse=sum(res.^2);
+                aux1=norm(res,'fro')/dataVariance;
+                aux1=sum(sum(abs(res)));
+                tt={'KF prediction output error';'(RMSE, mov. avg.)'};
         end
-        idx=find(~isnan(aux1));
-        aux2=aux1(idx);
-        aux2=conv(aux2,ones(1,binw)/binw,'valid');
         subplot(Nx,Ny,2+(2*ll-2)*Ny) %Time-course of residuals
         hold on
         set(gca,'ColorOrderIndex',k)
-        s1=scatter(1:length(aux1),aux1,5,'filled','MarkerEdgeColor','none','MarkerFaceAlpha',.5);
-        %p1=plot(idx((binw-1)/2+1:end-(binw-1)/2),aux2,'LineWidth',1,'LineColor',s1.MarkerFaceColor);
+        s1=scatter(1:length(rmseTimeCourse),sqrt(rmseTimeCourse),5,'filled','MarkerEdgeColor','none','MarkerFaceAlpha',.5);
         if k==1
             title(tt)
             axis tight
@@ -97,10 +100,10 @@ for ll=1:2
         end
         subplot(Nx,Ny,2+(2*ll-1)*Ny) %Bars of residuals
         hold on
-        RMSE=sqrt(mean([aux1].^2)); %Normalized Frobenius norm
+        RMSE=aux1; %Normalized Frobenius norm of residual as % of data variance
         bar2=bar(k,RMSE,'EdgeColor','none','BarWidth',1,'FaceColor',s1.MarkerFaceColor);
         text(k,.9*RMSE,[num2str(RMSE,4)],'Color','w','FontSize',6,'Rotation',270)
-        set(gca,'XTick',1:length(model))
+        set(gca,'XTick',1:length(model),'XTickLabel',cellfun(@(x) x.name,model,'UniformOutput',false))
          if k==length(model)
             axis tight
             grid on
@@ -112,6 +115,13 @@ end
 
 %% Plot STATES
 clear p
+modelOrders=cellfun(@(x) size(x.A,1),model);
+largestModel=find(modelOrders==max(modelOrders),1);
+%allTaus=cellfun(@(x) -1./log(diag(x.J)),model,'UniformOutput',false);
+allC=cellfun(@(x) x.C,model,'UniformOutput',false);
+refC=model{largestModel}.C;
+sortedTau=sortC(refC,allC);
+
 for k=1:length(model)
     taus=-1./log(sort(eig(model{k}.A)));
     [projectedX,projectedXLS]=getDataProjections(datSet,model{k});
@@ -122,8 +132,8 @@ for k=1:length(model)
     [simSet,simState]=model{k}.simulate(U,iC,true);
     Xsim=simState.state;
     Psim=simState.covar;
-    for i=1:size(model{k}.A,1)
-        subplot(Nx,Ny,Ny*(i-1)+3) %States
+    for i=1:min(size(model{k}.A,1),Nx) %Showing up to Nx states
+        subplot(Nx,Ny,Ny*(sortedTau{k}(i)-1)+3) %States
         hold on
         if i==1
             nn=[model{k}.name ', \tau=' num2str(taus(i),3)];
@@ -159,7 +169,7 @@ for k=1:length(model)
         %end
         %axis tight
         
-        subplot(Nx,Ny,Ny*(i-1)+4) %State residuals
+        subplot(Nx,Ny,Ny*(sortedTau{k}(i)-1)+4) %State residuals
         hold on
         %Smooth states
         set(gca,'ColorOrderIndex',k)

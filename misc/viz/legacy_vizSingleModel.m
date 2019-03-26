@@ -1,5 +1,11 @@
-function [fh] = vizSingleModel(singleModel,Y,U)
+function [fh] = legacy_vizSingleModel(singleModel,Y,U)
 
+if isa(singleModel,'linsys')
+    singleModel=struct(singleModel);
+end
+if ~isfield(singleModel,'J')
+    singleModel.J=singleModel.A;
+end
 M=size(singleModel.J,1);
 fh=figure('Units','Normalized','OuterPosition',[0 0 .5 1],'Color',ones(1,3));
 if nargin>1

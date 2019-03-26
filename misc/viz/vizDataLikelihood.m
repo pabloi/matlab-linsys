@@ -8,28 +8,15 @@ end
 M=max(cellfun(@(x) size(x.A,1),model(:)));
 fh=figure('Units','Normalized','OuterPosition',[.25 .4 .5 .3]);
 
-
 %LogL, BIC, AIC
 mdl=model;
 Md=length(datSet);
 for kd=1:Md %One row of subplots per dataset
     dFit=cellfun(@(x) x.fit(datSet{kd}),model,'UniformOutput',false);
     logLtest=cellfun(@(x) x.logL,dFit);
-    BIC=-cellfun(@(x) x.BIC,dFit)/2;
-    AIC=-cellfun(@(x) x.AIC,dFit)/2;
-for kj=1:2%3 %logL, BIC, aic
-    switch kj
-        case 1
-            yy=logLtest;
-            nn='logL';
-        case 2
-            yy=BIC;
-            nn='-BIC/2';
-        case 3 %Never used
-            yy=AIC;
-            nn='-AIC/2';
-    end
-    subplot(Md,2,kj+(kd-1)*2)
+    yy=logLtest;
+    nn='logL';
+    subplot(Md,1,kd)
     hold on
     Mm=length(mdl);
     DeltaIC=yy-max(yy);
@@ -39,24 +26,10 @@ for kj=1:2%3 %logL, BIC, aic
         set(gca,'ColorOrderIndex',k)
         bar2=bar([k*100],yy(k),'EdgeColor','none','BarWidth',100);
         text((k)*100,.982*(yy(k)),[num2str(yy(k),6)],'Color','w','FontSize',8,'Rotation',90)
-        if kj==1 && k>1
-          deltaDof=mdl{k}.dof-mdl{k-1}.dof;
-          %text((k)*100-50,1*(yy(k)),['dof=' num2str(deltaDof) ],'Color','k','FontSize',6)
-          text((k)*100-40,.9975*(yy(k)),['\chi^2_{' num2str(deltaDof) '}=' num2str(round(yy(k)-yy(k-1)))],'Color','w','FontSize',6)
-          pval=chi2cdf(yy(k)-yy(k-1),deltaDof,'upper');
-          if pval>1e-9
-             text((k)*100-30,.995*(yy(k)),['p=' num2str(pval,2)],'Color','w','FontSize',6)
-          else
-             text((k)*100-30,.995*(yy(k)),['p<1e-9'],'Color','w','FontSize',6)
-          end
-        elseif kj ~=1
-          text((k)*100-35,.9975*(yy(k)),[ num2str(round(100*w(k))) '%'],'Color','w','FontSize',8)
-        end
     end
     set(gca,'XTick',[1:Mm]*100,'XTickLabel',cellfun(@(x) x.name, mdl,'UniformOutput',false),'XTickLabelRotation',90)
     title([nn])
     grid on
-    %set(gca,'XTick',100*(Mm+1)*.5,'XTickLabel',nn)
     axis tight;
     aa=axis;
     axis([aa(1:2) .98*min(yy) max(yy)])
