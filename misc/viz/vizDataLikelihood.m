@@ -13,9 +13,10 @@ mdl=model;
 Md=length(datSet);
 for kd=1:Md %One row of subplots per dataset
     dFit=cellfun(@(x) x.fit(datSet{kd}),model,'UniformOutput',false);
-    logLtest=cellfun(@(x) x.logL,dFit);
+    logLtest=cellfun(@(x) x.goodnessOfFit,dFit);
     yy=logLtest;
-    nn='logL';
+    yy=yy-min(yy);
+    nn='\Delta logL';
     subplot(Md,1,kd)
     hold on
     Mm=length(mdl);
@@ -25,13 +26,13 @@ for kd=1:Md %One row of subplots per dataset
     for k=1:Mm
         set(gca,'ColorOrderIndex',k)
         bar2=bar([k*100],yy(k),'EdgeColor','none','BarWidth',100);
-        text((k)*100,.982*(yy(k)),[num2str(yy(k),6)],'Color','w','FontSize',8,'Rotation',90)
+        text((k)*100,.05*(yy(k)),[num2str(yy(k),6)],'Color','w','FontSize',8,'Rotation',90)
     end
     set(gca,'XTick',[1:Mm]*100,'XTickLabel',cellfun(@(x) x.name, mdl,'UniformOutput',false),'XTickLabelRotation',90)
     title([nn])
     grid on
     axis tight;
     aa=axis;
-    axis([aa(1:2) .98*min(yy) max(yy)])
+    axis([aa(1:2) 0 1.1*max(yy)])
 end
 end

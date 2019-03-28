@@ -6,6 +6,12 @@ model=model{5}; %4-th order model as ground truth
 initC=initCond(zeros(4,1),zeros(4));
 deterministicFlag=false;
 [simDatSet,stateE]=model.simulate(datSet.in,initC,deterministicFlag);
+%% Reduce data
+Y=datSet.out;
+U=datSet.in;
+X=Y-(Y/U)*U; %Projection over input
+s=var(X'); %Estimate of variance
+flatIdx=s<.005; %Variables are split roughly in half at this threshold
 %% Get folded data for adapt/post
 datSetAP=simDatSet.split([826]); %Split in half
 %% Get odd/even data
@@ -15,6 +21,7 @@ opts.Nreps=10; %Single rep, this works well enough for full (non-CV) data
 opts.fastFlag=0; %Should not use fast for O/E because of NaN
 opts.indB=1;
 opts.indD=[];
+opts.includeOutputIdx=find(~flatIdx); 
 warning('off','statKSfast:fewSamples') %This is needed to avoid a warning bombardment
 [fitMdl,outlog]=linsys.id([datSetOE; datSetAP],1:6,opts);
 
@@ -25,7 +32,7 @@ outlogAP=outlog(:,3:4);
 outlogOE=outlog(:,1:2);
 
 %%
-save CVmodelOrderTestS10Reps.mat fitMdlAP fitMdlOE outlogOE outlogAP simDatSet datSetAP datSetOE model stateE
+save CVmodelOrderTestS10RepsRed.mat fitMdlAP fitMdlOE outlogOE outlogAP simDatSet datSetAP datSetOE model stateE
 
 %% Step 5: use fitted models to evaluate log-L and goodness of fit
 %Odd-trained on even data
@@ -35,21 +42,16 @@ f2=vizDataLikelihood(fitMdlAP(:,2),datSetAP);
 ph1=findobj(gcf,'Type','Axes');
 
 fh=figure;
-ah=copyobj(ph([2,3]),fh);
+ah=copyobj(ph([1]),fh);
 ah(1).Title.String={'Adapt-model';'Cross-validation'};
-ah(1).YAxis.Label.String={'Post-data'; 'log-L'};
-ah(2).Title.String={'Adapt-model';'-BIC/2'};
-ah(2).XTickLabel={'1','2','3','4','5','6'};
+ah(1).YAxis.Label.String={'Post-data'; '\Delta log-L'};
 ah(1).XTickLabel={'1','2','3','4','5','6'};
-ah1=copyobj(ph1([1,4]),fh);
-ah1(2).Title.String={'Post-model';'Cross-validation'};
-ah1(2).YAxis.Label.String={'Adapt-data';'log-L'};
-ah1(2).XAxis.Label.String={'Model Order'};
-ah1(2).XTickLabel={'1','2','3','4','5','6'};
+ah1=copyobj(ph1([2]),fh);
+ah1(1).Title.String={'Post-model';'Cross-validation'};
 ah1(1).XAxis.Label.String={'Model Order'};
 ah1(1).XTickLabel={'1','2','3','4','5','6'};
-ah1(1).Title.String={'Post-model';'-BIC/2'};
-set(gcf,'Name','Adapt/Post cross-validation');
+ah1(1).YAxis.Label.String={'Adapt-data'; '\Delta log-L'};
+set(gcf,'Name','Adapt/post cross-validation');
 %close(f1)
 %close(f2)
 
@@ -60,19 +62,14 @@ f2=vizDataLikelihood(fitMdlOE(:,2),datSetOE);
 ph1=findobj(gcf,'Type','Axes');
 
 fh=figure;
-ah=copyobj(ph([2,3]),fh);
+ah=copyobj(ph([1]),fh);
 ah(1).Title.String={'Odd-model';'Cross-validation'};
-ah(1).YAxis.Label.String={'Even-data'; 'log-L'};
-ah(2).Title.String={'Odd-model';'-BIC/2'};
-ah(2).XTickLabel={'1','2','3','4','5','6'};
+ah(1).YAxis.Label.String={'Even-data'; '\Delta log-L'};
 ah(1).XTickLabel={'1','2','3','4','5','6'};
-ah1=copyobj(ph1([1,4]),fh);
-ah1(2).Title.String={'Even-model';'Cross-validation'};
-ah1(2).YAxis.Label.String={'Odd-data';'log-L'};
-ah1(2).XAxis.Label.String={'Model Order'};
-ah1(2).XTickLabel={'1','2','3','4','5','6'};
+ah1=copyobj(ph1([2]),fh);
+ah1(1).Title.String={'Even-model';'Cross-validation'};
 ah1(1).XAxis.Label.String={'Model Order'};
 ah1(1).XTickLabel={'1','2','3','4','5','6'};
-ah1(1).Title.String={'Even-model';'-BIC/2'};
+ah1(1).YAxis.Label.String={'Odd-data'; '\Delta log-L'};
 set(gcf,'Name','Odd/even cross-validation');
 
