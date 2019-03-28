@@ -194,7 +194,7 @@ function [x0,P0]=estimateInit(X,P,A,Q)
   %A variant to not make it monotonically decreasing:
   aux=mycholcov(P0);
   Aa=A*aux';
-  P0=Q+Aa*Aa';
+  P0=Q+Aa*Aa'; %This is a lower bound on the steady-state prior covariance
   %P0=Q;
 end
 

@@ -73,6 +73,28 @@ prevX=x0; prevP=P0; Xp(:,1)=x0; Pp(:,:,1)=P0;
 %Re-define observations to account for input effect:
 Y_D=Y-D*U; BU=B*U;
 
+%Check if any output dimensions have 0 or Infinite variances:
+infVar=isinf(diag(R)); 
+if any(infVar) %Any infinite variance is equivalent to ignoring the corresponding variables: it does not matter for the filtering itself.
+    %However, it will lead to -Inf log-likelihood (adds a -Inf offset associated with each infinite eigenvalue of R). 
+    %Thus, I remove the relevant components to get a non-infinite log-likelihood.
+    warning('statKF:infObsVar','Provided model has infinite variance for some observation components. Ignoring those components for log-likelihood calculation purposes.');
+    Y_D=Y_D(~infVar,:);
+    R=R(~infVar,~infVar);
+    %D=D(~infVar,:);
+    C=C(~infVar,:);
+end
+[~,dR]=ldl(R);
+zeroVar=(diag(dR)==0); 
+if any(zeroVar) %0 variance is very problematic: it means that the output equation is at least partially deterministic, which doesn't bode well with the stochastic framework
+    error('statKF:zeroObsVar','Provided model has 0 observation variance for some dimensions, this is incompatible with the Kalman framework (and unlikely in reality!). If uncertainties are truly 0, try reducing the model by separating the deterministic and stochastic components');
+    %To do: offer a function to decouple deterministic and stochastic
+    %observation dimensions, and run appropriate state estimation
+    %algorithms on each of the components (where naturally the stochastic
+    %part will be equivalent to the kalman filter projected onto the states
+    %known exactly from the deterministic part)
+end
+
 %Define constants for sample rejection:
 logL=nan(1,N); %Row vector
 rejThreshold=0;

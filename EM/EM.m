@@ -139,10 +139,9 @@ for k=1:opts.Niter-1
     %Check for warning conditions:
     if ~improvement %This should never happen
         %Drops in logL may happen when using fast filtering in
-        %conjunction with the presence of NaN samples. In that case, there
-        %is no steady-state for the Kalman filter/smoother, and thus
+        %conjunction with the presence of NaN samples, or with a fixed sample size. In that case, there
+        %is no guarantee that the steady-state for the Kalman filter/smoother exists and is reached, and thus
         %filtering is approximate/not-optimal.
-         %Drops of 1e-9 to 1e-8 happen even without NaN samples, specially if number of samples is not too large and model order is. This may be a numerical issue.
         if abs(delta)>1e-7
           %Report only if drops are larger than this. This value probably is sample-size dependent, so may need adjusting.
           warning('EM:logLdrop',['logL decreased at iteration ' num2str(k) ', drop = ' num2str(delta)])
@@ -154,7 +153,7 @@ for k=1:opts.Niter-1
         msg='Complex logL, probably ill-conditioned matrices involved. Stopping.';
         breakFlag=true;
     elseif l>=bestLogL %There was improvement
-        %If everything went well and these parameters are the best ever:
+        %If everything went well and these parameters are the best ebestLL1=dataLogLikelihood();ver:
         %replace parameters  (notice the algorithm may continue even if
         %the logl dropped, but in that case we do not save the parameters)
         A=A1; B=B1; C=C1; D=D1; Q=Q1; R=R1; x0=x01; P0=P01; X=X1; P=P1; Pt=Pt1;
@@ -203,6 +202,9 @@ if opts.fastFlag~=0 %Re-enable disabled warnings
     warning('on','statKSfast:fewSamples');
     warning('on','statKSfast:unstable');
     warning('on','EM:logLdrop')
+%Comput optimal states and logL without the fastFlag
+  opts.fastFlag=0;
+    [X1,P1,Pt1,~,~,~,~,~,bestLogL]=statKalmanSmoother(Yred,A1,Cred,Q1,Rred,x01,P01,B1,Dred,U,opts);
 end
 if opts.logFlag
   outLog.vaps(k,:)=sort(eig(A1));
@@ -212,6 +214,7 @@ if opts.logFlag
   outLog.bestLogL=bestLogL;
   %diary('off')
 end
+
 
 %If some outputs were excluded, replace the corresponding values in C,R:
 Raux=R1;

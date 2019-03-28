@@ -6,14 +6,17 @@ fprintf(['\n Starting rep 0 (fast one)... \n']);
 if isa(U,'cell')
   Nu=size(U{1},1);
   ny=size(Y{1},1);
+  Nsamp=max(cellfun(@(x) size(x,2),Y));
 else
   Nu=size(U,1);
   ny=size(Y,1);
+  Nsamp=size(Y,2);
 end
 opts=processEMopts(opts,Nu,nd,ny);
 outLog=struct();
 opt1=opts;
-opt1.fastFlag=true; %Enforcing fast filtering
+opt1.fastFlag=50; %Enforcing fast filtering
+%opt1.fixP0=diag(Inf(nd,1));
 opt1.Niter=min([opt1.Niter,500]); %Very fast evaluation of initial case, just to get a benchmark.
 warning('off','EM:logLdrop') %If samples are NaN, fast filtering may make the log-L drop (smoothing is not exact, so the expectation step is not exact)
 warning('off','EM:fastAndLoose')%Disabling the warning that NaN and fast may be happening
@@ -26,7 +29,13 @@ if opts.logFlag
     tic;
 end
 opts.targetLogL=bestLL;
+opt2=opts;
+%if opt2.fastFlag~=0
+%  opt2.convergenceTol=opt2.convergenceTol/10; %In fast mode it seems more likely to find flat-ish regions, and since things go faster, there is little damage doing this.
+%end
+%opt2.fixP0=diag(Inf(nd,1));
 lastSuccess=0;
+warning('off','statKF:logLnoPrior'); %Enforcing improper prior for parameter search
 for i=1:opts.Nreps
     fprintf(['\n Starting rep ' num2str(i) '. Best logL so far=' num2str(bestLL,8) ' (iter=' num2str(lastSuccess) ') \n']);
 
@@ -34,30 +43,54 @@ for i=1:opts.Nreps
     Xguess=guess(nd,Y,U,opts);
 
     %Optimize:
-    [Ai,Bi,Ci,Di,Qi,Ri,Xi,Pi,logl,repLog]=EM(Y,U,Xguess,opts);
+    [Ai,Bi,Ci,Di,Qi,Ri,Xi,Pi,logl,repLog]=EM(Y,U,Xguess,opt2);
 
     %If solution improved, save and display:
-      if logl>bestLL
-          A=Ai; B=Bi; C=Ci; D=Di; Q=Qi; R=Ri; X=Xi; P=Pi;
-          bestLL=logl;            opts.targetLogL=bestLL;
-          lastSuccess=i;
-          disp('--')
-          disp('--')
-          disp(['Success, best logL=' num2str(bestLL,8) '(iter=' num2str(lastSuccess) ')'])
-          disp('--')
-          disp('--')
-      end
-      if opts.logFlag
-          outLog.repLog{i}=repLog;  outLog.repRunTime(i)=toc;   tic;
-      end
+    if logl>bestLL
+        A=Ai; B=Bi; C=Ci; D=Di; Q=Qi; R=Ri; X=Xi; P=Pi;
+        bestLL=logl;            opt2.targetLogL=bestLL;
+        lastSuccess=i;
+        disp(['----Success, best logL=' num2str(bestLL,8) '(iter=' num2str(lastSuccess) ')----'])
+    end
+    if opts.logFlag
+        outLog.repLog{i}=repLog;  outLog.repRunTime(i)=toc;   tic;
+    end
+end
+warning('on','statKF:logLnoPrior');
+%Before refinement pre-processing: this gets some models unstuck from a close-to-minimum region when there are close to unstable systems
+[A,B,C,X,V,Q,P] = canonize(A,B,C,X,Q,P); %Canonize
+unstable=diag(A)>(1-1/Nsamp); %Unstable or close to unstable system
+if any(unstable)
+  idx=find(unstable);
+  for i=1:length(idx)
+    A(idx,idx)=(1-1/Nsamp);
+  end
+  [X,P,Pt1,~,~,~,~,~,~]=statKalmanSmoother(Y,A,C,Q,R,X(:,1),A*P(:,:,1)*A'+Q,B,D,U,opt2);
+  [Ai,Bi,Ci,Di,Qi,Ri,Xi,Pi,bestLL1,refineLog]=EM(Y,U,X,opt2,P); %Try a new model guess with the stabilized A
+  if bestLL1>bestLL
+    A=Ai; B=Bi; C=Ci; D=Di; Q=Qi; R=Ri; X=Xi; P=Pi; bestLL=bestLL1;
+  end
 end
 
-disp(['Refining solution... Best logL so far=' num2str(bestLL,8) '(iter=' num2str(lastSuccess) ')']);
-opts.Niter=2e4;
-opts.convergenceTol=5e-4; %This is in logL per output dimension every 1e2 iterations (see EM). Implies that in 1e4 iterations the logL will increase 5e-2 at least. For high dimensional output with a single state, this is a sensible choice as it limits iterations when is too slow with respect to Wilk's logL overfit limiting theorem. For mulitple states we are being conservative (more free parameters means that logL should increase even more to be signficant).
-opts.targetTol=0;
-opts.fastFlag=false; %Patience
-[Ai,Bi,Ci,Di,Qi,Ri,Xi,Pi,bestLL1,refineLog]=EM(Y,U,X,opts,P); %Refine solution, sometimes works
+disp(['Refining solution... (fast) Best logL so far=' num2str(bestLL,8) '(iter=' num2str(lastSuccess) ')']);
+opts.Niter=opts.refineMaxIter; %This will go fast, can afford to have many iterations, it will rarely reach the limit.
+opts.convergenceTol=opts.refineTol/1e4; %This is mostly to prevent the algorithm from stopping at a flat-ish region
+opts.targetTol=1e-4;
+opts.fastFlag=50;
+opts.targetLogL=bestLL;
+[Ai,Bi,Ci,Di,Qi,Ri,Xi,Pi,bestLL1,refineLog]=EM(Y,U,X,opts,P);
+if bestLL1>bestLL
+    A=Ai; B=Bi; C=Ci; D=Di; Q=Qi; R=Ri; X=Xi; P=Pi; bestLL=bestLL1;
+  else
+    error('Refining did not work (?)')
+end
+
+disp(['Refining solution... (patient mode) Best logL so far=' num2str(bestLL,8)]);
+opts.fastFlag=0;
+opts.Niter=opts.refineMaxIter;
+opts.convergenceTol=opts.refineTol;
+opts.targetLogL=bestLL;
+[Ai,Bi,Ci,Di,Qi,Ri,Xi,Pi,bestLL1,refineLog2]=EM(Y,U,X,opts,P); %Refine solution, should work always
 if bestLL1>bestLL
     A=Ai; B=Bi; C=Ci; D=Di; Q=Qi; R=Ri; X=Xi; P=Pi; bestLL=bestLL1;
 end
@@ -65,6 +98,7 @@ end
 disp(['End. Best logL=' num2str(bestLL,8)]);
 if opts.logFlag
     outLog.repfineLog=refineLog;
+    outLog.repfineLog2=refineLog2;
     outLog.refineRunTime=toc;
 end
 end
@@ -79,7 +113,7 @@ function Xguess=guess(nd,Y,U,opts)
     end
     [ny,N]=size(y);
     if isempty(opts.fixA)
-      A1=diag(exp(-1./exp(log(N)*rand(nd,1)))); %WLOG, diagonal matrix with log-uniformly spaced time-constants in the [1,N] interval
+      A1=diag(exp(-1./exp(log(N/2)*rand(nd,1)))); %WLOG, diagonal matrix with log-uniformly spaced time-constants in the [1,N/2] interval
         %I think the sign above is unnecessary
     else
       A1=opts.fixA;

@@ -9,15 +9,15 @@ properties
   method='';
   dataSetHash=''; %Just the hash, to avoid storing all the data
   trainingLog=[]; %Log of training
-  dataSetInput %This is stored to compute the fitted output values
+  %dataSetInput %This is stored to compute the fitted output values
   dataSetNonNaNSamples
 end
 properties (Dependent)
   BIC
   AIC
   AICc
-  fittedOutput
-  fittedResiduals
+  %fittedOutput
+  %fittedResiduals
 end
 methods
   function this=fittedLinsys(A,C,R,B,D,Q,iC,dataSet,methodName,opts,gof,outlog)
@@ -30,7 +30,7 @@ methods
       end
       if nargin>7
       this.dataSetHash=dataSet.hash;
-      this.dataSetInput=dataSet.in;
+      %this.dataSetInput=dataSet.in;
       this.dataSetNonNaNSamples=dataSet.nonNaNSamp;
       end
       if nargin>10

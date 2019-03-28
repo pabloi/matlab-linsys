@@ -57,7 +57,7 @@ classdef linsys
             if nargin<3
                 initC=[];
             end
-            dfit=dataFit(this,datSet,initC);
+            dfit=dataFit(this,datSet,[],initC);
         end
         function [filteredState,oneAheadState,rejSamples,logL] = Kfilter(this,datSet,initC,opts)
             if nargin<4
@@ -218,6 +218,8 @@ classdef linsys
             %D has to be length(padIdx) x this.Ninput
             %R has to be length(padIdx) x 1 (vector representing diagonal entries only)
             %Check: padIdx is an integer vector (not boolean), without repeats
+            %To do: add a method to populate C,D,R with appropriate (MLE?)
+            %values. This requires a datSet for state estimation and fitting.
             if islogical(padIdx) %Transform boolean to index list
                 padIdx=find(padIdx);
             end

@@ -27,6 +27,16 @@ defaultOpts.fixX0=[];
 defaultOpts.fixP0=[];
 defaultOpts.includeOutputIdx=1:ny; %Include all
 
+%Options for randomStartEM's final refinement stage (iterated EM)
+defaultOpts.refineTol=1e-4; %Very picky, increase in logL every 1e2 iterations
+%Implies that in 1e4 iterations the logL will increase 1e-2 at least.
+%For high dimensional output with a single state, this is a sensible, if conservative, choice
+%as it limits iterations when is too slow with respect to Wilk's logL overfit
+%limiting theorem. For mulitple states we are being conservative
+%(more free parameters means that logL should increase even more to be signficant).
+defaultOpts.refineMaxIter=2e4;
+defaultOpts.refineFastFlag=false; %Patient mode
+
 %Assign any options that were not provided with default values:
 fNames=fieldnames(defaultOpts);
 for i=1:length(fNames)
