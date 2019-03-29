@@ -41,6 +41,7 @@ if opts.fastFlag~=0 && ( (~isa(Y,'cell') && any(isnan(Y(:)))) || (isa(Y,'cell') 
   %opts.fastFlag=0; %No fast-filtering in nan-filled data
 elseif opts.fastFlag~=0 && opts.fastFlag~=1
     warning('EM:fastFewSamples','Requested an exact number of samples for fast filtering. This is guaranteed to be equivalent to fast filtering only if the slowest time-constant of the system is much smaller than the requested number of samples, otherwise this is an appoximation.')
+    warning('off','statKSfast:fewSamples')
 end
 if opts.logFlag
   %diary(num2str(round(now*1e5)))
@@ -85,6 +86,7 @@ improvement=true;
 %initialLogLgap=opts.targetLogL-bestLogL;
 nonNaNsamples=sum(~any(isnan(Y),1));
 disp(['Iter = 1, target logL = ' num2str(opts.targetLogL,8) ', current logL=' num2str(bestLogL,8) ', \tau =' num2str(-1./log(sort(eig(A)))')])
+dropCount=0;
 for k=1:opts.Niter-1
 	%E-step: compute the distribution of latent variables given current parameter estimates
 	%M-step: find parameters A,B,C,D,Q,R that maximize likelihood of data
@@ -143,9 +145,13 @@ for k=1:opts.Niter-1
         %conjunction with the presence of NaN samples, or with a fixed sample size. In that case, there
         %is no guarantee that the steady-state for the Kalman filter/smoother exists and is reached, and thus
         %filtering is approximate/not-optimal.
-        if abs(delta)>1e-7
-          %Report only if drops are larger than this. This value probably is sample-size dependent, so may need adjusting.
+        %They may also happen when enforcing stable filtering (we are not really following EM then).
+        %Finally, it may happen because of numerical issues: for example,
+        %having a singular or close to singular, or ill-conditioned matrix R.
+        if abs(delta)>1e-2
+          %Report only if drops are larger than this. Arbitrary threshold.
           warning('EM:logLdrop',['logL decreased at iteration ' num2str(k) ', drop = ' num2str(delta)])
+          dropCount=dropCount+1;
         end
     end
 
@@ -165,11 +171,15 @@ for k=1:opts.Niter-1
     if k>100 && (belowTarget && (targetRelImprovement100)<opts.targetTol) && ~opts.robustFlag%Breaking if improvement less than tol of distance to targetLogL
        msg='Unlikely to reach target value. Stopping.';
        breakFlag=true;
-    elseif k>100 && (relImprovementLast100*nonNaNsamples)<opts.convergenceTol && ~opts.robustFlag %Considering the system stalled if relative improvement on logl is <tol
+    elseif k>100 && (relImprovementLast100/nny)<opts.convergenceTol && ~opts.robustFlag
+        %Considering the system stalled if improvement on logl per dimension of output is <tol
         msg='Increase is within tolerance (local max). Stopping.';
         breakFlag=true;
     elseif k==opts.Niter-1
         msg='Max number of iterations reached. Stopping.';
+        breakFlag=true;
+    elseif dropCount>10 %More than 10 drops in 100
+        msg='log-L dropped 10 times. Possibly ill-conditioned solution. Stopping.';
         breakFlag=true;
     end
 
@@ -188,6 +198,7 @@ for k=1:opts.Niter-1
             disp(['Iter = ' num2str(k) ', logL = ' num2str(l,8) ', % over target = ' num2str(pOverTarget) ', \tau =' num2str(-1./log(sort(eig(A)))')])
             if breakFlag; fprintf([msg ' \n']); end
         end
+        dropCount=0;
     end
     if breakFlag && ~opts.robustFlag
         break
@@ -203,6 +214,7 @@ if opts.fastFlag~=0 %Re-enable disabled warnings
     warning('on','statKSfast:fewSamples');
     warning('on','statKSfast:unstable');
     warning('on','EM:logLdrop')
+    warning('on','statKSfast:fewSamples')
 %Comput optimal states and logL without the fastFlag
   opts.fastFlag=0;
     [X1,P1,Pt1,~,~,~,~,~,bestLogL]=statKalmanSmoother(Yred,A1,Cred,Q1,Rred,x01,P01,B1,Dred,U,opts);

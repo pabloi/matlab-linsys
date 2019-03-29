@@ -61,7 +61,7 @@ warning('on','statKF:logLnoPrior');
 if opts.fastFlag~=0 %Fast allowed
   disp(['Refining solution... (fast) Best logL so far=' num2str(bestLL,8) '(iter=' num2str(lastSuccess) ')']);
   opts.Niter=opts.refineMaxIter; %This will go fast, can afford to have many iterations, it will rarely reach the limit.
-  opts.convergenceTol=opts.refineTol/1e4; %This is mostly to prevent the algorithm from stopping at a flat-ish region
+  opts.convergenceTol=opts.refineTol/1e2; %This is mostly to prevent the algorithm from stopping at a flat-ish region
   opts.targetTol=1e-4;
   opts.fastFlag=50;
   opts.targetLogL=bestLL;
@@ -142,8 +142,10 @@ function Xguess=guess(nd,Y,U,opts)
       R1=opts.fixR;
     end
     warning('off','statKF:logLnoPrior') %Using uninformative prior
+    warning('off','statKSfast:fewSamples') %If using fast mode, it doesnt matter here
     [Xguess]=statKalmanSmoother(y,A1,C1,Q1,R1,x0,P0,B1,D1,u,opts);
     warning('on','statKF:logLnoPrior')
+    warning('on','statKSfast:fewSamples')
     %Alternative: [Xguess]=statInfoSmoother2(y,A1,C1,Q1,R1,[],[],B1,D1,u,opts);
     Xguess=medfilt1(Xguess,9,[],2); %Some smoothing to avoid starting with very ugly estimates
     if isa(U,'cell')

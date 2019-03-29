@@ -88,6 +88,10 @@ if opts.stableA && isempty(opts.fixA)
     J(idx,idx)=th;
     A=V*J/V;
   end
+  %Re-estimate B given this new A:
+  if isempty(opts.fixB)
+    B(:,opts.indB)=(xu1-A*xu_)/uu_;
+  end
 end
 
 %Estimate C,D:
@@ -110,7 +114,6 @@ else
   C=opts.fixC;
   D=opts.fixD;
 end
-
 
 if isempty(U)
     B=ones(D1,Nu); %Setting zeros here makes some canonical (e.g. canonizev2) forms ill-defined
@@ -180,7 +183,7 @@ if isempty(opts.fixR)
       nR=size(R,1);
       R=eye(nR)*trace(R)/nR;
   end
-  R=R+1e-9*eye(size(R)); %Avoid numerical issues from PSD, but not PD, matrices
+  R=R+1e-9*eye(size(R)); %Avoid numerical issues from PSD, but not PD, ill-conditioned matrices
 else
   R=opts.fixR;
 end
