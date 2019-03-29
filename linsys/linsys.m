@@ -98,14 +98,11 @@ classdef linsys
                 unusedSamp=0;
                 if nargin<3 || isempty(initC)
                     initC=initCond(zeros(this.order,0)); %Improper prior: can be problematic
-                    %initC=initCond(zeros(this.order,1),1e5*eye(this.order)); %Improper-ish prior
-                    unusedSamp=1;
                 end
                 [X,P,Pt,Xf,Pf,Xp,Pp,rejSamples,logL]=statKalmanSmoother(datSet.out,this.A,this.C,this.Q,this.R,initC.state,initC.covar,this.B,this.D,datSet.in,opts);
                 smoothState=stateEstimate(X,P,Pt);
                 filteredState=stateEstimate(Xf,Pf);
                 oneAheadState=stateEstimate(Xp,Pp);
-                logL=logL*(datSet.nonNaNSamp-unusedSamp)*datSet.Noutput; %logL from Ksmooth is given on a per-sample per-dim basis; Less samples may be used if the prior was improper
             end
         end
         function stateE=predict(this,stateE,in)
@@ -182,7 +179,7 @@ classdef linsys
                 initC=initCond([],[]);
             end
             l=dataLogLikelihood(datSet.out,datSet.in,this.A,this.B,this.C,this.D,this.Q,this.R,initC.state,initC.covar,'exact');
-            l=l*datSet.nonNaNSamp*size(datSet.out,1);
+            l=l;
         end
         function ord=get.order(this)
             ord=size(this.A,1);
@@ -309,18 +306,18 @@ classdef linsys
                     ny=sum(opts.includeOutputIdx);
                 end
                 if order==0
-                    [J,B,C,D,Q,R,logLperSamplePerDim]=getFlatModel(datSet.out,datSet.in,opts);
-                    this=fittedLinsys(J,C,R,B,D,Q,initCond([],[]),datSet,'EM',opts,logLperSamplePerDim*datSet.nonNaNSamp*ny,[]);
+                    [J,B,C,D,Q,R,logL]=getFlatModel(datSet.out,datSet.in,opts);
+                    this=fittedLinsys(J,C,R,B,D,Q,initCond([],[]),datSet,'EM',opts,logL,[]);
                     this.name='Flat';
                     outlog=[];
                     if isfield(opts,'fixR') && ~isempty(opts.fixR)
                       this.R=opts.fixR;
                     end
                 elseif order>0
-                    [A,B,C,D,Q,R,X,P,logLperSamplePerDim,outlog]=randomStartEM(datSet.out,datSet.in,order,opts);
+                    [A,B,C,D,Q,R,X,P,logL,outlog]=randomStartEM(datSet.out,datSet.in,order,opts);
                     iC=initCond(X(:,1),P(:,:,1)); %MLE init condition
                     %this=linsys(A,C,R,B,D,Q,trainInfo(datSet.hash,'repeatedEM',opts));
-                    this=fittedLinsys(A,C,R,B,D,Q,iC,datSet,'repeatedEM',opts,logLperSamplePerDim*datSet.nonNaNSamp*ny,outlog);
+                    this=fittedLinsys(A,C,R,B,D,Q,iC,datSet,'repeatedEM',opts,logL,outlog);
                     this.name=['rEM ' num2str(order)];
                 else
                     error('Order must be a non-negative integer.')

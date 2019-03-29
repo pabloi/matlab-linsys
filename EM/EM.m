@@ -180,7 +180,7 @@ for k=1:opts.Niter-1
         if k>=step && ~breakFlag
             lastChange=l-logl(k+1-step,1);
             %disp(['Iter = ' num2str(k)  ', logL = ' num2str(l,8) ', \Delta logL = ' num2str(lastChange,3) ', % over target = ' num2str(pOverTarget,3) ', \tau =' num2str(-1./log(sort(eig(A1)))',3)])
-            disp(['Iter = ' num2str(k) ', \Delta logL = ' num2str(lastChange*nny*nonNaNsamples,3) ', over target = ' num2str(nny*nonNaNsamples*(l-opts.targetLogL),3) ', \tau =' num2str(-1./log(sort(eig(A1)))',3)]) %This displays logL over target, not in a per-sample per-dim way (easier to probe if logL is increasing significantly)
+            disp(['Iter = ' num2str(k) ', \Delta logL = ' num2str(lastChange,3) ', over target = ' num2str((l-opts.targetLogL),3) ', \tau =' num2str(-1./log(sort(eig(A1)))',3)]) %This displays logL over target, not in a per-sample per-dim way (easier to probe if logL is increasing significantly)
             %sum(rejSamples)
         else %k==1 || breakFlag
             l=bestLogL;

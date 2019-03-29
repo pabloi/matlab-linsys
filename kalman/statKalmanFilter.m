@@ -74,9 +74,9 @@ prevX=x0; prevP=P0; Xp(:,1)=x0; Pp(:,:,1)=P0;
 Y_D=Y-D*U; BU=B*U;
 
 %Check if any output dimensions have 0 or Infinite variances:
-infVar=isinf(diag(R)); 
+infVar=isinf(diag(R));
 if any(infVar) %Any infinite variance is equivalent to ignoring the corresponding variables: it does not matter for the filtering itself.
-    %However, it will lead to -Inf log-likelihood (adds a -Inf offset associated with each infinite eigenvalue of R). 
+    %However, it will lead to -Inf log-likelihood (adds a -Inf offset associated with each infinite eigenvalue of R).
     %Thus, I remove the relevant components to get a non-infinite log-likelihood.
     warning('statKF:infObsVar','Provided model has infinite variance for some observation components. Ignoring those components for log-likelihood calculation purposes.');
     Y_D=Y_D(~infVar,:);
@@ -85,7 +85,7 @@ if any(infVar) %Any infinite variance is equivalent to ignoring the correspondin
     C=C(~infVar,:);
 end
 [~,dR]=ldl(R);
-zeroVar=(diag(dR)==0); 
+zeroVar=(diag(dR)==0);
 if any(zeroVar) %0 variance is very problematic: it means that the output equation is at least partially deterministic, which doesn't bode well with the stochastic framework
     error('statKF:zeroObsVar','Provided model has 0 observation variance for some dimensions, this is incompatible with the Kalman framework (and unlikely in reality!). If uncertainties are truly 0, try reducing the model by separating the deterministic and stochastic components');
     %To do: offer a function to decouple deterministic and stochastic
@@ -112,7 +112,7 @@ end
 
 %For the first steps do an information update if P0 contains infinite elements
 firstInd=1;
-infVariances=isinf(diag(prevP)); 
+infVariances=isinf(diag(prevP));
 if any(infVariances) %At least one initial variance was infinite
     %Run info filter until D1 non-nan samples have been processed: this is enough to resolve all uncertainties down from infinity if the system is observable
     %Strictly speaking, we should only need to process N = G - D2 + 1 ;
@@ -123,7 +123,7 @@ if any(infVariances) %At least one initial variance was infinite
     %observable part.
     Nsamp=find(cumsum(~any(isnan(Y_D),1))>=D1,1,'first');
     [ii,I,ip,Ip]=statInfoFilter2(Y_D(:,1:Nsamp),A,C,Q,R,prevX,prevP,B,zeros(D2,size(U,1)),U(:,1:Nsamp),opts);
-    for kk=1:Nsamp    
+    for kk=1:Nsamp
         logL(kk)=-Inf; %Warning: if variance was inifinte, then logL(firstInd)=-Inf!
         %Transform results from information to state estimates:
         [X(:,kk),P(:,:,kk)]=info2state(ii(:,kk),I(:,:,kk));
@@ -201,5 +201,6 @@ if firstInd~=1
     %warning('statKF:logLnoPrior',['Filter was computed from an improper uniform prior as starting point. Ignoring ' num2str(firstInd-1) ' points for computation of log-likelihood.'])
 end
 aux=logL+logLmargin;
-logL=nanmean(aux(firstInd:end))/size(Y,1); %Per-sample, per-dimension of output
+logL=nansum(aux(firstInd:end)); %Full log-L
+%logL=nanmean(aux(firstInd:end))/size(Y,1); %Per-sample, per-dimension of output PROVIDED (not necessarily used)
 end
