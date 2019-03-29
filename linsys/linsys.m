@@ -77,7 +77,7 @@ classdef linsys
                 if nargin<3 || isempty(initC)
                     initC=initCond([],[]);
                 end
-                [X,P,Xp,Pp,rejSamples,logL]=statKalmanFilter(datSet.out,this.A,this.C,this.Q,this.R,initC.x,initC.P,this.B,this.D,datSet.in,opts);
+                [X,P,Xp,Pp,rejSamples,logL]=statKalmanFilter(datSet.out,this.A,this.C,this.Q,this.R,initC.state,initC.covar,this.B,this.D,datSet.in,opts);
                 filteredState=stateEstimate(X,P);
                 oneAheadState=stateEstimate(Xp,Pp);
                 logL=logL*numel(datSet.out);%logL from Ksmooth is given on a per-sample per-dim basis;

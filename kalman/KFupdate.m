@@ -32,6 +32,12 @@ if rejectZ2threshold>0 && z2>rejectZ2threshold %Reject sample, no update
     newP=P;
 else
     newX=x+PCiL*iLy; %P*C'*inv(S) = K
-    newP = P - PCiL*PCiL'; %=(I-PCiL*CiL')*P*(I-PCil*CiL')' + K*R*K'; %For ensuring PSD-ness, would require chol(R) [precomputable] and chol(P)
+    %newP = P - PCiL*PCiL'; %This is fine if no ill-conditioned matrices
+    %are ever present, such that PCiL*PCiL' has a larger
+    %diagonal than P because of numerical issues.
+    K=(PCiL*iL');
+    I=eye(size(P));
+    H=(I-PCiL*CiL');
+    newP = H*P*H' + K*R*K'; %For ensuring PSD-ness, would require chol(R) [precomputable] and chol(P)
 end
 end

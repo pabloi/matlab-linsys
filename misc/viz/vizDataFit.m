@@ -65,7 +65,7 @@ for kk=1:maxK
 end
 
 %% Measures of output error:
-dataVariance=sqrt(sum(size(datSet.out,2)*var(datSet.out')));
+dataVariance=norm(datSet.out,'fro');
 %resDet=cellfun(@(x) norm(x.simulate(datSet.in,[],true).out-datSet.out,'fro'),model)/dataVariance;
 for ll=1:2
     for k=1:length(model)
@@ -77,7 +77,7 @@ for ll=1:2
                 res=datSet.out -simSet.out;
                 rmseTimeCourse=sum(res.^2);
                 aux1=norm(res,'fro')/dataVariance;
-                aux1=sum(sum(abs(res)));
+                %aux1=sum(sum(abs(res)));
                 tt={'Deterministic output error'; '(RMSE, mov. avg.)'};
             case 3 % MLE state output error
                 tt=('KS one-ahead output error (RMSE, mov. avg.)');
@@ -86,7 +86,7 @@ for ll=1:2
                 res=modelOut-datSet.out;
                 rmseTimeCourse=sum(res.^2);
                 aux1=norm(res,'fro')/dataVariance;
-                aux1=sum(sum(abs(res)));
+                %aux1=sum(sum(abs(res)));
                 tt={'KF prediction output error';'(RMSE, mov. avg.)'};
         end
         subplot(Nx,Ny,2+(2*ll-2)*Ny) %Time-course of residuals
@@ -126,7 +126,7 @@ sortedTau=sortC(refC,allC);
 for k=1:length(model)
     taus=-1./log(sort(eig(model{k}.A)));
     [projectedX,projectedXLS]=getDataProjections(datSet,model{k});
-   Xs=dSmooth{k}.stateEstim.state;
+    Xs=dSmooth{k}.stateEstim.state;
     %dXs=Xs(:,2:end)-model{k}.A*Xs(:,1:end-1)-model{k}.B*U(:,1:end-1);
     Ps=dSmooth{k}.stateEstim.covar;
     iC=dSmooth{k}.stateEstim.getSample(1); %MLE estimate of init cond
@@ -193,7 +193,7 @@ end
 subplot(Nx,Ny,Ny*(M)+4)
 hold on
 for k=1:length(model)
-    stError=dFit{k}.MLEstate.state-dFit{k}.oneAheadMLE.state(:,1:end-1);
+    stError=dSmooth{k}.stateEstim.state-dFit{k}.stateEstim.state(:,1:end-1);
     [~,z2]=logLnormal(stError,model{k}.Q); %This should be the innovation z2 score, but that would require to also consider the prior uncertainty, which requires a for-loop here. 
     p1=plot(aux1,'LineWidth',1);
     bar2=bar([yoff + k*100],nanmean([aux1]),'EdgeColor','none','BarWidth',100,'FaceColor',p1.Color);
@@ -230,7 +230,7 @@ for i=1:Ny
     end
     for k=1:M
        subplot(M+1,Ny,i+k*Ny)
-       [~,modelOut]=datSet.getOneAheadResiduals(dFit{k});
+       modelOut=dFit{k}.output;
        dd=trueD-modelOut(:,viewPoints(i)+[-(binw/2):(binw/2)]);
         try
             imagesc(reshape(nanmean(dd,2),12,size(Y,1)/12)')

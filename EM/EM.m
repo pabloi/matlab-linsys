@@ -113,7 +113,7 @@ for k=1:opts.Niter-1
           breakFlag=true;
         end
         sampleSize=cellfun(@(y) size(y,2),Y);
-        l=(cell2mat(l1)*sampleSize')/sum(sampleSize);
+        l=sum(cell2mat(l1));
     else
         [X1,P1,Pt1,~,~,~,~,~,l]=statKalmanSmoother(Yred,A1,Cred,Q1,Rred,x01,P01,B1,Dred,U,opts);
         if any(imag(X1(:))~=0)
@@ -236,4 +236,9 @@ R(opts.includeOutputIdx,opts.includeOutputIdx)=Raux(opts.includeOutputIdx,opts.i
 Caux=C;
 C=zeros(size(C));
 C(opts.includeOutputIdx,:)=Caux(opts.includeOutputIdx,:);
+%And recompute the most likely values for D: (most likely values are not
+%the same with or without C contributions)
+Daux=D;
+D=Y/U;
+D(opts.includeOutputIdx,:)=Daux(opts.includeOutputIdx,:);
 end  %Function

@@ -76,21 +76,28 @@ else %Non-fixed diagonal A Enforcing
 end
 %Enforce stability if required:
 if opts.stableA && isempty(opts.fixA)
-  [V,J]=diagonalizeA(A);
+    [V,J] = eig(A); 
   if isa(Y,'cell')
     Nsamp=max(cellfun(@(x) size(x,2),Y));
   else
     Nsamp=size(Y,2);
   end
   th=1-1/(3*Nsamp); %Anything above this is practically unstable (indistinguishable from 1)
-  idx=abs(diag(J))>th; %diag(J) contains the real part of A's eigenvalues
+  idx=abs(diag(J))>th; %diag(J) contains A's eigenvalues
   if any(idx)
-    J(idx,idx)=th;
-    A=V*J/V;
+      idx2=find(idx);
+    for i=1:length(idx2)
+        J(idx2(i),idx2(i))=th*J(idx2(i),idx2(i))/abs(J(idx2(i),idx2(i)));
+    end
+    A=real(V*J/V);
   end
   %Re-estimate B given this new A:
   if isempty(opts.fixB)
     B(:,opts.indB)=(xu1-A*xu_)/uu_;
+  end
+  [~,J] = eig(A); 
+  if any(abs(diag(J))>(1-1/(4*Nsamp))) %Should never happen
+      error('A is still unstable')
   end
 end
 
