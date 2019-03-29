@@ -6,7 +6,8 @@ function [newX,newP,logL,rejectedSample,iL]=KFupdate(C,R,y,x,P,rejectZ2threshold
 %R +C*P*C' should be strictly PD. Numerical issues some time prevent this computation being done accurately
 rejectedSample=false;
 %cS= coder.nullcopy(R);
-cS=chol(R+C*P*C');
+%cS=chol(R+C*P*C');
+[cS]=mycholcov2(R+C*P*C'); %This ignores the upper triangle of the matrix
 %iL=coder.nullcopy(cS);
 iL=cS\eye(size(R));
 CiL=C'*iL;
