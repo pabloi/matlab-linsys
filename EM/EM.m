@@ -34,6 +34,7 @@ else
   nx=size(Xguess,1);
 end
 [opts] = processEMopts(opts,Nu,nx,ny); %This is a fail-safe to check for proper options being defined.
+nny=length(opts.includeOutputIdx);
 if opts.fastFlag~=0 && ( (~isa(Y,'cell') && any(isnan(Y(:)))) || (isa(Y,'cell') && any(any(isnan(cell2mat(Y)))) ) )
    warning('EM:fastAndLoose','Requested fast filtering but data contains NaNs. No steady-state can be found for filtering. Filtering will not be exact, log-L is not guaranteed to be non-decreasing (disabling warning).')
    warning('off','EM:logLdrop') %If samples are NaN, fast filtering may make the log-L drop (smoothing is not exact, so the expectation step is not exact)
@@ -179,7 +180,7 @@ for k=1:opts.Niter-1
         if k>=step && ~breakFlag
             lastChange=l-logl(k+1-step,1);
             %disp(['Iter = ' num2str(k)  ', logL = ' num2str(l,8) ', \Delta logL = ' num2str(lastChange,3) ', % over target = ' num2str(pOverTarget,3) ', \tau =' num2str(-1./log(sort(eig(A1)))',3)])
-            disp(['Iter = ' num2str(k) ', \Delta logL = ' num2str(lastChange*ny*nonNaNsamples,3) ', over target = ' num2str(ny*nonNaNsamples*(l-opts.targetLogL),3) ', \tau =' num2str(-1./log(sort(eig(A1)))',3)]) %This displays logL over target, not in a per-sample per-dim way (easier to probe if logL is increasing significantly)
+            disp(['Iter = ' num2str(k) ', \Delta logL = ' num2str(lastChange*nny*nonNaNsamples,3) ', over target = ' num2str(nny*nonNaNsamples*(l-opts.targetLogL),3) ', \tau =' num2str(-1./log(sort(eig(A1)))',3)]) %This displays logL over target, not in a per-sample per-dim way (easier to probe if logL is increasing significantly)
             %sum(rejSamples)
         else %k==1 || breakFlag
             l=bestLogL;
@@ -217,10 +218,10 @@ end
 
 
 %If some outputs were excluded, replace the corresponding values in C,R:
-Raux=R1;
-R1=diag(inf(ny));
-R1(opts.includeOutputIdx,opts.includeOutputIdx)=Raux(opts.includeOutputIdx,opts.includeOutputIdx);
-Caux=C1;
-C1=zeros(size(C1));
-C1(opts.includeOutputIdx,:)=Caux(opts.includeOutputIdx,:);
+Raux=R;
+R=diag(inf(ny,1));
+R(opts.includeOutputIdx,opts.includeOutputIdx)=Raux(opts.includeOutputIdx,opts.includeOutputIdx);
+Caux=C;
+C=zeros(size(C));
+C(opts.includeOutputIdx,:)=Caux(opts.includeOutputIdx,:);
 end  %Function

@@ -57,32 +57,22 @@ for i=1:opts.Nreps
     end
 end
 warning('on','statKF:logLnoPrior');
-%Before refinement pre-processing: this gets some models unstuck from a close-to-minimum region when there are close to unstable systems
-[A,B,C,X,V,Q,P] = canonize(A,B,C,X,Q,P); %Canonize
-unstable=diag(A)>(1-1/Nsamp); %Unstable or close to unstable system
-if any(unstable)
-  idx=find(unstable);
-  for i=1:length(idx)
-    A(idx,idx)=(1-1/Nsamp);
-  end
-  [X,P,Pt1,~,~,~,~,~,~]=statKalmanSmoother(Y,A,C,Q,R,X(:,1),A*P(:,:,1)*A'+Q,B,D,U,opt2);
-  [Ai,Bi,Ci,Di,Qi,Ri,Xi,Pi,bestLL1,refineLog]=EM(Y,U,X,opt2,P); %Try a new model guess with the stabilized A
-  if bestLL1>bestLL
-    A=Ai; B=Bi; C=Ci; D=Di; Q=Qi; R=Ri; X=Xi; P=Pi; bestLL=bestLL1;
-  end
-end
 
-disp(['Refining solution... (fast) Best logL so far=' num2str(bestLL,8) '(iter=' num2str(lastSuccess) ')']);
-opts.Niter=opts.refineMaxIter; %This will go fast, can afford to have many iterations, it will rarely reach the limit.
-opts.convergenceTol=opts.refineTol/1e4; %This is mostly to prevent the algorithm from stopping at a flat-ish region
-opts.targetTol=1e-4;
-opts.fastFlag=50;
-opts.targetLogL=bestLL;
-[Ai,Bi,Ci,Di,Qi,Ri,Xi,Pi,bestLL1,refineLog]=EM(Y,U,X,opts,P);
-if bestLL1>bestLL
-    A=Ai; B=Bi; C=Ci; D=Di; Q=Qi; R=Ri; X=Xi; P=Pi; bestLL=bestLL1;
-  else
-    error('Refining did not work (?)')
+if opts.fastFlag~=0 %Fast allowed
+  disp(['Refining solution... (fast) Best logL so far=' num2str(bestLL,8) '(iter=' num2str(lastSuccess) ')']);
+  opts.Niter=opts.refineMaxIter; %This will go fast, can afford to have many iterations, it will rarely reach the limit.
+  opts.convergenceTol=opts.refineTol/1e4; %This is mostly to prevent the algorithm from stopping at a flat-ish region
+  opts.targetTol=1e-4;
+  opts.fastFlag=50;
+  opts.targetLogL=bestLL;
+  [Ai,Bi,Ci,Di,Qi,Ri,Xi,Pi,bestLL1,refineLog]=EM(Y,U,X,opts,P);
+  if bestLL1>bestLL
+      A=Ai; B=Bi; C=Ci; D=Di; Q=Qi; R=Ri; X=Xi; P=Pi; bestLL=bestLL1;
+    else
+      warning('Fast refining did not work (?)')
+      %This can happen if we have NaN samples, as the fast filtering may be crap
+      %In general, fast filtering with NaN samples is NOT encouraged.
+  end
 end
 
 disp(['Refining solution... (patient mode) Best logL so far=' num2str(bestLL,8)]);

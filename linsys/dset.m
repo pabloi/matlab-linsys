@@ -37,15 +37,15 @@ classdef dset
            %This uses an external MEX function to compute the MD5 hash
            hs=GetMD5([this.in;this.out]);
         end
-        function [res,modelOut]=getOneAheadResiduals(this,datFit)
-            modelOut=datFit.model.C*datFit.oneAheadMLE.state(:,1:end-1)+datFit.model.D*this.in;
-            res=this.out-modelOut;
-        end
         function [res,resLS]=getDataProjections(this,model)
             yd=this.out-model.D*this.in;
             res=model.C\(yd);
             [CtRinvC,~,CtRinvY]=reduceModel(model.C,model.R,yd);
             resLS=CtRinvC\CtRinvY;
+        end
+        function newThis=reduce(this,excludeIdx)
+            newThis=this;
+            newThis.out(excludeIdx,:)=[];
         end
         function multiSet=split(this,breaks)
             %Splits a dataset along the specified breaks. Returns a cell-array of dset.
@@ -64,6 +64,26 @@ classdef dset
             multiSet=cell(N,1);
             for i=1:N
               multiSet{i}=dset(newIn{i},newOut{i});
+            end
+        end
+        function multiSet=blockSplit(this,blockSize,Npartitions)
+            %Splits the dataset into Npartitions by alternating blocks of blockSize
+            %If number of samples is not an exact multiple of blocksize, the last incomplete block is discarded and not assigned anywher.
+            %There is no guarantee that the partitions will have equal sizes
+            Nblocks=floor(this.Nsamp/blockSize);
+            lastSample=Nblocks*blockSize;
+            this.out(:,lastSample+1:end)=NaN; %Deleting unused samples for everyone
+            for j=1:Npartitions
+              multiSet{j}=this;
+            end
+            for i=1:Nblocks %For each block
+              blockBegin=(i-1)*blockSize+1;
+              blockEnd=i*blockSize;
+              for j=1:Npartitions %Go through partitions
+                if (mod(i-1,Npartitions)+1)~=j %This happens for all partitions except 1, alternating
+                  multiSet{j}.out(:,blockBegin:blockEnd)=NaN; %Delete data for those partitions
+                end
+              end
             end
         end
         function multiSet=alternate(this,N)

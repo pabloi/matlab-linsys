@@ -74,6 +74,21 @@ else %Non-fixed diagonal A Enforcing
     A=diag(SPt+xx1-B(:,opts.indB)*xu_')./diag(SP_+xx_);
   end
 end
+%Enforce stability if required:
+if opts.stableA && isempty(opts.fixA)
+  [V,J]=diagonalizeA(A);
+  if isa(Y,'cell')
+    Nsamp=max(cellfun(@(x) size(x,2),Y));
+  else
+    Nsamp=size(Y,2);
+  end
+  th=1-1/(3*Nsamp); %Anything above this is practically unstable (indistinguishable from 1)
+  idx=abs(diag(J))>th; %diag(J) contains the real part of A's eigenvalues
+  if any(idx)
+    J(idx,idx)=th;
+    A=V*J/V;
+  end
+end
 
 %Estimate C,D:
 xu=xu(:,opts.indD);

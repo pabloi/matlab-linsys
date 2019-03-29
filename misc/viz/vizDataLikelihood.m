@@ -12,7 +12,11 @@ fh=figure('Units','Normalized','OuterPosition',[.25 .4 .5 .3]);
 mdl=model;
 Md=length(datSet);
 for kd=1:Md %One row of subplots per dataset
-    dFit=cellfun(@(x) x.fit(datSet{kd}),model,'UniformOutput',false);
+    dFit=cellfun(@(x) x.fit(datSet{kd}),model,'UniformOutput',false); %Fit with improper initial condition
+    %for i=1:length(dFit)
+    %iC=initCond(dFit{i}.stateEstim.state(:,1),model{i}.Q); %Same init condition as EM sets
+    %dFit{i}=model{i}.fit(datSet{kd},iC); %Fit with  init cond
+    %end
     logLtest=cellfun(@(x) x.goodnessOfFit,dFit);
     yy=logLtest;
     yy=yy-min(yy);

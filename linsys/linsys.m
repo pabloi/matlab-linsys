@@ -53,11 +53,14 @@ classdef linsys
             this.D=D;
             this.Q=Q;
         end
-        function dfit=fit(this,datSet,initC)
+        function dfit=fit(this,datSet,initC,method)
             if nargin<3
                 initC=[];
             end
-            dfit=dataFit(this,datSet,[],initC);
+            if nargin<4 || isempty(method)
+                method=[];
+            end
+            dfit=dataFit(this,datSet,method,initC);
         end
         function [filteredState,oneAheadState,rejSamples,logL] = Kfilter(this,datSet,initC,opts)
             if nargin<4
@@ -179,6 +182,7 @@ classdef linsys
                 initC=initCond([],[]);
             end
             l=dataLogLikelihood(datSet.out,datSet.in,this.A,this.B,this.C,this.D,this.Q,this.R,initC.state,initC.covar,'exact');
+            l=l*datSet.nonNaNSamp*size(datSet.out,1);
         end
         function ord=get.order(this)
             ord=size(this.A,1);
@@ -252,6 +256,14 @@ classdef linsys
             newThis.R(sub2ind([newSize, newSize],padIdx,padIdx))=Rpad;
             newThis.R(oldIdx,oldIdx)=this.R;
         end
+        function newThis=reduce(this,excludeIdx)
+           newThis=this;
+           newThis.C(excludeIdx,:)=[];
+           newThis.D(excludeIdx,:)=[];
+           newThis.R(excludeIdx,:)=[];
+           newThis.R(:,excludeIdx)=[];
+           
+        end
         function hs=get.hash(this)
            %This uses an external MEX function to compute the MD5 hash
            hs=GetMD5([this.A, this.B, this.Q, this.C'; this.C, this.D, this.C, this.R]);
@@ -265,43 +277,53 @@ classdef linsys
                 opts.Nreps=0; %Simple EM, starting from PCA approximation
             end
             M=numel(order);
-            if isa(datSet,'cell') && numel(datSet)>1 %Many datSets provided
-                N=numel(datSet);
+            if M>1 %Multiple orders to be fit
+              if isa(datSet,'cell') && numel(datSet)>1 %Many datSets provided
+                  N=numel(datSet);
+              else
+                if ~isa(datSet,'cell')
+                  datSet={datSet};
+                end
+                N=1;
+              end
                 this=cell(M,N);
                 outlog=cell(M,N);
-                parfor j=1:N %Parallel processing of datasets
-                    [this(:,j),outlog(:,j)]=linsys.id(datSet{j},order,opts);
-                end
-            else
-                if isa(datSet,'cell')
-                    datSet=datSet{1};
-                end
-                if M>1
-                    this=cell(M,1);
-                    outlog=cell(M,1);
-                    parfor ord=1:M %This allows for parallelism if there was a single datset
-                        %(otherwise we are already in a parfor loop and this is ignored)
-                        [this{ord},outlog{ord}]=linsys.id(datSet,order(ord),opts);
+                parfor ord=1:M %This allows for parallelism in model orders
+                    for j=1:N
+                      [this{ord,j},outlog{ord,j}]=linsys.id(datSet{j},order(ord),opts);
                     end
+                end
+            elseif isa(datSet,'cell') && numel(datSet)>1 %Single order, multi-set
+                N=numel(datSet);
+                this=cell(1,N);
+                outlog=cell(1,N);
+                parfor j=1:N %Parallelism in datasets
+                  [this{j},outlog{j}]=linsys.id(datSet{j},order,opts);
+                end
+            else %Single order, single set
+                if isempty(opts.includeOutputIdx)
+                    ny=datSet.Noutput;
+                elseif ~islogical(opts.includeOutputIdx)
+                    ny=length(opts.includeOutputIdx);
                 else
-                    if order==0
-                        [J,B,C,D,Q,R,logLperSamplePerDim]=getFlatModel(datSet.out,datSet.in,opts);
-                        
-                        this=fittedLinsys(J,C,R,B,D,Q,initCond([],[]),datSet,'EM',opts,logLperSamplePerDim*datSet.nonNaNSamp*datSet.Noutput,[]);
-                        this.name='Flat';
-                        outlog=[];
-                        if isfield(opts,'fixR') && ~isempty(opts.fixR)
-                          this.R=opts.fixR;
-                        end
-                    elseif order>0
-                        [A,B,C,D,Q,R,X,P,logLperSamplePerDim,outlog]=randomStartEM(datSet.out,datSet.in,order,opts);
-                        iC=initCond(X(:,1),P(:,:,1)); %MLE init condition
-                        %this=linsys(A,C,R,B,D,Q,trainInfo(datSet.hash,'repeatedEM',opts));
-                        this=fittedLinsys(A,C,R,B,D,Q,iC,datSet,'repeatedEM',opts,logLperSamplePerDim*datSet.nonNaNSamp*datSet.Noutput,outlog);
-                        this.name=['rEM ' num2str(order)];
-                    else
-                        error('Order must be a non-negative integer.')
+                    ny=sum(opts.includeOutputIdx);
+                end
+                if order==0
+                    [J,B,C,D,Q,R,logLperSamplePerDim]=getFlatModel(datSet.out,datSet.in,opts);
+                    this=fittedLinsys(J,C,R,B,D,Q,initCond([],[]),datSet,'EM',opts,logLperSamplePerDim*datSet.nonNaNSamp*ny,[]);
+                    this.name='Flat';
+                    outlog=[];
+                    if isfield(opts,'fixR') && ~isempty(opts.fixR)
+                      this.R=opts.fixR;
                     end
+                elseif order>0
+                    [A,B,C,D,Q,R,X,P,logLperSamplePerDim,outlog]=randomStartEM(datSet.out,datSet.in,order,opts);
+                    iC=initCond(X(:,1),P(:,:,1)); %MLE init condition
+                    %this=linsys(A,C,R,B,D,Q,trainInfo(datSet.hash,'repeatedEM',opts));
+                    this=fittedLinsys(A,C,R,B,D,Q,iC,datSet,'repeatedEM',opts,logLperSamplePerDim*datSet.nonNaNSamp*ny,outlog);
+                    this.name=['rEM ' num2str(order)];
+                else
+                    error('Order must be a non-negative integer.')
                 end
             end
         end

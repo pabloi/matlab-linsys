@@ -26,6 +26,7 @@ defaultOpts.fixR=[];
 defaultOpts.fixX0=[];
 defaultOpts.fixP0=[];
 defaultOpts.includeOutputIdx=1:ny; %Include all
+defaultOpts.stableA=false; %Not enforcing stability of A by default
 
 %Options for randomStartEM's final refinement stage (iterated EM)
 defaultOpts.refineTol=1e-4; %Very picky, increase in logL every 1e2 iterations
@@ -74,6 +75,6 @@ if islogical(opts.includeOutputIdx)
   if length(opts.includeOutputIdx)~=ny
     error('EMopts:outputIdxListSizeMismatch','Provided list of output indexes to be included is inconsistent with output size.')
   else
-  opts.includeOutputIdx=find(opts.includeOutputIdx); %Logical to index list, not sure this is necessary
+  opts.includeOutputIdx=find(opts.includeOutputIdx); %Logical to index list
   end
 end

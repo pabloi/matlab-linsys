@@ -20,7 +20,8 @@ yoff=size(Y,2)*1.1;
 Nm=length(model); %Number of models
 
 for i=1:length(model)
-  dFit{i}=model{i}.fit(datSet);
+  dFit{i}=model{i}.fit(datSet,[],'KP'); %oneAhead
+  dSmooth{i}=model{i}.fit(datSet,[],'KS'); %oneAhead
 end
 
 %% Define colormap:
@@ -53,7 +54,7 @@ for kk=1:maxK
     scatter(1:size(Y,2),cc(:,kk)'*Y,5,.5*ones(1,3),'filled')
      set(gca,'ColorOrderIndex',1)
     for i=1:length(model)
-        [~,modelOut]=datSet.getOneAheadResiduals(dFit{i});
+        [modelOut]=dFit{i}.output;
         p(i)=plot(cc(:,kk)'*(modelOut),'LineWidth',2);
     end
 
@@ -70,7 +71,7 @@ for ll=1:2
     for k=1:length(model)
         switch ll
             case 1 %Deterministic output RMSE
-                iC=dFit{k}.MLEstate.getSample(1); %MLE estimate of init cond
+                iC=dSmooth{k}.stateEstim.getSample(1); %MLE estimate of init cond
                 %iC=[]; %Start from 0?
                 [simSet]=model{k}.simulate(U,iC,true,true);
                 res=datSet.out -simSet.out;
@@ -81,7 +82,7 @@ for ll=1:2
             case 3 % MLE state output error
                 tt=('KS one-ahead output error (RMSE, mov. avg.)');
             case 2 %One ahead error
-                [~,modelOut]=datSet.getOneAheadResiduals(dFit{k});
+                [modelOut]=dFit{k}.output;
                 res=modelOut-datSet.out;
                 rmseTimeCourse=sum(res.^2);
                 aux1=norm(res,'fro')/dataVariance;
@@ -125,10 +126,10 @@ sortedTau=sortC(refC,allC);
 for k=1:length(model)
     taus=-1./log(sort(eig(model{k}.A)));
     [projectedX,projectedXLS]=getDataProjections(datSet,model{k});
-    Xs=dFit{k}.MLEstate.state;
+   Xs=dSmooth{k}.stateEstim.state;
     %dXs=Xs(:,2:end)-model{k}.A*Xs(:,1:end-1)-model{k}.B*U(:,1:end-1);
-    Ps=dFit{k}.MLEstate.covar;
-    iC=dFit{k}.MLEstate.getSample(1); %MLE estimate of init cond
+    Ps=dSmooth{k}.stateEstim.covar;
+    iC=dSmooth{k}.stateEstim.getSample(1); %MLE estimate of init cond
     [simSet,simState]=model{k}.simulate(U,iC,true);
     Xsim=simState.state;
     Psim=simState.covar;

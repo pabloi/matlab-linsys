@@ -18,7 +18,7 @@ res=Y-D*U;
 Raux=res*res'/size(Y,2);
 
 %If some outputs were excluded:
-R=diag(inf(size(Y,1)));
+R=diag(inf(size(Y,1),1));
 R(opts.includeOutputIdx,opts.includeOutputIdx)=Raux(opts.includeOutputIdx,opts.includeOutputIdx);
 
 %Get logL:
