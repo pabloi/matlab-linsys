@@ -195,7 +195,7 @@ classdef linsys
            I=eye(size(this.Q));
            M=this.Q;
            A=this.A;
-           for i=1:N; M=A*M*A'+this.Q; end
+           for i=1:N-1; M=A*M*A'+this.Q; end
         end
         function X=detPredict(this,N)
             %Computes the deterministic component of the state after N steps starting from null initial
@@ -259,7 +259,7 @@ classdef linsys
            newThis.D(excludeIdx,:)=[];
            newThis.R(excludeIdx,:)=[];
            newThis.R(:,excludeIdx)=[];
-           
+
         end
         function hs=get.hash(this)
            %This uses an external MEX function to compute the MD5 hash

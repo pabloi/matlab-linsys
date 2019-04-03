@@ -36,7 +36,7 @@ end
 [opts] = processEMopts(opts,Nu,nx,ny); %This is a fail-safe to check for proper options being defined.
 nny=length(opts.includeOutputIdx);
 if opts.fastFlag~=0 && ( (~isa(Y,'cell') && any(isnan(Y(:)))) || (isa(Y,'cell') && any(any(isnan(cell2mat(Y)))) ) )
-   warning('EM:fastAndLoose','Requested fast filtering but data contains NaNs. No steady-state can be found for filtering. Filtering will not be exact, log-L is not guaranteed to be non-decreasing (disabling warning).')
+   warning('EM:fastAndLoose','Requested fast filtering but data contains NaNs. Filtering/smoothing will be approximate, if it works at all. log-L is not guaranteed to be non-decreasing (disabling warning).')
    warning('off','EM:logLdrop') %If samples are NaN, fast filtering may make the log-L drop (smoothing is not exact, so the expectation step is not exact)
   %opts.fastFlag=0; %No fast-filtering in nan-filled data
 elseif opts.fastFlag~=0 && opts.fastFlag~=1

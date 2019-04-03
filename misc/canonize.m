@@ -30,9 +30,10 @@ case 'canonical'
     V=V2/V;
 case 'canonicalAlt'
     %Same as canonical, but scaling but norm of columns of C
-    [V,J]=diagonalizeA(A); %Diagonalizing A matrix
-    [J,K]=transform(inv(V),A,B);
-    scale=sqrt(sum(C.^2,1)).*sign(max(K,[],2))';
+    [V,~]=diagonalizeA(A); %Diagonalizing A matrix
+    [~,K,C1]=transform(inv(V),A,B,C);
+    idx=abs(K)==max(abs(K),[],2); %Location of max element in abs() per row 
+    scale=sqrt(sum(C1.^2,1)).*sign(sum(K.*idx,2))';
     scale(scale==0)=1; %Otherwise the transform is ill-defined
     V2=diag(scale);
     V=V2/V;
