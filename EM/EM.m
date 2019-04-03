@@ -58,13 +58,16 @@ warning('off','statKSfast:fewSamples');
 end
 
 %% ------------Init stuff:-------------------------------------------
-% Init params:
- [A1,B1,C1,D1,Q1,R1,x01,P01]=initEM(Y,U,Xguess,opts,Pguess);
+% Init params
  Yred=Y(opts.includeOutputIdx,:);
- Cred=C1(opts.includeOutputIdx,:);
- Dred=D1(opts.includeOutputIdx,:);
- Rred=R1(opts.includeOutputIdx,opts.includeOutputIdx);
- [X1,P1,Pt1,~,~,~,~,~,bestLogL]=statKalmanSmoother(Yred,A1,Cred,Q1,Rred,x01,P01,B1,Dred,U,opts);
+ [A1,B1,C1,D1,Q1,R1,x01,P01]=initEM(Yred,U,Xguess,opts,Pguess);
+ %UPDATE: canonization is incompatible with fixed params
+ %[A1,B1,C1,x01,~,Q1,P01] = canonize(A1,B1,C1,x01,Q1,P01,'canonicalAlt');%Canonize: this is to avoid ill-conditioned solutions
+
+ %Cred=C1(opts.includeOutputIdx,:);
+ %Dred=D1(opts.includeOutputIdx,:);
+ %Rred=R1(opts.includeOutputIdx,opts.includeOutputIdx);
+ [X1,P1,Pt1,~,~,~,~,~,bestLogL]=statKalmanSmoother(Yred,A1,C1,Q1,R1,x01,P01,B1,D1,U,opts);
 
 %Initialize log-likelihood register & current best solution:
 logl=nan(opts.Niter,1);
@@ -100,11 +103,8 @@ for k=1:opts.Niter-1
     end
 
     %E-step:
-    Cred=C1(opts.includeOutputIdx,:);
-    Dred=D1(opts.includeOutputIdx,:);
-    Rred=R1(opts.includeOutputIdx,opts.includeOutputIdx);
     if isa(Y,'cell') %Data is many realizations of same system
-        [X1,P1,Pt1,~,~,~,~,~,l1]=cellfun(@(y,x0,p0,u) statKalmanSmoother(y,A1,Cred,Q1,Rred,x0,p0,B1,Dred,u,opts),Yred,x01,P01,U,'UniformOutput',false);
+        [X1,P1,Pt1,~,~,~,~,~,l1]=cellfun(@(y,x0,p0,u) statKalmanSmoother(y,A1,C1,Q1,R1,x0,p0,B1,D1,u,opts),Yred,x01,P01,U,'UniformOutput',false);
         if any(cellfun(@(x) any(imag(x(:))~=0),X1))
           msg='Complex states detected, stopping.';
           breakFlag=true;
@@ -115,7 +115,7 @@ for k=1:opts.Niter-1
         sampleSize=cellfun(@(y) size(y,2),Y);
         l=sum(cell2mat(l1));
     else
-        [X1,P1,Pt1,~,~,~,~,~,l]=statKalmanSmoother(Yred,A1,Cred,Q1,Rred,x01,P01,B1,Dred,U,opts);
+        [X1,P1,Pt1,~,~,~,~,~,l]=statKalmanSmoother(Yred,A1,C1,Q1,R1,x01,P01,B1,D1,U,opts);
         if any(imag(X1(:))~=0)
             msg='Complex states detected, stopping.';
             breakFlag=true;
@@ -204,7 +204,10 @@ for k=1:opts.Niter-1
         break
     end
     %M-step:
-    [A1,B1,C1,D1,Q1,R1,x01,P01]=estimateParams(Y,U,X1,P1,Pt1,opts);
+    [A1,B1,C1,D1,Q1,R1,x01,P01]=estimateParams(Yred,U,X1,P1,Pt1,opts);
+    %if mod(k,step)==0 %Canonization is incompatible with fixed params.
+    %    [A1,B1,C1,x01,~,Q1,P01] = canonize(A1,B1,C1,x01,Q1,P01,'canonicalAlt');  %Canonize to maintain well-conditioned
+    %end
 end %for loop
 
 %%
@@ -228,17 +231,21 @@ if opts.logFlag
   %diary('off')
 end
 
+%Canonize: %INCOMPATIBLE WITH FIXED PARAMS
+%[A,B,C,X,~,Q,P] = canonize(A,B,C,X,Q,P,'canonicalAlt'); %Canonize: this is to avoid ill-conditioned solutions
 
 %If some outputs were excluded, replace the corresponding values in C,R:
-Raux=R;
-R=diag(inf(ny,1));
-R(opts.includeOutputIdx,opts.includeOutputIdx)=Raux(opts.includeOutputIdx,opts.includeOutputIdx);
-Caux=C;
-C=zeros(size(C));
-C(opts.includeOutputIdx,:)=Caux(opts.includeOutputIdx,:);
-%And recompute the most likely values for D: (most likely values are not
-%the same with or without C contributions)
-Daux=D;
-D=Y/U;
-D(opts.includeOutputIdx,:)=Daux(opts.includeOutputIdx,:);
+if size(Yred,1)<size(Y,1)
+    Raux=R;
+    R=diag(inf(ny,1));
+    R(opts.includeOutputIdx,opts.includeOutputIdx)=Raux;
+    Caux=C;
+    C=zeros(size(C));
+    C(opts.includeOutputIdx,:)=Caux;
+    %And recompute the most likely values for D: (most likely values are not
+    %the same with or without C contributions)
+    Daux=D;
+    D=Y/U;
+    D(opts.includeOutputIdx,:)=Daux;
+end
 end  %Function

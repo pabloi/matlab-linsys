@@ -85,6 +85,13 @@ classdef dset
                 end
               end
             end
+            for j=1:Npartitions %Go through partitions and remove leading/trailing NaNs to avoid ill-conditioned fitting
+               nanSamples=all(isnan(multiSet{j}.out));
+               firstNonNaN=find(~nanSamples,1,'first');
+               lastNonNaN=find(~nanSamples,1,'last');
+               multiSet{j}.out=multiSet{j}.out(:,firstNonNaN:lastNonNaN);
+               multiSet{j}.in=multiSet{j}.in(:,firstNonNaN:lastNonNaN);
+            end
         end
         function multiSet=alternate(this,N)
            %Creates N different data folds by putting 1 every N datapoints

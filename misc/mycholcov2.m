@@ -18,7 +18,7 @@ if nargout>1 || p~=0 %Not positive definite, need to complete
   L(isnan(L))=0; %This happens if A has non-diagonal Inf values
   dd=diag(D);
   if any(dd<0) %This can't happen if A is a covariance matrix
-      error('Matrix was not PSD')
+      error('mycholcov2:notPSD','Matrix was not PSD')
       %To do: potentially, I should check that D did not have 2 x 2 blocks,
       %something that happens if A had negative eigenvalues below the
       %tolerance (which hopefully never happens for covariance matrices)
