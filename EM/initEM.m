@@ -1,4 +1,4 @@
-function [A,B,C,D,Q,R,x0,P0]=initEM(Y,U,X,opts,P)
+function [A,B,C,D,Q,R,x0,P0]=initEM(Y,U,X,opts,P,Pt)
   %Initialization of parameters for EM-search
   %INPUTS:
   %Y= output data of linear system (My x N)
@@ -17,16 +17,22 @@ function [A,B,C,D,Q,R,x0,P0]=initEM(Y,U,X,opts,P)
       %[A,B,C,D,X,Q,R]=subspaceIDv2(Y2,U,d); %Works if no missing data, is slow
       [X]=initGuessOld(Y2,U,d,opts);
   end
-  [A,B,C,D,Q,R,x0,P0]=initParams(Y,U,X,opts,P);
+  if nargin<5
+      P=[];
+  end
+  if nargin<6
+      Pt=[];
+  end
+  [A,B,C,D,Q,R,x0,P0]=initParams(Y,U,X,opts,P,Pt);
 end
 
 
-function [A1,B1,C1,D1,Q1,R1,x01,P01]=initParams(Y,U,X,opts,Pguess)
+function [A1,B1,C1,D1,Q1,R1,x01,P01]=initParams(Y,U,X,opts,Pguess,Ptguess)
   if isa(Y,'cell')
       [P,Pt]=cellfun(@(x,u,p) initCov(x,u,p),X,U,Pguess,'UniformOutput',false);
   else
       %Initialize covariance to plausible values:
-      [P,Pt]=initCov(X,U,Pguess);
+      [P,Pt]=initCov(X,U,Pguess,Ptguess);
 
       %Move things to gpu if needed
       if isa(Y,'gpuArray')
@@ -43,7 +49,7 @@ function [A1,B1,C1,D1,Q1,R1,x01,P01]=initParams(Y,U,X,opts,Pguess)
 %UPDATE: Canonization is incompatible with fixed values for some parameters.
 end
 
-function [P,Pt]=initCov(X,U,P)
+function [P,Pt]=initCov(X,U,P,Pt)
     [~,N]=size(X);
     %Initialize covariance to plausible values:
     if nargin<2 || isempty(P)
@@ -55,7 +61,7 @@ function [P,Pt]=initCov(X,U,P)
       P=repmat(Px,1,1,N);
       %Px1=(dX(2:end,:)'*dX(1:end-1,:));
       Pt=repmat(.2*diag(diag(Px)),1,1,N);
-    else
+    elseif nargin<3 || isempty(Pt)
       Pt=.2*P;
     end
 end
