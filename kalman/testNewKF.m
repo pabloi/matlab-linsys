@@ -1,6 +1,6 @@
-addpath(genpath('../'))
+%addpath(genpath('../'))
 %% Create model:
-D1=3;
+D1=5;
 D2=100;
 A=diag(rand(D1,1));
 A=.9999*A; %Setting the max eigenvalue to .9999
@@ -41,9 +41,9 @@ tic
 mdl=2;
 opts.noReduceFlag=false;
 opts.fastFlag=0;
-[Xf,VecU,Xp,Diag,~,logL(mdl),S]=statKalmanFilter2(Y,A,C,Q,R,x0,P0,B,D,U,opts); %Kalman smoother estimation of states, given the true parameters (this is the best possible estimation of states)
+[Xf,Pf,Xp,Pp,~,logL(mdl),S]=statKalmanFilter2(Y,A,C,Q,R,x0,P0,B,D,U,opts); %Kalman smoother estimation of states, given the true parameters (this is the best possible estimation of states)
 Xf2=S*Xf;
-Pf2=Pf;
+Pf2=Pf; %Actually, a sqrtm
 res(mdl)=norm(Xf2-X,'fro')^2;
 maxRes(mdl)=max(sum((Xf2-X).^2));
 name{mdl}='KF2';
@@ -79,5 +79,5 @@ tc
 res
 maxRes
 %%
-figure; plot(Xf1'); hold on; plot(Xf2')
-figure; plot(Xs1'); hold on; plot(Xs2')
+%figure; plot(Xf1'); hold on; plot(Xf2')
+%figure; plot(Xs1'); hold on; plot(Xs2')

@@ -121,14 +121,13 @@ if any(infVariances) %At least one initial variance was infinite
         %Transform results from information to state estimates:
         [X(:,kk),P(:,:,kk)]=info2state(ii(:,kk),I(:,:,kk));
         [prevX,prevP]=info2state(ip(:,kk+1),Ip(:,:,kk+1));
-        Xp(:,kk+1)=prevX;    Pp(:,:,kk+1)= prevP;
+        [prevU,prevD]=eig(prevP);
+        Xp(:,kk+1)=prevX;    Pp(:,:,kk+1)= prevU*sqrt(prevD); 
     end
     firstInd=Nsamp+1;
 end
 
 %Run filter for remaining steps:
-i=firstInd;
-processedSamples=0;
 [prevU,prevD]=eig(prevP,'vector');
 d=sqrt(prevD);
 UD=prevU.*sqrt(d)';
@@ -138,36 +137,33 @@ for i=firstInd:N
 
   %First, do the update given the output at this step:
   if ~any(isnan(y)) %If measurement is NaN, skip update.
-      prevD=prevD./(prevD+1);
-      %Uinnov=prevU'*(y-prevX);
-      d=sqrt(prevD);
-      UD=prevU.*d';
-      prevP=UD*UD';
-      prevX=prevX+prevP*(y-prevX);
-      %UD=prevU.*prevD';
-      %prevP=UD*prevU;
-      %prevX=prevX+UD*Uinnov;
+      d=sqrt(prevD./(prevD+1))';
+      UD=prevU.*d;
+      %prevP=UD*UD';
+      Uinnov=UD'*(y-prevX);
+      prevX=prevX+UD*Uinnov;
       logL=NaN; %To do
-        icS=NaN; %To do
-     processedSamples=processedSamples+1;
+      icS=NaN; %To do
   end
-  X(:,i)=prevX;  P(:,:,i)=prevU; %Storing old P to avoid computing it
+  X(:,i)=prevX;  P(:,:,i)=UD; %Storing sqrt P to avoid computing it
 
   %Then, predict next step:
   prevX=A*prevX+BU(:,i);
-  %prevP=A*prevP*A'+Q; %Should ensure symmetricity?
   AP=A*UD;
-  prevP=AP*AP'+Q;
-  [prevU,prevD]=eig(prevP,'nobalance','vector');
+  %prevP=AP*AP'+Q;
+  [prevU,prevD]=eig(AP*AP'+Q,'vector');
+  %[P,H]=hess(prevP);
+  %[pU,prevD]=eig(H,'vector');
+  %prevU=P*pU;
   %[prevU,prevD]=svd(prevP);
   %prevD=diag(prevD);
   %To do: eliminate less than 0 eigenvalues.
   %[prevU,prevD]=eig(prevP,I,'chol','vector');
   if nargout>2 %Store Xp, Pp if requested:
-      Xp(:,i+1)=prevX;   Pp(:,1,i+1)=sqrt(prevD); Pp(:,2,i)=d;
+      Xp(:,i+1)=prevX;   Pp(:,:,i+1)=prevU./sqrt(prevD)'; %sqrt matrix
+      %dd(:,i+1)=sqrt(prevD);
   end
 end
-P(:,:,N+1)=prevU;
 
 %Compute mean log-L over samples and dimensions of the output:
 if firstInd~=1

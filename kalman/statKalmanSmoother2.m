@@ -30,7 +30,7 @@ BU=B*U;
 
 %Step 1: forward filter
 %[Xf,Pf,Xp,Pp,rejSamples,logL]=statKalmanFilter(Y,A,C,Q,R,x0,P0,B,D,U,opts);
-[Xf,VecU,Xp,Diag,rejSamples,logL,S]=statKalmanFilter2(Y,A,C,Q,R,x0,P0,B,D,U,opts);
+[Xf,Pf,Xp,Pp,rejSamples,logL,S]=statKalmanFilter2(Y,A,C,Q,R,x0,P0,B,D,U,opts);
 %Notice: Pp=VecU*Diag*VecU'; Pf=VecU*(Diag(-1)/(Diag(-1)+1)*VecU';
 
 %Step 2: backward pass:
@@ -40,7 +40,7 @@ BU=B*U;
 D1=size(A,1);
 %Initialize last sample:
 Xs=nan(size(Xf)); prevXs=Xf(:,N);   Xs(:,N)=prevXs;
-Ps=nan(size(VecU)); prevPs=VecU(:,:,N); Ps(:,:,N)=prevPs;
+Ps=nan(size(Pf)); prevPs=Ps(:,:,N); Ps(:,:,N)=prevPs;
 
 if isa(Xs,'gpuArray') %For code to work on gpu
     Pt=nan(D1,D1,N-1,'gpuArray'); %Transition covariance matrix
@@ -53,22 +53,17 @@ M1=M; M2=M; Nfast=N-1-(M1+M2);
 if Nfast<=0 %No fast filtering at all
     M1=N-1; M2=0; Nfast=0;
 end
-
-U_1=VecU(:,:,end);
-daux=Diag(:,1,end); 
-d_1=Diag(:,1,end-1);
+prevPs=Pf(:,:,end)*Pf(:,:,end)';
 for i=N-1:-1:1
   %First, get estimates from forward pass:
   xf=Xf(:,i); %Previous posterior estimate of covariance at this step
   xp=Xp(:,i+1); %Prediction of next step based on post estimate of this step
-  Up=VecU(:,:,i+2);
-  U_1=VecU(:,:,i+1);
-  d=Diag(:,1,i+2);
-  d_1=Diag(:,2,i+1);
+  icp=Pp(:,:,i+1); %sqrt inv matrix (chol-like)
+  cpf=Pf(:,:,i); %sqrt of pf (chol-like)
 
   %Backward pass:
   %[prevPs,prevXs,newPt]=backStepRTS(pp,pf,prevPs,xp,xf,prevXs,A,cQ,bu,iA);
-  [prevPs,prevXs,newPt]=backStepRTS(Up,d,U_1,d_1,prevPs,xp,xf,prevXs,A);
+  [prevPs,prevXs,newPt]=backStepRTS(icp,cpf,prevPs,xp,xf,prevXs,A);
   
   %Store estimates:
   Xs(:,i)=prevXs;  Pt(:,:,i)=newPt;  Ps(:,:,i)=prevPs;
@@ -77,8 +72,6 @@ end
 Xf=S*Xf;
 Xp=S*Xp;
 Xs=S*Xs;
-Pf=VecU;
-Pp=Diag;
 %for i=1:N
 %   P(:,:,i)=iS*P(:,:,i)*iS'; %PSD can be enforced by storing U and reconstructing P in a sqrt way
 %   Pp(:,:,i)=iS*Pp(:,:,i)*iS';
@@ -88,20 +81,21 @@ Pp=Diag;
 
 end
 
-function [newPs,newXs,newPt]=backStepRTS(U,d,U_1,d_1,ps,xp,xf,prevXs,A)
+function [newPs,newXs,newPt]=backStepRTS(icP,cpf,ps,xp,xf,prevXs,A)
   %Implements the Rauch-Tung-Striebel backward recursion
   %https://en.wikipedia.org/wiki/Kalman_filter#Fixed-interval_smoothers)
-
-  icP=U./d'; %Cholesky of inv(Pp)
-  Ud=U_1 .* d_1'; %Cholesky of pf
-  pf=Ud*Ud';
+  cPs=chol(ps); %This has minimal cost, as long as numerical issues do not keep ps from being PD
+  %icP=U./d'; %Cholesky of inv(Pp)
   %First, compute gain:
-  HcP=(pf*(A'*icP)); %H*cP'
+  pf=cpf*cpf';
+  HcP=pf*A'*icP;
   H=HcP*icP'; %H=AP'/pp; %Faster, although worse conditioned, matters a lot when smoothing
   %State update:
   newXs=xf+H*(prevXs-xp); %=H*prevXs +(xf-H*xp); 
   %Compute across-steps covariance:
   newPt=ps*H'; %This should be such that A*newPt' is hermitian
   %More stable state covariance update:
-  newPs= H*ps*H' + (pf - HcP*HcP'); %The term in parenthesis is psd although this is not numerically enforced 
+  HcPs=H*cPs';
+  newPs= HcPs*HcPs' + (pf - HcP*HcP'); %The term in parenthesis is psd
+  %although this is not numerically enforced, symmetry is enforced
 end
