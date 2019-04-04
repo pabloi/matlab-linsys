@@ -1,4 +1,4 @@
-function [X,P,Xp,Pp,rejSamples,logL]=statKalmanFilter2(Y,A,C,Q,R,varargin)
+function [X,P,Xp,Pp,rejSamples,logL,S]=statKalmanFilter2(Y,A,C,Q,R,varargin)
 %statKalmanFilter implements a Kalman filter assuming
 %stationary (fixed) noise matrices and system dynamics
 %The model is: x[k+1]=A*x[k]+b+v[k], v~N(0,Q)
@@ -46,15 +46,6 @@ if M~=N && any(isnan(Y(:)))
     %to make subject aware.
 end
 
-%TODO: Special case: deterministic system, no filtering needed. This can also be
-%the case if Q << C'*R*C, and the system is stable
-
-%Size checks:
-%TODO
-
-if nargout>6 %This is here to make sure that no code is using the legacy call with 7 outputs
-    error('Too many outputs')
-end
 
 %Init arrays:
 if isa(Y,'gpuArray') %For code to work on gpu
@@ -141,16 +132,8 @@ processedSamples=0;
 [prevU,prevD]=eig(prevP,'vector');
 d=sqrt(prevD);
 UD=prevU.*sqrt(d)';
-I=eye(size(prevP));
-%prevU=single(prevU);
-%prevD=single(prevD);
-%Y_D=single(Y_D);
-%prevX=single(prevX);
-%A=single(A);
-%Q=single(Q);
-%BU=single(BU);
-while i<=N && processedSamples<M
-%for i=firstInd:M
+
+for i=firstInd:N
   y=Y_D(:,i); %Output at this step
 
   %First, do the update given the output at this step:
@@ -168,69 +151,23 @@ while i<=N && processedSamples<M
         icS=NaN; %To do
      processedSamples=processedSamples+1;
   end
-  X(:,i)=prevX;  P(:,:,i)=prevP; %Storing old P to avoid computing it
+  X(:,i)=prevX;  P(:,:,i)=prevU; %Storing old P to avoid computing it
 
   %Then, predict next step:
   prevX=A*prevX+BU(:,i);
   %prevP=A*prevP*A'+Q; %Should ensure symmetricity?
   AP=A*UD;
   prevP=AP*AP'+Q;
-  %[prevU,prevD]=eig(prevP,'nobalance','vector');
-  [prevU,prevD]=svd(prevP);
-  prevD=diag(prevD);
+  [prevU,prevD]=eig(prevP,'nobalance','vector');
+  %[prevU,prevD]=svd(prevP);
+  %prevD=diag(prevD);
   %To do: eliminate less than 0 eigenvalues.
   %[prevU,prevD]=eig(prevP,I,'chol','vector');
   if nargout>2 %Store Xp, Pp if requested:
-      Xp(:,i+1)=prevX;   Pp(:,:,i+1)=prevP;
+      Xp(:,i+1)=prevX;   Pp(:,1,i+1)=sqrt(prevD); Pp(:,2,i)=d;
   end
-  i=i+1;
 end
-
-if i<=N %Do the fast filtering for any remaining steps:
-%(from here on, we assume stady-state behavior to improve speed).
-    %Steady-state matrices:
-    prevX=X(:,i); Psteady=P(:,:,i); %Steady-state UPDATED state and uncertainty matrix
-    PpSteady=prevP;
-    CicS=C'*icS;
-    Ksteady=PpSteady*C'*(icS*icS');
-    Gsteady=eye(size(prevP))-PpSteady*(CicS*CicS');% %I-K*C,
-
-    %Pre-compute matrices to reduce computing time:
-    GBU_KY=Gsteady*BU(:,i:N-1)+Ksteady*Y_D(:,i+1:N); %The off-ordering is because we are doing predict (which depends on U(:,i-1)) and update (which depends on Y(:,i)
-    GA=Gsteady*A;
-
-    %Assign all UPDATED uncertainty matrices:
-    P(:,:,i+1:end)=repmat(Psteady,1,1,N-i);
-
-    %Check that outlier flag is disabled and that no data is missing
-    if opts.outlierFlag %|| any(isnan(GBU_KY(:)))%Should never happen in fast mode
-       error('KFfilter:outlierRejectFast','Outlier rejection is incompatible with fast mode.')
-    end
-
-    %Loop for remaining steps to compute x:
-    for j=i+1:N
-        gbu_ky=GBU_KY(:,j-i);
-        if ~isnan(gbu_ky) %Have actual observation (not NaN)
-            prevX=GA*prevX+gbu_ky; %Predict+Update, in that order.
-        else %Observation is missing or rejected, cannot do update
-            %Warning: if this happens, then you shouldn't be using fast
-            %mode, as the Kalman filter does not reach a steady-state when
-            %data is missing. This is, at best, a heuristic calculation.
-            %(the value of Psteady defined above is not really
-            %steady-state, and Ksteady may or may not be depending on
-            %whether the missing data is missing in a regular pattern).
-            %Consistently, the value of Pp defined below cannot apply to
-            %all samples.
-            prevX=A*prevX+BU(:,j); %Predict only;
-        end
-        X(:,j)=prevX;
-    end
-    if nargout>2 %Compute Xp, Pp only if requested:
-        Xp(:,2:end)=A*X+B*U; Pp(:,:,i+2:end)=repmat(A*Psteady*A'+Q,1,1,size(Y,2)-i);
-        if nargout>4; Innov=Y_D-C*Xp(:,1:end-1);  logL(i+1:end)=logLnormal(Innov(:,i+1:end),[],icS');
-        end
-    end
-end
+P(:,:,N+1)=prevU;
 
 %Compute mean log-L over samples and dimensions of the output:
 if firstInd~=1
@@ -244,14 +181,13 @@ logL=nansum(aux(firstInd:end)); %Full log-L
 %Change back the states and covariances to the desired reference frame
 %Note: for EM this is unecessary, as EM only requires the states in SOME
 %reference frame, not in any particular one.
-noUndoFlag=false;
-if ~noUndoFlag
+noUndoFlag=true;
+if ~noUndoFlag   
     X=S*X;
     Xp=S*Xp;
-    iS=inv(S);
    for i=1:N
-       P(:,:,i)=iS*P(:,:,i)*iS'; %PSD can be enforced by storing U and reconstructing P in a sqrt way
-       Pp(:,:,i)=iS*Pp(:,:,i)*iS';
+       P(:,:,i)=S*P(:,:,i)*S'; %PSD can be enforced by storing U and reconstructing P in a sqrt way
+       Pp(:,:,i)=S*Pp(:,:,i)*S';
    end
 end
 end
