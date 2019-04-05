@@ -127,15 +127,14 @@ if any(infVariances) %At least one initial variance was infinite
         [X(:,kk),P(:,:,kk)]=info2state(ii(:,kk),I(:,:,kk));
         [prevX,prevP]=info2state(ip(:,kk+1),Ip(:,:,kk+1));
         [prevU,prevD]=eig(prevP);
-        Xp(:,kk+1)=prevX;    Pp(:,:,kk+1)= prevU*sqrt(prevD); 
+        Xp(:,kk+1)=prevX;    Pp(:,:,kk+1)= prevU/sqrt(prevD); 
     end
     firstInd=Nsamp+1;
 end
 
 %Run filter for remaining steps:
 [prevU,prevD]=eig(prevP,'vector');
-d=sqrt(prevD);
-UD=prevU.*sqrt(d)';
+d2=1./sqrt(prevD)';
 for i=firstInd:N
   y=Y_D(:,i); %Output at this step
 
@@ -148,6 +147,7 @@ for i=firstInd:N
       prevX=prevX+UD*Uinnov;
       %logL(i)=NaN; %To do
     halfLogdetSigma= .5*sum(log(prevD+1));
+    Uinnov=d2'.*Uinnov;
     z2=Uinnov'*Uinnov; %z^2 scores
     logL(i)=-.5*z2 -halfLogdetSigma;
   end
@@ -157,6 +157,7 @@ for i=firstInd:N
   AP=A*UD;
   %prevP=AP*AP'+Q;
   [prevU,prevD]=eig(AP*AP'+Q,'vector');
+  d2=1./sqrt(prevD)';
   %[P,H]=hess(prevP);
   %[pU,prevD]=eig(H,'vector');
   %prevU=P*pU;
@@ -165,7 +166,7 @@ for i=firstInd:N
   %To do: eliminate less than 0 eigenvalues.
   %[prevU,prevD]=eig(prevP,I,'chol','vector');
   if nargout>2 %Store Xp, Pp if requested:
-      Xp(:,i+1)=prevX;   Pp(:,:,i+1)=prevU./sqrt(prevD)'; %sqrt matrix
+      Xp(:,i+1)=prevX;   Pp(:,:,i+1)=prevU.*d2; %sqrt matrix
       %dd(:,i+1)=sqrt(prevD);
   end
 end
