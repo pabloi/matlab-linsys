@@ -1,5 +1,5 @@
 %%
-addpath(genpath('./')) %Adding the matlab-sysID toolbox to path, just in case
+addpath(genpath('../../')) %Adding the matlab-sysID toolbox to path, just in case
 %%
 clear all
 %% Create model:
@@ -20,34 +20,22 @@ NN=size(U,2);
 x0=zeros(D1,1);
 [Y,X]=fwdSim(U,A,B,C,D,x0,Q,R);
 [Y1,X1]=fwdSim(U,A,B,C,D,x0,[],[]); %Noiseless simulation, for comparison
-[Xs,Ps]=statKalmanSmoother(Y,A,C,Q,R,[],[],B,D,U,[]); %Kalman smoother estimation of states, given the true parameters (this is the best possible estimation of states)
-logL=dataLogLikelihood(Y,U,A,B,C,D,Q,R,Xs(:,1),Ps(:,:,1))
-%% Identify 1alt: trueEM starting from true solution
-% fastFlag=0;
-% tic
-% [fAh,fBh,fCh,fDh,fQh,fRh,fXh,fPh]=EM(Y,U,Xs,[],fastFlag);
-% flogLh=dataLogLikelihood(Y,U,fAh,fBh,fCh,fDh,fQh,fRh,fXh(:,1),fPh(:,:,1))
-% toc
-% [fAh,fBh,fCh,fXh,fV,fQh] = canonizev2(fAh,fBh,fCh,fXh,fQh);
+
 %% Identify 1alt: trueEM starting from non-true solution
 opts.fastFlag=0;
 opts.robustFlag=0;
 tic
-[A,B,C,D,Q,R,X,P]=EM(Y,U,D1,opts);
-logL=dataLogLikelihood(Y,U,A,B,C,D,Q,R,X(:,1),P(:,:,1));
+[A,B,C,D,Q,R,X,P,logL,outlog]=EM(Y,U,D1,opts);
 toc
-[J,B,C,X,~,Q,P] = canonize(A,B,C,X,Q,P);
-model{1}=autodeal(J,B,C,D,X,Q,R,logL);
-model{1}.name='EM (fast,robust)';
+model{1}=autodeal(A,B,C,D,X,Q,R,logL);
+model{1}.name='EM (single run, normal)';
 %%
 opts.robustFlag=false;
 tic
-[A,B,C,D,Q,R,X,P]=randomStartEM(Y,U,2,5,opts);
-logL=dataLogLikelihood(Y,U,A,B,C,D,Q,R,X(:,1),P(:,:,1));
+[A,B,C,D,Q,R,X,P,logL,outlog]=EM2(Y,U,D1,opts);
 toc
-[J,B,C,X,~,Q,P] = canonizev2(A,B,C,X,Q,P);
-model{2}=autodeal(J,B,C,D,X,Q,R,logL);
-model{2}.name='EM (itered,fast)';
+model{2}=autodeal(A,B,C,D,X,Q,R,logL);
+model{2}.name='EM (fast)';
 %%
 % LDS.A=Ah;
 % LDS.B=Bh;

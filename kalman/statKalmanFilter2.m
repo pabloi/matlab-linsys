@@ -95,10 +95,15 @@ end
 
 %Reduce model if convenient for efficiency:
 if D2>D1 && ~opts.noReduceFlag %Reducing dimension of problem for speed
-    [CtRinvC,~,CtRinvY,~,logLmargin]=reduceModel(C,R,Y_D);
+    [CtRinvC,~,CtRinvY,~,logLmargin,S]=reduceModel(C,R,Y_D);
+    %S converges to the identity matrix through EM, which means CtRinvC
+    %converges to the identity too. Why? Is that a stable representation?
     C=CtRinvC; R=CtRinvC; Y_D=CtRinvY;  D2=D1; rejSamples=rejSamples(1:D1,:);
-    S=sqrtm(inv(R));
-    R=eye(size(R)); C=eye(size(R)); Y_D=S*Y_D; A=S*CtRinvC*A/(S*CtRinvC); BU=S*CtRinvC*BU; Q=(S*CtRinvC)*Q*(S*CtRinvC)';
+    R=eye(size(R)); C=eye(size(R)); Y_D=S*Y_D; A=(S*CtRinvC)*A/(S*CtRinvC); BU=S*CtRinvC*BU; Q=(S*CtRinvC)*Q*(S*CtRinvC)';
+    prevX=S\prevX;
+    prevP=(S\prevP)/S'; %Do in a PSD way!
+    %To do: make this transform in a more efficient way, preserving PSD of Q
+    logLmargin=logLmargin+sum(log(diag(S)));
 else
     logLmargin=0;
 end
@@ -131,7 +136,6 @@ end
 [prevU,prevD]=eig(prevP,'vector');
 d=sqrt(prevD);
 UD=prevU.*sqrt(d)';
-
 for i=firstInd:N
   y=Y_D(:,i); %Output at this step
 
@@ -142,11 +146,12 @@ for i=firstInd:N
       %prevP=UD*UD';
       Uinnov=UD'*(y-prevX);
       prevX=prevX+UD*Uinnov;
-      logL=NaN; %To do
-      icS=NaN; %To do
+      %logL(i)=NaN; %To do
+    halfLogdetSigma= .5*sum(log(prevD+1));
+    z2=Uinnov'*Uinnov; %z^2 scores
+    logL(i)=-.5*z2 -halfLogdetSigma;
   end
   X(:,i)=prevX;  P(:,:,i)=UD; %Storing sqrt P to avoid computing it
-
   %Then, predict next step:
   prevX=A*prevX+BU(:,i);
   AP=A*UD;
@@ -169,21 +174,9 @@ end
 if firstInd~=1
     %warning('statKF:logLnoPrior',['Filter was computed from an improper uniform prior as starting point. Ignoring ' num2str(firstInd-1) ' points for computation of log-likelihood.'])
 end
-aux=logL+logLmargin;
+halfLog2Pi=0.91893853320467268;
+aux=logL+logLmargin-size(y,1)*halfLog2Pi;
 logL=nansum(aux(firstInd:end)); %Full log-L
 %logL=nanmean(aux(firstInd:end))/size(Y,1); %Per-sample, per-dimension of output PROVIDED (not necessarily used)
 
-%TO do:
-%Change back the states and covariances to the desired reference frame
-%Note: for EM this is unecessary, as EM only requires the states in SOME
-%reference frame, not in any particular one.
-noUndoFlag=true;
-if ~noUndoFlag   
-    X=S*X;
-    Xp=S*Xp;
-   for i=1:N
-       P(:,:,i)=S*P(:,:,i)*S'; %PSD can be enforced by storing U and reconstructing P in a sqrt way
-       Pp(:,:,i)=S*Pp(:,:,i)*S';
-   end
-end
 end

@@ -1,4 +1,4 @@
-function [Cnew,Rnew,Ynew,cRnew,logLmargin]=reduceModel(C,R,Y)
+function [Cnew,Rnew,Ynew,cRnew,logLmargin,icRnew]=reduceModel(C,R,Y)
   [D2,D1]=size(C);
   [icR,cR]=pinvchol(R); %This works if R is semidefinite, but in general
   %semidefinite R is unworkable, as R+C*P*C' needs to be invertible.

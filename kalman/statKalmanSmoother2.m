@@ -1,4 +1,4 @@
-function [Xs,Ps,Pt,Xf,Pf,Xp,Pp,rejSamples,logL]=statKalmanSmoother2(Y,A,C,Q,R,varargin)
+function [Xs,Ps,Pt,Xf,Pf,Xp,Pp,rejSamples,logL,S]=statKalmanSmoother2(Y,A,C,Q,R,varargin)
 %Implements a Kalman smoother for a stationary system
 %INPUT:
 %Y: D1xN observed data
@@ -54,6 +54,7 @@ if Nfast<=0 %No fast filtering at all
     M1=N-1; M2=0; Nfast=0;
 end
 prevPs=Pf(:,:,end)*Pf(:,:,end)';
+Ps(:,:,N)=prevPs;
 for i=N-1:-1:1
   %First, get estimates from forward pass:
   xf=Xf(:,i); %Previous posterior estimate of covariance at this step
@@ -64,14 +65,14 @@ for i=N-1:-1:1
   %Backward pass:
   %[prevPs,prevXs,newPt]=backStepRTS(pp,pf,prevPs,xp,xf,prevXs,A,cQ,bu,iA);
   [prevPs,prevXs,newPt]=backStepRTS(icp,cpf,prevPs,xp,xf,prevXs,A);
-  
+
   %Store estimates:
   Xs(:,i)=prevXs;  Pt(:,:,i)=newPt;  Ps(:,:,i)=prevPs;
 end
 
-Xf=S*Xf;
-Xp=S*Xp;
-Xs=S*Xs;
+%Xf=S*Xf;
+%Xp=S*Xp;
+%Xs=S*Xs;
 %for i=1:N
 %   P(:,:,i)=iS*P(:,:,i)*iS'; %PSD can be enforced by storing U and reconstructing P in a sqrt way
 %   Pp(:,:,i)=iS*Pp(:,:,i)*iS';
@@ -91,7 +92,7 @@ function [newPs,newXs,newPt]=backStepRTS(icP,cpf,ps,xp,xf,prevXs,A)
   HcP=pf*A'*icP;
   H=HcP*icP'; %H=AP'/pp; %Faster, although worse conditioned, matters a lot when smoothing
   %State update:
-  newXs=xf+H*(prevXs-xp); %=H*prevXs +(xf-H*xp); 
+  newXs=xf+H*(prevXs-xp); %=H*prevXs +(xf-H*xp);
   %Compute across-steps covariance:
   newPt=ps*H'; %This should be such that A*newPt' is hermitian
   %More stable state covariance update:

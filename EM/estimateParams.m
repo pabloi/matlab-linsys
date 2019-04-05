@@ -1,4 +1,4 @@
-function [A,B,C,D,Q,R,x0,P0]=estimateParams(Y,U,X,P,Pt,opts)
+function [A,B,C,D,Q,R,x0,P0]=estimateParams(Y,U,X,P,Pt,opts,S)
 %M-step of EM estimation for LTI-SSM
 %INPUT:
 %Y = output of the system, D2 x N
@@ -36,7 +36,19 @@ D1=size(xx,1);
 [No]=size(yx,1);
 N=[];
 Nu=size(uu,1);
-%[opts] = processEMopts(opts,Nu); opts are processed in EM(). This function should only be called from there, so opts need to be defined appropriately already
+
+if ~opts.freeX %Either A, B, C, or Q matrices were constrained so X is not free to be estimated in any reference frame
+  xx=S*xx*S';
+  xx_=S*xx_*S';
+  xu=S*xu;
+  xu_=S*xu_;
+  xx1=S*xx1*S';
+  SP=S*SP*S';
+  SPt=S*SPt*S';
+  xu1=S*xu1;
+  SP_=S*SP_*S';
+  S_P=S*S_P*S';
+end
 
 %Estimate A,B:
 xu_=xu_(:,opts.indB);
@@ -76,7 +88,7 @@ else %Non-fixed diagonal A Enforcing
 end
 %Enforce stability if required:
 if opts.stableA && isempty(opts.fixA)
-    [V,J] = eig(A); 
+    [V,J] = eig(A);
   if isa(Y,'cell')
     Nsamp=max(cellfun(@(x) size(x,2),Y));
   else
@@ -95,7 +107,7 @@ if opts.stableA && isempty(opts.fixA)
   if isempty(opts.fixB)
     B(:,opts.indB)=(xu1-A*xu_)/uu_;
   end
-  [~,J] = eig(A); 
+  [~,J] = eig(A);
   if any(abs(diag(J))>(1-1/(4*Nsamp))) %Should never happen
       error('A is still unstable')
   end

@@ -37,6 +37,7 @@ defaultOpts.refineTol=1e-4; %Very picky, increase in logL every 1e2 iterations
 %(more free parameters means that logL should increase even more to be signficant).
 defaultOpts.refineMaxIter=2e4;
 defaultOpts.refineFastFlag=false; %Patient mode
+defaultOpts.freeX=true;
 
 %Assign any options that were not provided with default values:
 fNames=fieldnames(defaultOpts);
@@ -58,6 +59,9 @@ if ~isempty(opts.fixD)
   if any(size(opts.fixD)~=[ny,nu])
     error('EMopts:providedDdimMismatch','Provided D matrix size is inconsistent with number of inputs or outputs.')
   end
+end
+if ~isempty(opts.fixQ) || ~isempty(opts.fixA) || ~isempty(opts.fixB) || ~isempty(opts.fixC)
+  opts.freeX=false; %This should not be set by the user ever.
 end
 
 %Reintepret some special options:
