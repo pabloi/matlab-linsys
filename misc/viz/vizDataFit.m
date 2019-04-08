@@ -65,7 +65,16 @@ for kk=1:maxK
 end
 
 %% Measures of output error:
-dataVariance=norm(datSet.out,'fro');
+%dataVariance=norm(datSet.out,'fro');
+rr=datSet.flatResiduals;
+residualReference=norm(rr,'fro'); %Residuals from flat model
+dY=diff(datSet.out,[],2);
+dU=diff(datSet.in,[],2);
+idx=all(dU==0);
+N=sum(idx);
+M=sum(~idx);
+dY=dY(:,idx);
+baseResiduals=sqrt(.5)*norm(dY,'fro')*(N+M+1)/N; %Residuals from one-ahead data, its coavariance is a lower bound of R+.5*CQC'
 %resDet=cellfun(@(x) norm(x.simulate(datSet.in,[],true).out-datSet.out,'fro'),model)/dataVariance;
 for ll=1:2
     for k=1:length(model)
@@ -76,7 +85,7 @@ for ll=1:2
                 [simSet]=model{k}.simulate(U,iC,true,true);
                 res=datSet.out -simSet.out;
                 rmseTimeCourse=sum(res.^2);
-                aux1=norm(res,'fro')/dataVariance;
+                aux1=norm(res,'fro')/residualReference;
                 %aux1=sum(sum(abs(res)));
                 tt={'Deterministic output error'; '(RMSE, mov. avg.)'};
             case 3 % MLE state output error
@@ -85,7 +94,7 @@ for ll=1:2
                 [modelOut]=dFit{k}.output;
                 res=modelOut-datSet.out;
                 rmseTimeCourse=sum(res.^2);
-                aux1=norm(res,'fro')/dataVariance;
+                aux1=norm(res,'fro')/residualReference;
                 %aux1=sum(sum(abs(res)));
                 tt={'KF prediction output error';'(RMSE, mov. avg.)'};
         end
@@ -111,8 +120,12 @@ for ll=1:2
             set(gca,'YScale','log')
         end
     end
+    subplot(Nx,Ny,2+(2*ll-1)*Ny) %Bars of residuals
+    hold on
+    plot([1,length(model)],[1 1]*baseResiduals/residualReference,'k--')
 
 end
+
 
 %% Plot STATES
 clear p

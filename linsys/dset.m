@@ -126,5 +126,9 @@ classdef dset
               l=mdl.logL(this);
             end
         end
+        function r=flatResiduals(this)
+            [J,B,C,D,Q,R,logLperSamplePerDim]=getFlatModel(this.out,this.in);
+            r=this.out-D*this.in;
+        end
     end
 end
