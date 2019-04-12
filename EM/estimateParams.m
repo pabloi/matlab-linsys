@@ -162,7 +162,7 @@ if isempty(opts.fixQ)
       [Q1]=robCov(w);%,95); %Fast variant of robustcov() estimation
       %Q1=squeeze(median(w.*reshape(w',1,size(w,2),size(w,1)),2));
   end
-  Q=Q1 +Q2;
+  Q=Q1 +Q2+opts.minQ*eye(size(Q1));
 else
   Q=opts.fixQ;
 end
@@ -190,7 +190,7 @@ if isempty(opts.fixR)
       nR=size(R,1);
       R=eye(nR)*trace(R)/nR;
   end
-  R=R+1e-9*eye(size(R)); %Avoid numerical issues from PSD, but not PD, ill-conditioned matrices
+  R=R+opts.minR*eye(size(R)); %Avoid numerical issues from PSD, but not PD, ill-conditioned matrices
 else
   R=opts.fixR;
 end

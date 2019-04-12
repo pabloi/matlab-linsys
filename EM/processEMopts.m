@@ -27,6 +27,8 @@ defaultOpts.fixX0=[];
 defaultOpts.fixP0=[];
 defaultOpts.includeOutputIdx=1:ny; %Include all
 defaultOpts.stableA=false; %Not enforcing stability of A by default
+defaultOpts.minQ=0; %Getting a sensible value is hard since scale of states is arbitrary
+defaultOpts.minR=1e-6; %This requires a sensible value for the Kalman filter to be well defined
 
 %Options for randomStartEM's final refinement stage (iterated EM)
 defaultOpts.refineTol=1e-4; %Very picky, increase in logL every 1e2 iterations
