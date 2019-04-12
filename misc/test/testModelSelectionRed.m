@@ -31,13 +31,10 @@ opts.indB=1;
 opts.indD=[];
 opts.includeOutputIdx=find(~flatIdx);
 warning('off','statKSfast:fewSamples') %This is needed to avoid a warning bombardment
-[fitMdl,outlog]=linsys.id(simDatSetFixedNoise,1:6,opts); %Fixed noise only
+[fitMdlRed,outlog]=linsys.id(simDatSetFixedNoise,1:6,opts); %Fixed noise only
 
 %% Save
-save modelOrderTestS5RepsRED.mat fitMdl outlog simDatSetFixedNoise datSet model simDatSetNoiseless stateE
+save testModelSelectionRed.mat fitMdlRed outlog simDatSetFixedNoise datSet model simDatSetNoiseless stateE
 %%
-fittedLinsys.compare(fitMdl)
-%% Step 5: use fitted models to evaluate log-L and goodness of fit
-%%
-legacy_vizDataLikelihood(fitMdlFixedNoise,simDatSetFixedNoise) %Fixed noise
-set(gcf,'Name','E-M fits to synthetic data from 4th order LTI-SSM')
+load testModelSelectionRed.mat
+fittedLinsys.compare(fitMdlRed)
