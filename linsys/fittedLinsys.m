@@ -34,7 +34,12 @@ methods
       this.dataSetNonNaNSamples=dataSet.nonNaNSamp;
       end
       if nargin>10
-      this.goodnessOfFit=gof;
+        this.goodnessOfFit=gof;
+        %Todo: validate this logL value using the iC, dataSet
+        [~,~,~,logL]=this.Kfilter(dataSet,iC);
+        if abs(gof-logL)>1
+          warning(['Provided gof does not match log-L of model with given initial conditions. gof=' num2str(gof) ', logL now=' num2str(logL) ', gap=' num2str(gof-logL)])
+        end
       end
       if nargin>6 && ~isempty(iC)
         this.initCondPrior=iC; %Should be initCond object
@@ -87,12 +92,21 @@ methods
       end
       %Rdof:
       Nr=this.Rdof; %This is its own function because it is needed for AICc
+      
+      Nx0=Nx;
+      Np=Nx^2;
+      if ~isempty(opts.fixX0)
+          Nx0=0;
+      end
+      if ~isempty(opts.fixP0)
+          Np=0;
+      end
 
       Nbcq= Nb+Nc+Nq-Nx;  %Up to Nx parameters can be fixed in B, C, or Q, without losing degrees of freedom (you just lose redundant representations).
       %For example, the first column of B can be arbitrarily set to all 1,
       %or the norm of columns of C to be all 1 too, or the diagonal
       %elements of Q be set to 1. These are essentially scale parameters.
-      df=Na+Nbcq+Nd+Nr; %Model free parameters
+      df=Na+Nbcq+Nd+Nr+Nx0+Np; %Model free parameters
       if this.order==1 && this.A==0 %Flat model gets expressed as a 1st order
          df=Nd+Nr;
       end
@@ -139,7 +153,8 @@ methods
         p=this.dof;
         N=this.dataSetNonNaNSamples;
         v=this.Rdof;
-        aicc=this.AIC+2*p*(p+v)/(N*this.Noutput-p-v);
+        k=p+v;
+        aicc=this.AIC+2*p*k/(N*this.Noutput-k);
         %This expression is drawn from Burnham and Anderson 2002, eq. 7.91
       else
         error('AICc is not defined unless goodness of fit metric is logL')
@@ -164,7 +179,7 @@ methods
     if deltaDof<0
       deltaDof=-deltaDof;
     end
-    chi=2*(this.goodnessOfFit - other.goodnessOfFit);
+    chi=2*(this.goodnessOfFit - other.goodnessOfFit); %Twice the log-L is arbuably distributed as a chi^2 with deltaDof degrees of freedom (Cheng and Sabes 2006, Wilks 1938?)
     if chi<2
       warning('dataFit:LRT','Model with more parameters has lower likelihood. This means either a bad fit or that models were not nested.')
     end
@@ -217,18 +232,24 @@ methods(Static)
                 for k=1:Mm
                     set(gca,'ColorOrderIndex',k)
                     bar2=bar([k*100],yy(k),'EdgeColor','none','BarWidth',100);
-                    text((k)*100,.01*yy(k),[num2str(yy(k),6)],'Color','w','FontSize',8,'Rotation',90)
+                    txt=num2str(yy(k),6);
+                    txt='';
                     if kj==1 && k>1
                       [pval,chi,deltaDof]=likelihoodRatioTest(fittedModels{k},fittedModels{k-1});
-                      text((k)*100-40,.75*yy(k),['\chi^2_{' num2str(deltaDof) '}=' num2str(round(chi))],'Color','w','FontSize',6)
+                      %text((k)*100-40,.75*yy(k),[{['\chi^2_{' num2str(deltaDof) '}=']};{[ num2str(round(chi))]}],'Color','w','FontSize',6)
+                      txt=[txt '  \chi^2_{' num2str(deltaDof) '}=' num2str(round(chi))];
                       if pval>1e-9
-                         text((k)*100-30,.9*yy(k),['p=' num2str(pval,2)],'Color','w','FontSize',6)
+                         %text((k)*100-30,.9*yy(k),['p=' num2str(pval,2)],'Color','w','FontSize',6)
+                         txt=[txt ', p=' num2str(pval,2)];
                       else
-                         text((k)*100-30,.9*yy(k),['p<1e-9'],'Color','w','FontSize',6)
+                         %text((k)*100-30,.9*yy(k),['p<1e-9'],'Color','w','FontSize',6)
+                         txt=[txt ', p<1e-9'];
                       end
                     elseif kj ~=1
-                      text((k)*100-35,.9*yy(k),[ num2str(round(100*w(k))) '%'],'Color','w','FontSize',8)
+                      %text((k)*100-35,.9*yy(k),[ num2str(round(100*w(k))) '%'],'Color','w','FontSize',6)
+                      txt=[txt ' P=' num2str(round(100*w(k))) '%'];
                     end
+                    text((k)*100,.01*yy(k),txt,'Color','k','FontSize',8,'Rotation',90)
                 end
                 set(gca,'XTick',[1:Mm]*100,'XTickLabel',cellfun(@(x) x.name, fittedModels,'UniformOutput',false),'XTickLabelRotation',90)
                 title([nn])

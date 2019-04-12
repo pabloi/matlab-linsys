@@ -73,6 +73,7 @@ classdef dset
             Nblocks=floor(this.Nsamp/blockSize);
             lastSample=Nblocks*blockSize;
             this.out(:,lastSample+1:end)=NaN; %Deleting unused samples for everyone
+            multiSet=cell(Npartitions,1);
             for j=1:Npartitions
               multiSet{j}=this;
             end
@@ -129,6 +130,18 @@ classdef dset
         function r=flatResiduals(this)
             [J,B,C,D,Q,R,logLperSamplePerDim]=getFlatModel(this.out,this.in);
             r=this.out-D*this.in;
+        end
+        function W=estimateVar(this)
+           diffU=diff(this.in,[],2);
+           diffY=diff(this.out,[],2);
+           diffY=diffY(:,all(diffU==0)); %sample differences when input=constant
+           W=.5*(diffY*diffY')/size(diffY,2); %Covariance of said samples
+           %Formally, if data comes from a linear system:
+           %E(W)=R+.5*CQC'+.5*H*(x-x_inf)*(x-x_inf)'*H'
+           %Where H=C*(A-I), x_inf=steady-state for the given output at
+           %that time. If most samples are close to steady-state, then the
+           %third term is negligible, and this becomes an estimate of
+           %R+.5*CQC'
         end
     end
 end
