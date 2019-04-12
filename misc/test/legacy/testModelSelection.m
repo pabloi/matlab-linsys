@@ -25,24 +25,17 @@ end
 simDatSetVariableNoise=dset(simDatSetNoiseless.in,simDatSetNoiseless.out+noise);
 
 %% Step 3: identify models
-opts.Nreps=100;
-opts.fastFlag=200; %Generally a bad idea, but in EM we expect covariance matrices to converge to near steady-state values, so this is fine.
+opts.Nreps=1; %Single rep, yes. Based on the fact that the first rep is almost always the definitive one.
+opts.fastFlag=200; %Set to 1
 opts.indB=1;
 opts.indD=[];
 warning('off','statKSfast:fewSamples') %This is needed to avoid a warning bombardment
 [fitMdl,outlog]=linsys.id(simDatSetFixedNoise,1:6,opts); %Fixed noise only
 
 %% Save
-save modelOrderTestS100Reps.mat fitMdl outlog simDatSetFixedNoise datSet model simDatSetNoiseless stateE
+save modelOrderTestS1Reps.mat fitMdl outlog simDatSetFixedNoise datSet model simDatSetNoiseless stateE
 
 %% Step 5: use fitted models to evaluate log-L and goodness of fit
-clear all
-load('modelOrderTestS100Reps.mat')
-legacy_vizDataLikelihood(fitMdl,simDatSetFixedNoise) %Fixed noise
-set(gcf,'Name','E-M fits to synthetic data from 4th order LTI-SSM (100 reps)')
-
-%% Compare to single rep:
-clear all
-load('modelOrderTestS1Reps.mat')
-legacy_vizDataLikelihood(fitMdl,simDatSetFixedNoise) %Fixed noise
-set(gcf,'Name','E-M fits to synthetic data from 4th order LTI-SSM (1 reps)')
+%%
+legacy_vizDataLikelihood(fitMdlFixedNoise,simDatSetFixedNoise) %Fixed noise
+set(gcf,'Name','E-M fits to synthetic data from 4th order LTI-SSM')
