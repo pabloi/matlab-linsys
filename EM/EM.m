@@ -220,7 +220,7 @@ if opts.fastFlag~=0 %Re-enable disabled warnings
     warning('on','statKSfast:fewSamples')
 %Comput optimal states and logL without the fastFlag
   opts.fastFlag=0;
-    [X1,P1,Pt1,~,~,~,~,~,bestLogL]=statKalmanSmoother(Yred,A1,Cred,Q1,Rred,x01,P01,B1,Dred,U,opts);
+    [X1,P1,Pt1,~,~,~,~,~,bestLogL]=statKalmanSmoother(Yred,A1,C1,Q1,R1,x01,P01,B1,D1,U,opts);
 end
 if opts.logFlag
   outLog.vaps(k,:)=sort(eig(A1));

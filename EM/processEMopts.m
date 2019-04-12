@@ -16,7 +16,7 @@ defaultOpts.thR=0;
 defaultOpts.outlierReject=false;
 defaultOpts.indD=1:nu; %Include all
 defaultOpts.indB=1:nu; %Include all
-defaultOpts.logFlag=false;
+defaultOpts.logFlag=false; %No log-keeping by default
 defaultOpts.fixA=[];
 defaultOpts.fixB=[];
 defaultOpts.fixC=[];
@@ -58,6 +58,39 @@ if ~isempty(opts.fixD)
   if any(size(opts.fixD)~=[ny,nu])
     error('EMopts:providedDdimMismatch','Provided D matrix size is inconsistent with number of inputs or outputs.')
   end
+end
+if islogical(opts.includeOutputIdx) %Logical indexing used
+    opts.includeOutputIdx=find(opts.includeOutputIdx);
+end
+
+%Check sizes and shrink fixC, fixD, fixR if needed:
+nny=numel(opts.includeOutputIdx);
+if ~isempty(opts.fixC)
+    if size(opts.fixC,2)~=nx || ~any(size(opts.fixC,1)==[ny,nny])
+        error('processEMopts:fixCsize','Incorrect fixed C matrix size.');
+    elseif size(opts.fixC,1)==ny
+        opts.fixC=opts.fixC(opts.includeOutputIdx,:);
+    elseif size(opts.fixC,1)==nny %Presuming already shrunk, do issue warning
+        warning('processEMopts:fixCsize','Size of fixed C was not as expected. It appears to be a reduced version, which is not default behavior. Proceeding, but please fix.')
+    end
+end
+if ~isempty(opts.fixD)
+    if size(opts.fixD,2)~=nu || ~any(size(opts.fixD,1)==[ny,nny])
+        error('processEMopts:fixDsize','Incorrect fixed D matrix size.');
+    elseif size(opts.fixD,1)==ny
+        opts.fixD=opts.fixD(opts.includeOutputIdx,:);
+    elseif size(opts.fixD,1)==nny %Presuming already shrunk, do issue warning
+        warning('processEMopts:fixDsize','Size of fixed D was not as expected. It appears to be a reduced version, which is not default behavior. Proceeding, but please fix.')
+    end
+end
+if ~isempty(opts.fixR)
+    if size(opts.fixR,2)~=size(opts.fixR,1) || ~any(size(opts.fixR,1)==[ny,nny])
+        error('processEMopts:fixRsize','Incorrect fixed R matrix size. Should be square and of same size as output.');
+    elseif size(opts.fixR,1)==ny
+        opts.fixR=opts.fixR(opts.includeOutputIdx,opts.includeOutputIdx);
+    elseif size(opts.fixR,1)==nny %Presuming already shrunk, do issue warning
+        warning('processEMopts:fixRsize','Size of fixed R was not as expected. It appears to be a reduced version, which is not default behavior. Proceeding, but please fix.')
+    end
 end
 
 %Reintepret some special options:

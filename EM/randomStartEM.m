@@ -1,7 +1,7 @@
 function [A,B,C,D,Q,R,X,P,bestLL,outLog]=randomStartEM(Y,U,nd,opts)
 
 %First iter:
-fprintf(['\n Starting rep 0 (fast one)... \n']);
+fprintf(['\n Starting rep 0 (short one)... \n']);
 %Pre-process optional flags:
 if isa(U,'cell')
   Nu=size(U{1},1);
@@ -12,38 +12,37 @@ else
   ny=size(Y,1);
   Nsamp=size(Y,2);
 end
-opts=processEMopts(opts,Nu,nd,ny);
+
+opt1=opts; %Options for rapid round
+opt2=opts; %Options for other rounds
+optR=processEMopts(opts,Nu,nd,ny); %Options for using within this function, never passed elsewhere
+
 outLog=struct();
-opt1=opts;
-opt1.fastFlag=50; %Enforcing fast filtering
 %opt1.fixP0=diag(Inf(nd,1));
-opt1.Niter=min([opt1.Niter,500]); %Very fast evaluation of initial case, just to get a benchmark.
+opt1.Niter=500; %Very fast evaluation of initial case, just to get a benchmark.
 warning('off','EM:logLdrop') %If samples are NaN, fast filtering may make the log-L drop (smoothing is not exact, so the expectation step is not exact)
 warning('off','EM:fastAndLoose')%Disabling the warning that NaN and fast may be happening
 [A,B,C,D,Q,R,X,P,bestLL,startLog]=EM(Y,U,nd,opt1);
 warning('on','EM:logLdrop')
 warning('on','EM:fastAndLoose')
-if opts.logFlag
+if optR.logFlag
     outLog.opts=opts;
     outLog.startLog=startLog;
     tic;
 end
-opts.targetLogL=bestLL;
-opt2=opts;
-%if opt2.fastFlag~=0
-%  opt2.convergenceTol=opt2.convergenceTol/10; %In fast mode it seems more likely to find flat-ish regions, and since things go faster, there is little damage doing this.
-%end
-%opt2.fixP0=diag(Inf(nd,1));
+opt2.targetLogL=bestLL;
+
 lastSuccess=0;
 warning('off','statKF:logLnoPrior'); %Enforcing improper prior for parameter search
-for i=1:opts.Nreps
+for i=1:optR.Nreps
     fprintf(['\n Starting rep ' num2str(i) '. Best logL so far=' num2str(bestLL,8) ' (iter=' num2str(lastSuccess) ') \n']);
 
     %Initialize starting point:
-    Xguess=guess(nd,Y,U,opts);
+    Xguess=guess(nd,Y(optR.includeOutputIdx,:),U,optR);
 
     %Optimize:
-    [Ai,Bi,Ci,Di,Qi,Ri,Xi,Pi,logl,repLog]=EM(Y,U,Xguess,opt2);
+    %try
+	[Ai,Bi,Ci,Di,Qi,Ri,Xi,Pi,logl,repLog]=EM(Y,U,Xguess,opt2);
 
     %If solution improved, save and display:
     if logl>bestLL
@@ -52,20 +51,24 @@ for i=1:opts.Nreps
         lastSuccess=i;
         disp(['----Success, best logL=' num2str(bestLL,8) '(iter=' num2str(lastSuccess) ')----'])
     end
-    if opts.logFlag
+    if optR.logFlag
         outLog.repLog{i}=repLog;  outLog.repRunTime(i)=toc;   tic;
     end
+
+    %catch ME
+	%warning('randomStartEM:EMiterFail',['Iteration #' num2str(i) ' failed with error ' ME.identifier '. This could be a numerical issue or something more important. Please look at previous messages. Ignoring and continuing'])
+    %end
 end
 warning('on','statKF:logLnoPrior');
 
-if opts.fastFlag~=0 %Fast allowed
+if optR.fastFlag~=0 %Fast allowed
   disp(['Refining solution... (fast) Best logL so far=' num2str(bestLL,8) '(iter=' num2str(lastSuccess) ')']);
-  opts.Niter=opts.refineMaxIter; %This will go fast, can afford to have many iterations, it will rarely reach the limit.
-  opts.convergenceTol=opts.refineTol/1e2; %This is mostly to prevent the algorithm from stopping at a flat-ish region
-  opts.targetTol=1e-4;
-  opts.fastFlag=50;
-  opts.targetLogL=bestLL;
-  [Ai,Bi,Ci,Di,Qi,Ri,Xi,Pi,bestLL1,refineLog]=EM(Y,U,X,opts,P);
+  opt2.Niter=optR.refineMaxIter; %This will go fast, can afford to have many iterations, it will rarely reach the limit.
+  opt2.convergenceTol=optR.refineTol/1e2; %This is mostly to prevent the algorithm from stopping at a flat-ish region
+  opt2.targetTol=1e-4;
+  opt2.fastFlag=50;
+  opt2.targetLogL=bestLL;
+  [Ai,Bi,Ci,Di,Qi,Ri,Xi,Pi,bestLL1,refineLog]=EM(Y,U,X,opt2,P);
   if bestLL1>bestLL
       A=Ai; B=Bi; C=Ci; D=Di; Q=Qi; R=Ri; X=Xi; P=Pi; bestLL=bestLL1;
     else
@@ -76,17 +79,17 @@ if opts.fastFlag~=0 %Fast allowed
 end
 
 disp(['Refining solution... (patient mode) Best logL so far=' num2str(bestLL,8)]);
-opts.fastFlag=0;
-opts.Niter=opts.refineMaxIter;
-opts.convergenceTol=opts.refineTol;
-opts.targetLogL=bestLL;
-[Ai,Bi,Ci,Di,Qi,Ri,Xi,Pi,bestLL1,refineLog2]=EM(Y,U,X,opts,P); %Refine solution, should work always
+opt2.fastFlag=0;
+opt2.Niter=optR.refineMaxIter;
+opt2.convergenceTol=optR.refineTol;
+opt2.targetLogL=bestLL;
+[Ai,Bi,Ci,Di,Qi,Ri,Xi,Pi,bestLL1,refineLog2]=EM(Y,U,X,opt2,P); %Refine solution, should work always
 if bestLL1>bestLL
     A=Ai; B=Bi; C=Ci; D=Di; Q=Qi; R=Ri; X=Xi; P=Pi; bestLL=bestLL1;
 end
 
 disp(['End. Best logL=' num2str(bestLL,8)]);
-if opts.logFlag
+if optR.logFlag
     outLog.repfineLog=refineLog;
     outLog.repfineLog2=refineLog2;
     outLog.refineRunTime=toc;
@@ -144,6 +147,7 @@ function Xguess=guess(nd,Y,U,opts)
     warning('off','statKF:logLnoPrior') %Using uninformative prior
     warning('off','statKSfast:fewSamples') %If using fast mode, it doesnt matter here
     [Xguess]=statKalmanSmoother(y,A1,C1,Q1,R1,x0,P0,B1,D1,u,opts);
+    Xguess(isnan(Xguess))=0; %Doxy. a better workaround is needed
     warning('on','statKF:logLnoPrior')
     warning('on','statKSfast:fewSamples')
     %Alternative: [Xguess]=statInfoSmoother2(y,A1,C1,Q1,R1,[],[],B1,D1,u,opts);

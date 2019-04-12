@@ -18,8 +18,12 @@ res=Y-D*U;
 Raux=res*res'/size(Y,2);
 
 %If some outputs were excluded:
-R=diag(inf(size(Y,1),1));
-R(opts.includeOutputIdx,opts.includeOutputIdx)=Raux(opts.includeOutputIdx,opts.includeOutputIdx);
+
+if ~isfield(opts,'includeOutputIdx') || isempty(opts.includeOutputIdx)
+   opts.includeOutputIdx=1:ny;
+end
+    R=diag(inf(size(Y,1),1));
+    R(opts.includeOutputIdx,opts.includeOutputIdx)=Raux(opts.includeOutputIdx,opts.includeOutputIdx);
 
 %Get logL:
 warning('off','statKF:logLnoPrior'); %Enforcing improper prior for parameter search

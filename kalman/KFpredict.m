@@ -12,6 +12,6 @@ x=A*x+b;
 %aux=mycholcov(P); %To ensure psd
 %Aa=A*aux';
 %P=Aa*Aa'+Q;
-P=A*P*A'+Q; %This is much faster than the Chol decomposition, but may add instability
+P=A*P*A'+Q; %This is much faster than the Chol decomposition, but may add instability. Ideally, PSD-ness would be checked at each step
 P=(P+P')/2;
 end

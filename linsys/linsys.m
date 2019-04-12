@@ -298,7 +298,7 @@ classdef linsys
                   [this{j},outlog{j}]=linsys.id(datSet{j},order,opts);
                 end
             else %Single order, single set
-                if isempty(opts.includeOutputIdx)
+                if ~isfield(opts,'includeOutputIdx') || isempty(opts.includeOutputIdx)
                     ny=datSet.Noutput;
                 elseif ~islogical(opts.includeOutputIdx)
                     ny=length(opts.includeOutputIdx);
