@@ -3,11 +3,11 @@ addpath(genpath('../../')) %Adding the matlab-sysID toolbox to path, just in cas
 %%
 clear all
 %% Create model:
-D1=2;
-D2=7;
+D1=3;
+D2=100;
 N=1000;
-A=randn(D1);
-A=[.97,0;0,.995];
+A=diag(1-.1*abs(rand(D1,1)));
+%A=[.97,0;0,.995];
 B=(eye(size(A))-A)*ones(size(A,1),1); %WLOG, arbitrary scaling
 U=[zeros(300,1);ones(N,1);zeros(N/2,1)]'; %Step input and then removed
 C=randn(D2,D1);
