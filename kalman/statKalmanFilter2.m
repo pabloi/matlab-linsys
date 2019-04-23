@@ -95,10 +95,11 @@ end
 
 %Reduce model if convenient for efficiency:
 if D2>D1 && ~opts.noReduceFlag %Reducing dimension of problem for speed
-    [CtRinvC,~,CtRinvY,~,logLmargin,S]=reduceModel(C,R,Y_D);
+    [CtRinvC,~,CtRinvY,~,logLmargin]=reduceModel(C,R,Y_D);
     %S converges to the identity matrix through EM, which means CtRinvC
     %converges to the identity too. Why? Is that a stable representation?
     C=CtRinvC; R=CtRinvC; Y_D=CtRinvY;  D2=D1; rejSamples=rejSamples(1:D1,:);
+    S=sqrtm(inv(R));
     R=eye(size(R)); C=eye(size(R)); Y_D=S*Y_D; A=(S*CtRinvC)*A/(S*CtRinvC); BU=S*CtRinvC*BU; Q=(S*CtRinvC)*Q*(S*CtRinvC)';
     prevX=S\prevX;
     prevP=(S\prevP)/S'; %Do in a PSD way!

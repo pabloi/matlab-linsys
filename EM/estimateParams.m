@@ -23,13 +23,6 @@ function [A,B,C,D,Q,R,x0,P0]=estimateParams(Y,U,X,P,Pt,opts,S)
 %     end
 % end
 
-%Do some normalization to avoid ill-conditioned situations
-%scale=sqrt(sum(X.^2,2));
-%X=X./scale;
-%P=(P./scale)./scale';
-%Pt=(Pt./scale)./scale';
-%NOTE: this scaling leads to different parameters, but it is an arbitrary choice nonetheless.
-
 %Define vars:
 [yx,yu,xx,uu,xu,SP,SPt,xx_,uu_,xu_,xx1,xu1,SP_,S_P]=computeRelevantMatrices(Y,X,U,P,Pt,opts.robustFlag);
 D1=size(xx,1);
@@ -37,7 +30,7 @@ D1=size(xx,1);
 N=[];
 Nu=size(uu,1);
 
-if ~opts.freeX %Either A, B, C, or Q matrices were constrained so X is not free to be estimated in any reference frame
+if nargin>6 && ~isempty(S) && ~opts.freeX %Either A, B, C, or Q matrices were constrained so X is not free to be estimated in any reference frame
   xx=S*xx*S';
   xx_=S*xx_*S';
   xu=S*xu;

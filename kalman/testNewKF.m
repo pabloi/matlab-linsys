@@ -67,11 +67,11 @@ tic
 mdl=4;
 opts.noReduceFlag=false;
 opts.fastFlag=0;
-[Xs,Ps,Pt,Xf,Pf,Xp,Pp,~,logL(mdl)]=statKalmanSmoother2(Y,A,C,Q,R,x0,P0,B,D,U,opts); %Kalman smoother estimation of states, given the true parameters (this is the best possible estimation of states)
-Xs2=Xs;
+[Xs,Ps,Pt,Xf,Pf,Xp,Pp,~,logL(mdl),S]=statKalmanSmoother2(Y,A,C,Q,R,x0,P0,B,D,U,opts); %Kalman smoother estimation of states, given the true parameters (this is the best possible estimation of states)
+Xs2=S*Xs;
 Ps2=Ps;
-res(mdl)=norm(Xs-X,'fro')^2;
-maxRes(mdl)=max(sum((Xs-X).^2));
+res(mdl)=norm(Xs2-X,'fro')^2;
+maxRes(mdl)=max(sum((Xs2-X).^2));
 name{mdl}='KS2';
 tc(mdl)=toc;
 %%

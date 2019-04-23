@@ -25,16 +25,16 @@ x0=zeros(D1,1);
 opts.fastFlag=0;
 opts.robustFlag=0;
 tic
-[A,B,C,D,Q,R,X,P,logL,outlog]=EM(Y,U,D1,opts);
+[J,B,C,D,Q,R,X,P,logL,outlog]=EM(Y,U,D1,opts);
 toc
-model{1}=autodeal(A,B,C,D,X,Q,R,logL);
+model{1}=autodeal(J,B,C,D,X,Q,R,logL);
 model{1}.name='EM (single run, normal)';
 %%
 opts.robustFlag=false;
 tic
-[A,B,C,D,Q,R,X,P,logL,outlog]=EM2(Y,U,D1,opts);
+[J,B,C,D,Q,R,X,P,logL,outlog]=EM2(Y,U,D1,opts);
 toc
-model{2}=autodeal(A,B,C,D,X,Q,R,logL);
+model{2}=autodeal(J,B,C,D,X,Q,R,logL);
 model{2}.name='EM (fast)';
 %%
 % LDS.A=Ah;
