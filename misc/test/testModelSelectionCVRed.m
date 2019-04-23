@@ -7,16 +7,17 @@ model=model{4}; %3rd order model as ground truth
 initC=initCond(zeros(3,1),zeros(3));
 deterministicFlag=false;
 [simDatSet,stateE]=model.simulate(datSet.in,initC,deterministicFlag);
+clear datSet
 %% Get folded data for adapt/post
 datSetAP=simDatSet.split([826]); %Split in half
 %% Get odd/even data
 datSetOE=alternate(simDatSet,2);
 %% Get blocked data
 blkSize=20; %This discards the last 10 samples, leaves the first 10 (exactly) after each transition on a different set
-datSetBlk=datSet.blockSplit(blkSize,2); 
+datSetBlk=simDatSet.blockSplit(blkSize,2); 
 %%
-Y=datSet.out;
-U=datSet.in;
+Y=simDatSet.out;
+U=simDatSet.in;
 X=Y-(Y/U)*U; %Projection over input
 s=var(X'); %Estimate of variance
 flatIdx=s<.005; %Variables are split roughly in half at this threshold
@@ -29,7 +30,7 @@ opts.stableA=true;
 opts.fastFlag=100;
 opts.includeOutputIdx=find(~flatIdx);
 numCores = feature('numcores');
-p = parpool(numCores);
+%p = parpool(numCores);
 [fitMdlAPRed,outlogAP]=linsys.id([datSetAP],0:6,opts);
 opts.fastFlag=false;
 [fitMdl,outlog]=linsys.id([datSetOE; datSetBlk],0:6,opts);

@@ -7,13 +7,14 @@ model=model{4}; %3rd order model as ground truth
 initC=initCond(zeros(3,1),zeros(3));
 deterministicFlag=false;
 [simDatSet,stateE]=model.simulate(datSet.in,initC,deterministicFlag);
+clear datSet
 %% Get folded data for adapt/post
 datSetAP=simDatSet.split([826]); %Split in half
 %% Get odd/even data
 datSetOE=alternate(simDatSet,2);
 %% Get blocked data
 blkSize=20; %This discards the last 10 samples, leaves the first 10 (exactly) after each transition on a different set
-datSetBlk=datSet.blockSplit(blkSize,2); 
+datSetBlk=simDatSet.blockSplit(blkSize,2); 
 %% Step 2: identify models for various orders
 opts.Nreps=10; %Single rep, this works well enough for full (non-CV) data
 opts.fastFlag=0; %Should not use fast for O/E because of NaN
