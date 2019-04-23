@@ -1,7 +1,7 @@
 function [opts] = processEMopts(opts,nu,nx,ny)
 
 %Define default values:
-defaultOpts.Niter=2e3;%Max number of iters
+defaultOpts.Niter=1e3*nx;%Max number of iters ,more complex models require more refining
 defaultOpts.Nreps=10;%Number of repetitions for randomStartEM
 defaultOpts.robustFlag=false;
 defaultOpts.outlierReject=false; %No rejection of outliers in KF/KS

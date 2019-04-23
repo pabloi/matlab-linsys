@@ -94,7 +94,7 @@ methods
       Nr=this.Rdof; %This is its own function because it is needed for AICc
       
       Nx0=Nx;
-      Np=Nx^2;
+      Np=0;%Nx^2 %This depends on how P0 is estimated. In current EM version, P0=Q so it adds no additional degrees of freedom.
       if ~isempty(opts.fixX0)
           Nx0=0;
       end

@@ -190,7 +190,11 @@ if isempty(opts.fixR)
       nR=size(R,1);
       R=eye(nR)*trace(R)/nR;
   end
-  R=R+opts.minR*eye(size(R)); %Avoid numerical issues from PSD, but not PD, ill-conditioned matrices
+  r=diag(R);
+  r(r<opts.minR)=opts.minR; %Minimum value for diagonal elements, avoids ill-conditioned situations
+  I=eye(size(R));
+  R=R.*(1-I)+diag(r);
+  %R=R+opts.minR*eye(size(R)); %Avoid numerical issues from PSD, but not PD, ill-conditioned matrices
 else
   R=opts.fixR;
 end
@@ -215,12 +219,12 @@ end
 
 function [x0,P0]=estimateInit(X,P,A,Q)
   x0=X(:,1); %Smoothed estimate
-  P0=P(:,:,1); %Smoothed estimate, the problem with this estimate is that trace(P0) is monotonically decreasing on the iteration of EM(). More likely it should converge to the same prior uncertainty we have for all other states.
+  %P0=P(:,:,1); %Smoothed estimate, the problem with this estimate is that trace(P0) is monotonically decreasing on the iteration of EM(). More likely it should converge to the same prior uncertainty we have for all other states.
   %A variant to not make it monotonically decreasing:
-  aux=mycholcov(P0);
-  Aa=A*aux';
-  P0=Q+Aa*Aa'; %This is a lower bound on the steady-state prior covariance
-  %P0=Q;
+  %aux=mycholcov(P0);
+  %Aa=A*aux';
+  %P0=Q+Aa*Aa'; %This is a lower bound on the steady-state prior covariance
+  P0=Q; %In EM, P(:,:,1) will converge to 0 (albeit slowly), so the above expression converges to Q
 end
 
 function [yx,yu,xx,uu,xu,SP,SPt,xx_,uu_,xu_,xx1,xu1,SP_,S_P]=computeRelevantMatrices(Y,X,U,P,Pt,robustFlag)
