@@ -6,7 +6,7 @@ clear all
 D1=3;
 D2=100;
 N=1000;
-A=diag(1-.1*abs(rand(D1,1)));
+A=diag(1-.03*abs(randn(D1,1)));
 %A=[.97,0;0,.995];
 B=(eye(size(A))-A)*ones(size(A,1),1); %WLOG, arbitrary scaling
 U=[zeros(300,1);ones(N,1);zeros(N/2,1)]'; %Step input and then removed
@@ -24,6 +24,7 @@ x0=zeros(D1,1);
 %% Identify 1alt: trueEM starting from non-true solution
 opts.fastFlag=0;
 opts.robustFlag=0;
+opts.Niter=1e3;
 tic
 [J,B,C,D,Q,R,X,P,logL,outlog]=EM(Y,U,D1,opts);
 toc

@@ -69,17 +69,6 @@ for i=N-1:-1:1
   %Store estimates:
   Xs(:,i)=prevXs;  Pt(:,:,i)=newPt;  Ps(:,:,i)=prevPs;
 end
-
-%Xf=S*Xf;
-%Xp=S*Xp;
-%Xs=S*Xs;
-%for i=1:N
-%   P(:,:,i)=iS*P(:,:,i)*iS'; %PSD can be enforced by storing U and reconstructing P in a sqrt way
-%   Pp(:,:,i)=iS*Pp(:,:,i)*iS';
-%   Ps=
-%   Pt=
-%end
-
 end
 
 function [newPs,newXs,newPt]=backStepRTS(icP,cpf,ps,xp,xf,prevXs,A)

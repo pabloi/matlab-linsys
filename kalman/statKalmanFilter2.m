@@ -95,7 +95,7 @@ end
 
 %Reduce model if convenient for efficiency:
 if D2>D1 && ~opts.noReduceFlag %Reducing dimension of problem for speed
-    [CtRinvC,~,CtRinvY,~,logLmargin]=reduceModel(C,R,Y_D);
+    [CtRinvC,~,CtRinvY,~,logLmargin,icR]=reduceModel(C,R,Y_D);
     %S converges to the identity matrix through EM, which means CtRinvC
     %converges to the identity too. Why? Is that a stable representation?
     C=CtRinvC; R=CtRinvC; Y_D=CtRinvY;  D2=D1; rejSamples=rejSamples(1:D1,:);
@@ -104,7 +104,7 @@ if D2>D1 && ~opts.noReduceFlag %Reducing dimension of problem for speed
     prevX=S\prevX;
     prevP=(S\prevP)/S'; %Do in a PSD way!
     %To do: make this transform in a more efficient way, preserving PSD of Q
-    logLmargin=logLmargin+sum(log(diag(S)));
+    logLmargin=logLmargin+sum(log(diag(icR)));
 else
     logLmargin=0;
 end

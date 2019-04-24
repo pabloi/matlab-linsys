@@ -71,10 +71,10 @@ end
 
 %Initialize log-likelihood register & current best solution:
 logl=nan(opts.Niter,1);
-logl(1)=bestLogL;
 if isa(Y,'gpuArray')
     logl=nan(Niter,1,'gpuArray');
 end
+logl(1)=bestLogL;
 A=A1; B=B1; C=C1; D=D1; Q=Q1; R=R1; x0=x01; P0=P01; P=P1; Pt=Pt1; X=X1;
 
 %Initialize target logL:
