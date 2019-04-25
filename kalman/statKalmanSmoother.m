@@ -124,6 +124,15 @@ end
 function [newPs,newXs,newPt,H]=backStepRTS(pp,pf,ps,xp,xf,prevXs,A,cQ,bu,iA)
   %Implements the Rauch-Tung-Striebel backward recursion
   %https://en.wikipedia.org/wiki/Kalman_filter#Fixed-interval_smoothers)
+  %Notably, the Rauch-Tung-Striebel math is equivalent to a Kalman-filter
+  %update, where xf,Pf are the priors (which come from filtering up to step k)
+  % x*=Ax+Bu+v is the observation model, where v~N(0,P*+Q) 
+  % [that is, A takes the place of C, B of D, and Q+P* of R in the usual notation], 
+  % and x*,P* are the MLE estimators of x_{k+1} given all the observations
+  % from k+1 to the end (i.e. future samples only)
+  % The RTS recursion is useful because it manages to compute newXs, newPs
+  % without computing x* and P* explicitly [P* satisfies 
+  %inv(P*)+inv(pp)=inv(ps), and x* satisfies inv(P*)x*+inv(pp)xp=inv(ps)xs]
 
   %Four cases to consider:
   %1) Pp has very large entries (possibly infinite): if A is invertible, use the alternate form, which is well conditioned.
@@ -147,6 +156,9 @@ function [newPs,newXs,newPt,H]=backStepRTS(pp,pf,ps,xp,xf,prevXs,A,cQ,bu,iA)
       %More stable state covariance update:
       HcPs=H*cPs';
       newPs= HcPs*HcPs' + (pf - HcP*HcP'); %The term in parenthesis is psd although this is not numerically enforced
+      %Alt enforcing:
+      %K=pf*A'*(invPP-invPP*ps*invPP);
+      %newPs=(eye-K*A)*pf;
       %To enforce: (makes it slower)
       %cS=mycholcov(pf - HcP*HcP'); %Should be psd: proof? Can also be computed in a PSD-enforcing way by using chol(Pf). Solution: cS'*cS = cPf'*(eye - (cPf*A'*icP)*(cPf*A'*icP)')*cPf;
       %newPs=HcPs*HcPs'+cS'*cS;%=HcPs*HcPs' + (pf - HcP*HcP');%=pf- H*(pp-ps)*H'; %The term in parenthesis is psd = inv(inv(pf)+A'*inv(Q)*A)    
@@ -160,6 +172,18 @@ function [newPs,newXs,newPt,H]=backStepRTS(pp,pf,ps,xp,xf,prevXs,A,cQ,bu,iA)
     %This function could be used whenever inv(A) is defined, not just with inifinte elements in Pp.
     %It may be better conditioned that standard RTS to deal with large Pp (trace(Pp)>> trace(Ps))
   end
+end
+function [newPs,newXs,newPt,H]=backStepRTS2(pp,pf,ps,xp,xf,prevXs,A,cQ,bu,iA)
+  [~,~,ipp]=pinvchol2(pp); %What happens if pp is NOT invertible (null eigenvalues)?
+  H=pf*A'*ipp;
+  KA=A'*(ipp-ipp*ps*ipp)*A; %PSD
+  newPs=pf-pf*KA*pf; %=(eye(size(pf))-pf*KA)*pf;
+  %=pf -pf*A'*ipp*A*pf + H*ps*H'
+  %But: pf*A'*ipp*A*pf = inv(A)*(eye-Q*ipp)*A*pf = pf -inv(A)*Q*H'
+  %Then: newPs = inv(A)*Q*H' + H*ps*H', which is always PSD, but may not
+  %guarantee that trace(newPs)<trace(pf) because of numerical issues
+  newXs=xf+H*(prevXs-xp);
+  newPt=ps*H';
 end
 function [newPs,newXs,newPt,H]=backStepRTS_invA(invCholPp,cholPs,xp,prevXs,cholQ,bu,iA)
   %An RTS-equivalent backward recursion assuming that A is invertible
