@@ -31,7 +31,14 @@ opts.fastFlag=100;
 opts.includeOutputIdx=find(~flatIdx);
 numCores = feature('numcores');
 %p = parpool(numCores);
+
+%Run identification with all data, true order, as reference
+mdlAll=linsys.id(simDatSet,3,opts);
+
+%Cross-validation first/second halves
 [fitMdlAPRed,outlogAP]=linsys.id([datSetAP],0:6,opts);
+
+%Cross-validation alternating:
 opts.fastFlag=false;
 [fitMdl,outlog]=linsys.id([datSetOE; datSetBlk],0:6,opts);
 
@@ -39,15 +46,20 @@ opts.fastFlag=false;
 fitMdlBlkRed=fitMdl(:,3:4);
 fitMdlOERed=fitMdl(:,1:2);
 
+
 %%
-save testModelSelectionCVRed.mat fitMdlAPRed fitMdlOERed fitMdlBlkRed outlogAP outlog simDatSet datSetAP datSetOE datSetBlk model stateE
+save testModelSelectionCVRed.mat fitMdlAPRed fitMdlOERed fitMdlBlkRed outlogAP outlog simDatSet datSetAP datSetOE datSetBlk model stateE opts mdlAll
 
 %% Step 5: use fitted models to evaluate log-L and goodness of fit
 load testModelSelectionCVRed.mat
 
 %CV log-l:
-[fh] = vizCVDataLikelihood(fitMdlAPRed(1:4,:),datSetAP([2,1]));
+f1=figure;
+[fh] = vizCVDataLikelihood(fitMdlAPRed(:,:),datSetAP([2,1]));
 fh.Name='Early/late CV';
+%ph=findobj(fh,'Type','Axes');
+%p1=copyobj(ph,f1);
+%p1.Position
 fh=vizCVDataLikelihood(fitMdlOERed,datSetOE([2,1]));
 fh.Name='Odd/even CV';
 fh=vizCVDataLikelihood(fitMdlBlkRed,datSetBlk([2,1]));
@@ -58,6 +70,8 @@ fittedLinsys.compare(fitMdlAPRed(:,1))
 fittedLinsys.compare(fitMdlAPRed(:,2))
 fittedLinsys.compare(fitMdlOERed(:,1))
 fittedLinsys.compare(fitMdlOERed(:,2))
+%Need to put these 4 in a single figure, set proper size, remove unnecessary text, export as
+%eps
 fittedLinsys.compare(fitMdlBlkRed(:,1))
 fittedLinsys.compare(fitMdlBlkRed(:,2))
 %[fh] = vizCVDataLikelihood(fitMdlAP,datSetAP);
@@ -78,3 +92,20 @@ fittedLinsys.compare(fitMdlBlkRed(:,2))
 % ah1(1).XTickLabel={'1','2','3','4','5','6'};
 % ah1(1).Title.String={'Post-model';'-BIC/2'};
 % set(gcf,'Name','Adapt/Post cross-validation');
+
+%% Show results as table:
+clear all
+load testModelSelectionCVRed.mat
+aux=model.R;
+model.R=Inf(size(aux));
+model.R(opts.includeOutputIdx,opts.includeOutputIdx)=aux(opts.includeOutputIdx,opts.includeOutputIdx);
+mdl={model, mdlAll, fitMdlBlkRed{4,1}, fitMdlBlkRed{4,2},fitMdlOERed{4,1}, fitMdlOERed{4,2},fitMdlAPRed{4,1}, fitMdlAPRed{4,2}};
+mdl{1}.name='True';
+mdl{3}.name='Odd blocks';
+mdl{4}.name='Even blocks';
+mdl{7}.name='First half';
+mdl{8}.name='Second half';
+mdl{5}.name='Odd samples';
+mdl{6}.name='Even samples';
+mdl{2}.name='All data';
+linsys.summaryTable(mdl)

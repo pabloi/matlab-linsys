@@ -202,7 +202,11 @@ classdef linsys
             A=this.A;
             I=eye(size(this.Q));
             B=this.B;
+            if nargin>1
             X=(I-A)\(I-A^N)*B(:,1);
+            else %Infinite time-horizon, presuming stable system
+                X=(I-A)\B(:,1);
+            end
         end
         function s=SNR(this,N)
            %Estimates a SNR-like covariance estimate
@@ -263,6 +267,9 @@ classdef linsys
         function hs=get.hash(this)
            %This uses an external MEX function to compute the MD5 hash
            hs=GetMD5([this.A, this.B, this.Q, this.C'; this.C, this.D, this.C, this.R]);
+        end
+        function compTbl=comparisonTable(this,altModels)
+            %compTbl=table(,'VariableNames',{'\tau','B_1','diag(Q)','tr(R)'}) %'norm(D-\hat{D})_F','norm(R-\hat{R})_F'},
         end
     end
 
@@ -339,6 +346,42 @@ classdef linsys
         function fh=vizMany(modelCollection)
             mdl=cellfun(@(x) x.linsys2struct,modelCollection,'UniformOutput',false);
             vizModels(mdl)
+        end
+        function compTbl=summaryTable(models)
+            mdl=cellfun(@(x) x.canonize,models,'UniformOutput',false);
+            M=numel(mdl);
+            N=max(cellfun(@(x) size(x.A,1),mdl));
+            %Check: all models should be same order(?)
+            taus=nan(N,M);
+            B1=nan(N,M);
+            dQ=nan(N,M);
+            %trR=nan(N,1);
+            trR=cell2mat(cellfun(@(x) sum(x.R(trace(x.R),mdl(:),'UniformOutput',false));
+            for i=1:numel(mdl)
+               aux= sort(-1./log(eig(mdl{i}.A)));
+               taus(1:length(aux),i) =aux;
+               %aux=mdl{i}.B(:,1);
+               aux=mdl{i}.detPredict;
+               B1(1:length(aux),i)=aux;
+               %trR(i)=trace(mdl{i}.R);
+               aux=diag(mdl{i}.Q);
+               dQ(1:length(aux),i)=aux;
+            end
+            varNames={};
+            varTbl=[];
+            for i=1:N
+                %aux={['T_' num2str(i)],['b_1' num2str(i) ],['Q_' num2str(i)]};
+                %aux={['T_' num2str(i)],['xinf_' num2str(i) ],['Q_' num2str(i)]};
+                aux={['T_' num2str(i)],['Q_' num2str(i)]};
+                varNames=[varNames aux];
+                %varTbl=[varTbl taus(i,:)' B1(i,:)' dQ(i,:)'];
+                varTbl=[varTbl taus(i,:)' dQ(i,:)'];
+            end
+            varTbl=[varTbl trR];
+            varNames=[varNames {'trR'}];
+            compTbl=array2table(varTbl);
+            compTbl.Properties.VariableNames=varNames;
+            compTbl.Properties.RowNames=cellfun(@(x) x.name, mdl, 'UniformOutput',false);
         end
     end
 end

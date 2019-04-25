@@ -23,7 +23,7 @@ opts.indD=[];
 opts.stableA=true;
 opts.fastFlag=100;
 numCores = feature('numcores');
-p = parpool(numCores);
+%p = parpool(numCores);
 [fitMdlAP,outlogAP]=linsys.id([datSetAP],0:6,opts);
 opts.fastFlag=false;
 [fitMdl,outlog]=linsys.id([datSetOE; datSetBlk],0:6,opts);
@@ -39,7 +39,7 @@ save testModelSelectionCV.mat fitMdlAP fitMdlOE fitMdlBlk outlogAP outlog simDat
 load testModelSelectionCV.mat
 
 %CV log-l:
-[fh] = vizCVDataLikelihood(fitMdlAP(1:4,:),datSetAP([2,1]));
+[fh] = vizCVDataLikelihood(fitMdlAP(:,:),datSetAP([2,1]));
 fh.Name='Early/late CV';
 fh=vizCVDataLikelihood(fitMdlOE,datSetOE([2,1]));
 fh.Name='Odd/even CV';
