@@ -29,16 +29,18 @@ defaultOpts.includeOutputIdx=1:ny; %Include all
 defaultOpts.stableA=false; %Not enforcing stability of A by default
 defaultOpts.minQ=0; %Getting a sensible value is hard since scale of states is arbitrary
 defaultOpts.minR=1e-6; %This requires a sensible value for the Kalman filter to be well defined
+defaultOpts.verbose=true; %Show info during EM
 
 %Options for randomStartEM's final refinement stage (iterated EM)
-defaultOpts.refineTol=1e-4; %Very picky, increase in logL every 1e2 iterations
+defaultOpts.refineTol=1e-4; %Very picky, increase in logL every 1e2 iterations per dimension.
 %Implies that in 1e4 iterations the logL will increase 1e-2 at least.
 %For high dimensional output with a single state, this is a sensible, if conservative, choice
 %as it limits iterations when is too slow with respect to Wilk's logL overfit
 %limiting theorem. For mulitple states we are being conservative
 %(more free parameters means that logL should increase even more to be signficant).
 defaultOpts.refineMaxIter=2e4;
-defaultOpts.refineFastFlag=false; %Patient mode
+defaultOpts.refineFastFlag=true; %Fast refining before slow one
+defaultOpts.fastRefineTolFactor=10;  %Lower tolerance, as in fast mode we can afford to do more evaluations and use this to skip locally-flat regions.
 
 %Assign any options that were not provided with default values:
 fNames=fieldnames(defaultOpts);

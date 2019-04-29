@@ -88,7 +88,9 @@ breakFlag=false;
 improvement=true;
 %initialLogLgap=opts.targetLogL-bestLogL;
 nonNaNsamples=sum(~any(isnan(Y),1));
+if opts.verbose
 disp(['Iter = 1, target logL = ' num2str(opts.targetLogL,8) ', current logL=' num2str(bestLogL,8) ', \tau =' num2str(-1./log(sort(eig(A)))')])
+end
 dropCount=0;
 for k=1:opts.Niter-1
 	%E-step: compute the distribution of latent variables given current parameter estimates
@@ -185,7 +187,7 @@ for k=1:opts.Niter-1
 
     %Print some info
     step=100;
-    if mod(k,step)==0 || breakFlag %Print info
+    if opts.verbose && (mod(k,step)==0 || breakFlag) %Print info
         pOverTarget=100*((l-opts.targetLogL)/abs(opts.targetLogL));
         if k>=step && ~breakFlag
             lastChange=l-logl(k+1-step,1);

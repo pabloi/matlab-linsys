@@ -19,7 +19,7 @@ optR=processEMopts(opts,Nu,nd,ny); %Options for using within this function, neve
 
 outLog=struct();
 %opt1.fixP0=diag(Inf(nd,1));
-opt1.Niter=500; %Very fast evaluation of initial case, just to get a benchmark.
+opt1.Niter=100; %Very fast evaluation of initial case, just to get a benchmark.
 warning('off','EM:logLdrop') %If samples are NaN, fast filtering may make the log-L drop (smoothing is not exact, so the expectation step is not exact)
 warning('off','EM:fastAndLoose')%Disabling the warning that NaN and fast may be happening
 [A,B,C,D,Q,R,X,P,bestLL,startLog]=EM(Y,U,nd,opt1);
@@ -61,10 +61,10 @@ for i=1:optR.Nreps
 end
 warning('on','statKF:logLnoPrior');
 
-if optR.fastFlag~=0 %Fast allowed
+if optR.refineFastFlag && optR.fastFlag~=0 %Fast allowed
   disp(['Refining solution... (fast) Best logL so far=' num2str(bestLL,8) '(iter=' num2str(lastSuccess) ')']);
   opt2.Niter=optR.refineMaxIter; %This will go fast, can afford to have many iterations, it will rarely reach the limit.
-  opt2.convergenceTol=optR.refineTol/1e2; %This is mostly to prevent the algorithm from stopping at a flat-ish region
+  opt2.convergenceTol=optR.refineTol/optR.fastRefineTolFactor;
   opt2.targetTol=1e-4;
   opt2.fastFlag=50;
   opt2.targetLogL=bestLL;
