@@ -1,3 +1,3 @@
 function Ap=projectPerp(A,B)
-  Ap=A-(A/B)*B;
+  Ap=A-projectMat(A,B);
 end

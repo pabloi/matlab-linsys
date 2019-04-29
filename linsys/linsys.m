@@ -330,6 +330,36 @@ classdef linsys
                 end
             end
         end
+        function [this,outlog]=SSid(datSet,order,ssSize)
+            %Model identification through subspace model
+            if nargin<3
+                ssSize=[];
+                if nargin<2
+                    order=[];
+                end
+            end
+           [J,B,C,D,~,Q,R]=subspaceID(datSet.out,datSet.in,order,ssSize);
+           %Alt: unbiased SS estimation. Much better for A estimation
+           %(especially with low ssSize), but bad at other parameters, need
+           %to work out why.
+           %[J,B,C,D,~,Q,R]=subspaceIDubnbiased(datSet.out,datSet.in,order,ssSize);
+           mdl=linsys(J,C,R,B,D,Q);
+           this=fittedLinsys(J,C,R,B,D,Q,initCond([],[]),datSet,'SS',[],mdl.logL(datSet),[]);
+           outlog=[];
+        end
+        function [this,outlog]=SSEMid(datSet,order,ssSize)
+            %Model identification through subspace-EM hybrid
+            if nargin<3
+                ssSize=[];
+                if nargin<2
+                    order=[];
+                end
+            end
+           [J,B,C,D,~,Q,R]=subspaceEMhybrid(datSet.out,datSet.in,order,ssSize);
+           mdl=linsys(J,C,R,B,D,Q);
+           this=fittedLinsys(J,C,R,B,D,Q,initCond([],[]),datSet,'SS',[],mdl.logL(datSet),[]);
+           outlog=[];
+        end
         function this=struct2linsys(str)
             if iscell(str)
                 for i=1:length(str(:))
@@ -355,15 +385,14 @@ classdef linsys
             taus=nan(N,M);
             B1=nan(N,M);
             dQ=nan(N,M);
-            %trR=nan(N,1);
-            trR=cell2mat(cellfun(@(x) sum(x.R(trace(x.R),mdl(:),'UniformOutput',false));
+            trR=nan(M,1);
             for i=1:numel(mdl)
                aux= sort(-1./log(eig(mdl{i}.A)));
                taus(1:length(aux),i) =aux;
                %aux=mdl{i}.B(:,1);
                aux=mdl{i}.detPredict;
                B1(1:length(aux),i)=aux;
-               %trR(i)=trace(mdl{i}.R);
+               trR(i)=trace(mdl{i}.R);
                aux=diag(mdl{i}.Q);
                dQ(1:length(aux),i)=aux;
             end

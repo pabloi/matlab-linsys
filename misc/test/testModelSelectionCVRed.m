@@ -46,9 +46,13 @@ opts.fastFlag=false;
 fitMdlBlkRed=fitMdl(:,3:4);
 fitMdlOERed=fitMdl(:,1:2);
 
+%Blocked CV with size 100
+datSetBlk100=simDatSet.blockSplit(100,2); 
+[fitMdlBlkRed100,outlogBlkRed100]=linsys.id(datSetBlk100,0:6,opts);
+
 
 %%
-save testModelSelectionCVRed.mat fitMdlAPRed fitMdlOERed fitMdlBlkRed outlogAP outlog simDatSet datSetAP datSetOE datSetBlk model stateE opts mdlAll
+save testModelSelectionCVRed.mat fitMdlAPRed fitMdlOERed fitMdlBlkRed fitMdlBlkRed100 outlogAP outlog outlogBlkRed100 simDatSet datSetAP datSetOE datSetBlk datSetBlk100 model stateE opts mdlAll
 
 %% Step 5: use fitted models to evaluate log-L and goodness of fit
 load testModelSelectionCVRed.mat
@@ -64,8 +68,10 @@ fh=vizCVDataLikelihood(fitMdlOERed,datSetOE([2,1]));
 fh.Name='Odd/even CV';
 fh=vizCVDataLikelihood(fitMdlBlkRed,datSetBlk([2,1]));
 fh.Name='Blocked (20) CV';
+fh=vizCVDataLikelihood(fitMdlBlkRed100,datSetBlk100([2,1]));
+fh.Name='Blocked (100) CV';
 
-%Train set log-L:
+%% Train set log-L:
 fittedLinsys.compare(fitMdlAPRed(:,1))
 fittedLinsys.compare(fitMdlAPRed(:,2))
 fittedLinsys.compare(fitMdlOERed(:,1))
@@ -74,6 +80,8 @@ fittedLinsys.compare(fitMdlOERed(:,2))
 %eps
 fittedLinsys.compare(fitMdlBlkRed(:,1))
 fittedLinsys.compare(fitMdlBlkRed(:,2))
+fittedLinsys.compare(fitMdlBlkRed100(:,1))
+fittedLinsys.compare(fitMdlBlkRed100(:,2))
 %[fh] = vizCVDataLikelihood(fitMdlAP,datSetAP);
 
 %vizCVDataLikelihood(fitMdlBlk,datSetBlk);
@@ -99,13 +107,15 @@ load testModelSelectionCVRed.mat
 aux=model.R;
 model.R=Inf(size(aux));
 model.R(opts.includeOutputIdx,opts.includeOutputIdx)=aux(opts.includeOutputIdx,opts.includeOutputIdx);
-mdl={model, mdlAll, fitMdlBlkRed{4,1}, fitMdlBlkRed{4,2},fitMdlOERed{4,1}, fitMdlOERed{4,2},fitMdlAPRed{4,1}, fitMdlAPRed{4,2}};
+mdl={model, mdlAll, fitMdlBlkRed{4,1}, fitMdlBlkRed{4,2},fitMdlBlkRed100{4,1}, fitMdlBlkRed100{4,2},fitMdlOERed{4,1}, fitMdlOERed{4,2},fitMdlAPRed{4,1}, fitMdlAPRed{4,2}};
 mdl{1}.name='True';
-mdl{3}.name='Odd blocks';
-mdl{4}.name='Even blocks';
-mdl{7}.name='First half';
-mdl{8}.name='Second half';
-mdl{5}.name='Odd samples';
-mdl{6}.name='Even samples';
+mdl{3}.name='Odd blocks 20';
+mdl{4}.name='Even blocks 20';
+mdl{5}.name='Odd blocks 100';
+mdl{6}.name='Even blocks 100';
+mdl{9}.name='First half';
+mdl{10}.name='Second half';
+mdl{7}.name='Odd samples';
+mdl{8}.name='Even samples';
 mdl{2}.name='All data';
 linsys.summaryTable(mdl)
