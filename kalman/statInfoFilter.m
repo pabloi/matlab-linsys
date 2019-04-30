@@ -53,7 +53,7 @@ end
 
 %Precompute for efficiency:
 [CtRinvC,~,CtRinvY,~,logLmargin]=reduceModel(C,R,Y_D); 
-[cholInvCRC,~,invCRC]=pinvchol(CtRinvC);
+[cholInvCRC,~,invCRC]=pinvchol2(CtRinvC);
 logDetCRC=-2*sum(log(diag(cholInvCRC)));
 %For the first steps do an information update if P0 contains infinite elements
 infVariances=isinf(diag(prevP));
@@ -80,6 +80,9 @@ for i=1:M
   X(:,i)=prevX;  P(:,:,i)=prevP; %Store results
   
   %Then, predict next step:
+  if i==1 && any(isinf(diag(prevP)))
+      warning('Infinte covariance matrix at predict step, no promises this will be handled well. Try using statInfoFilter2 or large, but finite, variances.')
+  end
   [prevX,prevP]=KFpredict(A,Q,prevX,prevP,BU(:,i));
   if nargout>2 %Store Xp, Pp if requested:
       Xp(:,i+1)=prevX;   Pp(:,:,i+1)=prevP; 
