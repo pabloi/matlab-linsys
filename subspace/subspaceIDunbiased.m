@@ -3,13 +3,22 @@ function [A,B,C,D,X,Q,R]=subspaceIDunbiased(Y,U,d,i)
 %Implementing Algorithm 1, Chapter 4, of the Subspace Id for Linear Systems
 %(1996) book. This is an UNBIASED estimate, unlike the method implemented
 %in subspaceID.m
-%It incorporates *SOME* of the suggested changes from the Robust Algorithm
+%It incorporates *MOST* of the suggested changes from the Robust Algorithm
 %in the same chapter, which leads to better results according to the
 %authors
 %The choice of matrices W1 and W2 are: W1= eye, W2= projector orthogonal to
 %Uf. This is the matrix choice suggested in Algorithm 3 of the same
 %chapter. %In general, W1 must be full rank, but W2 need only satisfy that
 %rank(W_p)=rank(W_p*W2) (see code for def. of W_p).
+%Was tested agains van Overschee's own implementation:
+%https://www.mathworks.com/matlabcentral/fileexchange/2290-subspace-identification-for-linear-systems
+%and returns very similar results. The main differences between the two
+%implementations are: 1) van Overschee's exploits a QR decomposition and is
+%much faster than this implementation, 2) van Overschee's has a constraint
+%on how much data is needed given the dimension of the problem so that the
+%relevant Hankel matrices are 'fat' (ie. more columns than rows), this
+%implementation has no such constraint. Unsure why this is required, as
+%this implementation appears to work well even on 'skinny' cases.
 
 N=size(Y,2); %Sample size
 Ny=size(Y,1); %Observation dimension
@@ -59,7 +68,7 @@ R=[pLi*Z_i; U_f];
 ACK=M*pinv(R);
 A=ACK(1:Nx,1:Nx);
 C=ACK(Nx+1:end,1:Nx);
-K=ACK(:,Nx+1:end);
+%K=ACK(:,Nx+1:end);
 
 %Optional improvement: recompute L_i, for improved performance:
 L_i=observabilityMatrix(A,C,i);
@@ -67,7 +76,7 @@ L_im1=L_i(1:(end-Ny),:);
 pLim1=pinv(L_im1);
 pLi=pinv(L_i);
 S=M-[A;C]*pLi*Z_i;
-K=S*pinvUf;
+% K=S*pinvUf;
 
 %Estimation of B,D from K: as done in Algorithm 1
 % K1=K(1:Nx,:);
@@ -94,7 +103,6 @@ K=S*pinvUf;
 %Alt B,D: recommended improvement in robust algorithm
 %More direct, does not estimate K to then estimate B,D.
 %This is more accurate, but much slower than the method above.
-%Need to debug, as results are very bad with either method.
 QN=0;
 L=[A;C]*pLi;
 M_L=[zeros(Nx,Ny) pLim1]-L(1:Nx,:);
@@ -103,7 +111,7 @@ F=[eye(Ny) zeros(Ny,Nx); zeros(size(L_im1,1),Ny) L_im1];
 for kk=1:i
    N1=M_L(:,(kk-1)*Ny+1:end);
    N2=I_L(:,(kk-1)*Ny+1:end);
-   aux=kron(U_f([1:Nu]+(kk-1)*Nu,:)',[N1;N2]*F);
+   aux=kron(U_f([1:Nu]+(kk-1)*Nu,:)',[[N1;N2], zeros(size(L,1),(kk-1)*Ny)]*F);
    QN=QN+aux;
 end
 DB=pinv(QN)*S(:);

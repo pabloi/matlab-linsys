@@ -1,6 +1,8 @@
 # matlab-linsys
 Linear dynamic systems toolbox for Matlab.
-Includes an implementation of the Kalman filter and Kalman smoother, and several methods to perform system identification. Emphasis on speed.
+Includes an implementation of the Kalman filter and Kalman smoother (in covariance, information and square root formulations), and several methods to perform system identification. Emphasis on speed.
+
+The files within the folder /ext/ are NOT of my authorship, and are included for comparison purposes only. Some of those files have minor modifications for the purposes of their usage in this package. See README files within the specific subfolders for more details.
 
 *Framework:*
 The identification methods try to find matrices A,B,C,D,Q,R from a data matrix Y representing N samples (y_k) of a D dimensional output signal, and a matrix U, representing N samples (u_k) of an M dimensional input signal. The system takes the form:
@@ -14,6 +16,8 @@ sPCA: ONLY identifies a purely deterministic, arbitrary size, LTI-SSM assuming r
 EM: an implementation of an Expectation-Maximization algorithm. Alternates between estimating A,B,C,D,Q,R given some guess of the latents x, and estimating x from A,B,C,D,Q,R through the (optimal) Kalman smoother. Care was taken to prevent ill-conditioned situations which easily arise on the iteration.
 Fast EM: an approximation of the true EM method, by exploiting steady-state behavior of the kalman filter/smoother
 
+SS: implementation of some subspace algorithms as described in van Overschee and de Moor 1996.
+
 *Kalman filtering*
 Implementations of stationary Kalman filter and smoother, with emphasis on speed. Speed was achieved by simplifying the equations where possible, using efficient computations for matrix inversions, and exploiting steady-state behavior for stable filters.
 Constrained Kalman filter/smoother: this version of the filter adds a step between prediction and update. It enforces a linear constraint of the form H*x=b for the states. This allows to use additional information not captured by system dynamics or measurement equations. By linearizing constraints of the form h(x)=0, it is possible to enforce non-linear constraints too, and even time-varying ones.
@@ -23,7 +27,6 @@ The constrained filter allows better handling of unknown dynamics (see testConst
 PRIORITY:
 - Figure out why EM algorithm does not seem to converge for problems where dim(output)<dim(state)
 - Test alternative canonizations: orthomax, varimax, promax, eyeQ (need to implement the last one)
-- Change termination criterion for EM: use logL per free parameter instead of current (logL per dimension of output). Requires doing parameter counting inside EM, dependent on fixed parameters that may have been set.
 - Consider alternative initializations of Q,R, or at least mechanisms to escape from local maxima: if either of these matrices are too small with respect to the other, algorithm may get stuck. For example, if Q is small, state uncertainty will be small, and smoothing will have little/no effect when updating states. Consequently, Q will be re-evaluated to a small value in estimateParams, never escaping. Analogous with small R.
 Non-priority:
 - Allow for partially unknown (diffuse) initial conditions (Follow Durbin and Koopman book, Chapter 5.) -> Is this not equivalent to the information filter currently used?
@@ -34,7 +37,6 @@ Non-priority:
 - C code: use (modified) chol instead of LU decomp, enforce symmetry of uncertainty matrices.
 - logL() computation, and sample rejection for informationFilter2 and informationSmoother.
 - Implement fwd/backward algorithm for discrete state markov chains (genKF).
-- Test EM using fixed values for A,B,C,D,Q,R (any combination of them).
 - Create a CircleCI/Docker/Quay integration to continuously test for octave compatibility.
 - Implement EM in reduced form when size(C,1)>size(C,2). Kalman smoothing already exploits this, but the M-step could exploit it too: we only need to estimate C'inv(R), rather than a full R.
 - Implement GPFA.

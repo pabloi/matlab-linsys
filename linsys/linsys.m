@@ -330,34 +330,39 @@ classdef linsys
                 end
             end
         end
-        function [this,outlog]=SSid(datSet,order,ssSize)
+        function [this,outlog]=SSid(datSet,order,ssSize,method)
             %Model identification through subspace model
+            if nargin<4
+                method='SS';
+            end
             if nargin<3
-                ssSize=[];
+                ssSize=10; %Default value
                 if nargin<2
                     order=[];
                 end
             end
-           [J,B,C,D,~,Q,R]=subspaceID(datSet.out,datSet.in,order,ssSize);
-           %Alt: unbiased SS estimation. Much better for A estimation
-           %(especially with low ssSize), but bad at other parameters, need
-           %to work out why.
-           %[J,B,C,D,~,Q,R]=subspaceIDubnbiased(datSet.out,datSet.in,order,ssSize);
-           mdl=linsys(J,C,R,B,D,Q);
-           this=fittedLinsys(J,C,R,B,D,Q,initCond([],[]),datSet,'SS',[],mdl.logL(datSet),[]);
-           outlog=[];
-        end
-        function [this,outlog]=SSEMid(datSet,order,ssSize)
-            %Model identification through subspace-EM hybrid
-            if nargin<3
-                ssSize=[];
-                if nargin<2
-                    order=[];
-                end
+            switch method
+                case 'SS' %Fast-ish implementation, as described in 
+                    %Shadmehr and Mussa-Ivaldi 2012, 
+                    %and van Overschee and de Moor 1996 (Chap. 4, Algo. 2)
+                    %As implemented by me.
+                    [J,B,C,D,~,Q,R]=subspaceID(datSet.out,datSet.in,order,ssSize);
+                case 'SSunb' %Unbiased version,
+                     %van Overschee and de Moor 1996 (Chap. 4, Algo. 1 with some suggested improvements from Algo. 3)
+                     %As implemented by me.
+                    [J,B,C,D,~,Q,R]=subspaceIDunbiased(datSet.out,datSet.in,order,ssSize);
+                case 'SSEM' %A hybrid SS-EM implementation. J is estimated from SSunb, but all other parameters from EM
+                    [J,B,C,D,~,Q,R]=subspaceEMhybrid(datSet.out,datSet.in,order,ssSize);
+                case 'subid' %van Overschee's own implementation of Chap. 4, Algo. 3
+                    %Very fast, although for some reason requires more data
+                    %for same value of ssSize
+                    [J,B,C,D,K,R] = subid(datSet.out,datSet.in,ssSize,order);
+                    cR=chol(R);
+                    KcQ=K*cR;
+                    Q=KcQ*KcQ';
             end
-           [J,B,C,D,~,Q,R]=subspaceEMhybrid(datSet.out,datSet.in,order,ssSize);
            mdl=linsys(J,C,R,B,D,Q);
-           this=fittedLinsys(J,C,R,B,D,Q,initCond([],[]),datSet,'SS',[],mdl.logL(datSet),[]);
+           this=fittedLinsys(J,C,R,B,D,Q,initCond([],[]),datSet,[method '_i' num2str(ssSize)],[],mdl.logL(datSet),[]);
            outlog=[];
         end
         function this=struct2linsys(str)

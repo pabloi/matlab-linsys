@@ -40,14 +40,17 @@ end
 
 S1=sqrt(S(1:Nx,1:Nx));
 T1=T(:,1:Nx);
-L_i=T1*S1;
+%L_i=T1*S1; %Ljung 1999 suggests to take this matrix and estimate A,C from
+%it directly (C is the first Ny rows, A can be obtained by multiplying the
+%next Ny rows by the pseudo inverse of C, but that is very noisy)
 %L_im1=L_i(1:(end-Ny),:);
 
     %This approach is ok of W1=eye:
   V_=V(1:end-1,1:Nx)';
   V__=V(2:end,1:Nx)';
-  X_ip2=sqrt(S(1:Nx,1:Nx))*V__;
-  X_ip1=sqrt(S(1:Nx,1:Nx))*V_;
+  SS=sqrt(S(1:Nx,1:Nx));
+  X_ip2=SS*V__;
+  X_ip1=SS*V_;
   Y_ip1=Y(:,(i+1):(j+i-1));
   U_ip1=U(:,(i+1):(j+i-1));
   AB_CD=[X_ip2; Y_ip1]/[X_ip1; U_ip1];
