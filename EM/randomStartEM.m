@@ -42,11 +42,11 @@ for i=1:optR.Nreps
 
     %Optimize:
     %try
-	[Ai,Bi,Ci,Di,Qi,Ri,Xi,Pi,logl,repLog]=EM(Y,U,Xguess,opt2);
+	[Ai,Bi,Ci,Di,Qi,Ri,Xi,Pi,logl,repLog,Pti]=EM(Y,U,Xguess,opt2);
 
     %If solution improved, save and display:
     if logl>bestLL
-        A=Ai; B=Bi; C=Ci; D=Di; Q=Qi; R=Ri; X=Xi; P=Pi;
+        A=Ai; B=Bi; C=Ci; D=Di; Q=Qi; R=Ri; X=Xi; P=Pi; Pt=Pti;
         bestLL=logl;            opt2.targetLogL=bestLL;
         lastSuccess=i;
         disp(['----Success, best logL=' num2str(bestLL,8) '(iter=' num2str(lastSuccess) ')----'])
@@ -68,9 +68,9 @@ if optR.refineFastFlag && optR.fastFlag~=0 %Fast allowed
   opt2.targetTol=1e-4;
   opt2.fastFlag=50;
   opt2.targetLogL=bestLL;
-  [Ai,Bi,Ci,Di,Qi,Ri,Xi,Pi,bestLL1,refineLog]=EM(Y,U,X,opt2,P);
+  [Ai,Bi,Ci,Di,Qi,Ri,Xi,Pi,bestLL1,refineLog,Pti]=EM(Y,U,X,opt2,P,Pt);
   if bestLL1>bestLL
-      A=Ai; B=Bi; C=Ci; D=Di; Q=Qi; R=Ri; X=Xi; P=Pi; bestLL=bestLL1;
+      A=Ai; B=Bi; C=Ci; D=Di; Q=Qi; R=Ri; X=Xi; P=Pi; bestLL=bestLL1; Pt=Pti;
     else
       warning('Fast refining did not work (?)')
       %This can happen if we have NaN samples, as the fast filtering may be crap
@@ -83,9 +83,9 @@ opt2.fastFlag=0;
 opt2.Niter=optR.refineMaxIter;
 opt2.convergenceTol=optR.refineTol;
 opt2.targetLogL=bestLL;
-[Ai,Bi,Ci,Di,Qi,Ri,Xi,Pi,bestLL1,refineLog2]=EM(Y,U,X,opt2,P); %Refine solution, should work always
+[Ai,Bi,Ci,Di,Qi,Ri,Xi,Pi,bestLL1,refineLog2,Pti]=EM(Y,U,X,opt2,P,Pt); %Refine solution, should work always
 if bestLL1>bestLL
-    A=Ai; B=Bi; C=Ci; D=Di; Q=Qi; R=Ri; X=Xi; P=Pi; bestLL=bestLL1;
+    A=Ai; B=Bi; C=Ci; D=Di; Q=Qi; R=Ri; X=Xi; P=Pi; bestLL=bestLL1; Pt=Pti;
 end
 
 disp(['End. Best logL=' num2str(bestLL,8)]);

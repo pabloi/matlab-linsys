@@ -1,4 +1,4 @@
-function [A,B,C,D,Q,R,X,P,bestLogL,outLog]=EM(Y,U,Xguess,opts,Pguess)
+function [A,B,C,D,Q,R,X,P,bestLogL,outLog,Pt]=EM(Y,U,Xguess,opts,Pguess,Ptguess)
 %A true EM implementation to do LTI-SSM identification
 %INPUT:
 %Y is D2 x N
@@ -16,6 +16,13 @@ if nargin<5
         Pguess=[];
     else
         Pguess=cell(size(Y));
+    end
+end
+if nargin<6
+    if ~isa(Y,'cell')
+        Ptguess=[];
+    else
+        Ptguess=cell(size(Y));
     end
 end
 outLog=[];
@@ -60,7 +67,7 @@ end
 %% ------------Init stuff:-------------------------------------------
 % Init params
  Yred=Y(opts.includeOutputIdx,:);
- [A1,B1,C1,D1,Q1,R1,x01,P01]=initEM(Yred,U,Xguess,opts,Pguess);
+ [A1,B1,C1,D1,Q1,R1,x01,P01]=initEM(Yred,U,Xguess,opts,Pguess,Ptguess);
  %UPDATE: canonization is incompatible with fixed params
  %[A1,B1,C1,x01,~,Q1,P01] = canonize(A1,B1,C1,x01,Q1,P01,'canonicalAlt');%Canonize: this is to avoid ill-conditioned solutions
 
@@ -222,7 +229,7 @@ if opts.fastFlag~=0 %Re-enable disabled warnings
     warning('on','statKSfast:fewSamples')
 %Comput optimal states and logL without the fastFlag
   opts.fastFlag=0;
-    [X1,P1,Pt1,~,~,~,~,~,bestLogL]=statKalmanSmoother(Yred,A1,C1,Q1,R1,x01,P01,B1,D1,U,opts);
+    [X,P,Pt,~,~,~,~,~,bestLogL]=statKalmanSmoother(Yred,A1,C1,Q1,R1,x01,P01,B1,D1,U,opts);
 end
 if opts.logFlag
   outLog.vaps(k,:)=sort(eig(A1));
