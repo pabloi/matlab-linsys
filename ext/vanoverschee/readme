@@ -1,0 +1,88 @@
+This package was updated by Pablo A. Iturralde on April 2019. 
+The changes were performed only for compatibility of the algorithm to modern Matlab releases (tested on R2019a), for example by replacing "A==[]" with "isempty(A)".
+The functions changed include subid.m and its auxiliary functions.
+The original code (v1.0.0.0 dated Aug 30th 2002) was retrieved on Apr 30th 2019 from: 
+https://www.mathworks.com/matlabcentral/fileexchange/2290-subspace-identification-for-linear-systems
+No license was included with the original code. Copyright remains unchanged.
+
+ORIGINAL README:
+--------------------------------------------------------------------------------------------------
+               Subspace Identification
+               -----------------------
+
+This diskette goes together with the book:
+
+	Subspace Identification for Linear Systems
+	Theory - Implementation - Applications
+	By Peter Van Overschee and Bart De Moor 
+	Kluwer Academic Publishers, 1996
+
+It contains all algorithms described in the book.
+
+
+Installation
+------------
+
+All algorithms in the book have been implemented in separate M-files.
+The research however culminated in the function subid.m which
+implements deterministic, stochastic and combined subspace
+identification.  This function is an excellent place to start with.
+
+After you have copied the files from the diskette to your
+computer (for instance in the directory c:\subspace), you should
+include the directory ;subfun' in your path:
+
+   > path(path,'c:\subspace\subfun');
+
+Now change your directory to the 'examples' directory and
+run the demo file 'sta_demo.m':
+
+   > cd c:\subspace\examples
+   > sta_demo
+
+You will get a clear impression of what subspace identification
+algorithms can do.  
+
+Now you are ready to rerun some of the applications.  To run for
+instance the application of the flexible robot arm, do:
+
+   > cd c:\subspace\applic
+   > appl5
+
+This will guide you through the demo and reproduce the results of the
+book.  Now that you are at it, you could run some other applications
+in this directory.
+
+\nin You are now ready to try out your own problem.  You could just
+use one of the subspace identification functions (for instance
+'subid.m'.  Alternatively, you could also copy and adapt one of the
+application M-files.
+
+Overview:
+---------
+
+For practical applications, only the function 'subid' is of
+importance.  The other subspace identification functions that are
+included, are more of an academic nature:
+
+  Deterministic Identification: det_stat, det_alt, intersec, project / subid
+  Stochastic Identification:    sto_stat, sto_alt, sto_pos           / subid
+  Combined Identification:      com_stat, com_alt                    / subid
+
+For more information on the stochastic identification, see the file 
+examples/sto_demo.m.
+
+Notes:
+------
+
+It should be noted that there is still room to improve the speed and
+the memory usage of the algorithms, using for instance displacement
+structure algorithms for the RQ decomposition and Lanczos algorithms
+for the SVD.  The algorithms that have been implemented on this
+diskette only use basic MATLAB commands (and no fancy optimized
+C-code).  Feel free to improve, and let me know what you think:
+
+	peter.vanoverschee@esat.kuleuven.ac.be
+
+
+These M-files are User Contributed Routines which are being redistributed by The MathWorks, upon request, on an "as is" basis.  A User Contributed Routine is not a product of The MathWorks, Inc. and The MathWorks assumes no responsibility for any errors that may exist in these routines.
