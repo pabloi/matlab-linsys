@@ -323,7 +323,7 @@ if isa(X,'cell') %Case where data is many realizations of same system
     z=cell2mat(z');
 else
     N=size(X,2);
-    idx=~any(isnan(Y));
+    idx=~any(isnan(Y),1);
     z=Y-C*X-D*U;
     z=z(:,idx);
     w=X(:,2:N)-A*X(:,1:N-1)-B*U(:,1:N-1);

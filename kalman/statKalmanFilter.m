@@ -134,6 +134,7 @@ if any(infVariances) %At least one initial variance was infinite
 end
 
 %Run filter for remaining steps:
+M=max([M,firstInd+find(cumsum(~any(isnan(Y_D(:,firstInd+1:end)),1))>=D1,1,'first')]); %Ensures at least 1 non-nan sample is processed
 for i=firstInd:M
   y=Y_D(:,i); %Output at this step
 

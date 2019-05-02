@@ -22,7 +22,7 @@ outLog=struct();
 opt1.Niter=100; %Very fast evaluation of initial case, just to get a benchmark.
 warning('off','EM:logLdrop') %If samples are NaN, fast filtering may make the log-L drop (smoothing is not exact, so the expectation step is not exact)
 warning('off','EM:fastAndLoose')%Disabling the warning that NaN and fast may be happening
-[A,B,C,D,Q,R,X,P,bestLL,startLog]=EM(Y,U,nd,opt1);
+[A,B,C,D,Q,R,X,P,bestLL,startLog,Pt]=EM(Y,U,nd,opt1);
 warning('on','EM:logLdrop')
 warning('on','EM:fastAndLoose')
 if optR.logFlag
@@ -138,7 +138,7 @@ function Xguess=guess(nd,Y,U,opts)
     [~,Xsmooth]=fwdSim(u,A1,B1,zeros(1,nd),zeros(1,size(u,1)),x0,Q1,[]);
     if isempty(opts.fixR)
       z=y-C1*Xsmooth(:,1:end-1)-D1*u;
-      idx=~any(isnan(z));
+      idx=~any(isnan(z),1);
       z=z(:,idx);
       R1=z*z'/size(z,2) + C1*Q1*C1'; %Reasonable estimate of R
     else
