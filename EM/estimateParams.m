@@ -138,12 +138,12 @@ end
 
 if isempty(opts.fixQ)
   % MLE estimator of Q, under the given assumptions:
-  aux=mycholcov(SP_); %Enforce symmetry
+  aux=mycholcov2(SP_); %Enforce symmetry
   Aa=A*aux';
   Nw=size(w,2);
   APt=A*SPt';
   Q2=(S_P-(APt+APt')+Aa*Aa')/(Nw);
-  sQ=mycholcov(Q2);
+  sQ=mycholcov2(Q2);
   Q2=sQ'*sQ; %Enforcing psd, unclear if necessary
   if ~opts.robustFlag
       Q1=(w*w')/(Nw);
@@ -174,7 +174,7 @@ end
 
 %MLE of R:
 if isempty(opts.fixR)
-  aux=mycholcov(SP); %Enforce symmetry
+  aux=mycholcov2(SP); %Enforce symmetry
   Ca=C*aux';
   Nz=size(z,2);
   %if ~robustFlag
@@ -222,7 +222,7 @@ function [x0,P0]=estimateInit(X,P,A,Q)
   x0=X(:,1); %Smoothed estimate
   P0=P(:,:,1); %Smoothed estimate, the problem with this estimate is that trace(P0) is monotonically decreasing on the iteration of EM(). More likely it should converge to the same prior uncertainty we have for all other states.
   %A variant to not make it monotonically decreasing:
-  aux=mycholcov(P0);
+  aux=mycholcov2(P0);
   Aa=A*aux';
   P0=Q+Aa*Aa'; %This is a lower bound on the steady-state prior covariance
   %P0=Q;

@@ -12,10 +12,11 @@ function [new_i,newI,new_x,newP,logL,rejectedSample,oldI]=infoUpdate(CtRinvC,CtR
   end
   
   %Do the update:
-  %[cholOldI,~,oldI]=pinvchol(P); %Prior information matrix not given, computing from prior covariance
-  cholOldP=chol(P);
-  cholOldI=cholOldP'\eye(size(P));
-  oldI=cholOldI*cholOldI';
+  [cholOldI,~,oldI]=pinvchol2(P,[]); %Prior information matrix not given, computing from prior covariance.
+  %Second argument forces 'safe' computing, which can handle PSD matrices. Needed when info filter is being used because of infinite covariances
+  %cholOldP=chol(P);
+  %cholOldI=cholOldP'\eye(size(P));
+  %oldI=cholOldI*cholOldI';
   newI=oldI + CtRinvC;
   new_i=oldI*x + CtRinvY;
   

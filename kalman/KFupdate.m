@@ -23,7 +23,7 @@ halfLogdetSigma= sum(log(diag(cS)));
 %iLy=coder.nullcopy(innov);
 iLy=iL'*innov;
 %z2 = 0; %Declaring type
-z2=iLy'*iLy;%sum(iLy.^2,1); %z^2 scores
+z2=iLy'*iLy; %sum(iLy.^2,1); %z^2 scores
 logL=-.5*z2 -halfLogdetSigma-size(y,1)*halfLog2Pi;
 
 if rejectZ2threshold>0 && z2>rejectZ2threshold %Reject sample, no update
