@@ -133,6 +133,10 @@ function [newPs,newXs,newPt,H]=backStepRTS(pp,pf,ps,xp,xf,prevXs,A,cQ,bu,iA)
   % The RTS recursion is useful because it manages to compute newXs, newPs
   % without computing x* and P* explicitly [P* satisfies 
   %inv(P*)+inv(pp)=inv(ps), and x* satisfies inv(P*)x*+inv(pp)xp=inv(ps)xs]
+  % Further, this implies that Ps=(I-KA)*Pf;, where K=Pf*A'*inv(Pp+P*),
+  % which in turn satisfies K=Pf*A'*inv(Pp)*(Pp-Ps)*inv(Pp)
+  % For a PSD-enforceable expression, this results in:
+  %Ps=(I-K*A)*Pf*(I-K*A)' + K*Ps*K' + K*Q*K' + (H-K)*(Pp-Ps)*(H-K)';
 
   %Four cases to consider:
   %1) Pp has very large entries (possibly infinite): if A is invertible, use the alternate form, which is well conditioned.
