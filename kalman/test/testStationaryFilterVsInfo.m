@@ -34,21 +34,28 @@ tfNR=timeit(@() statKalmanFilter(Y,A,C,Q,R,[],[],B,D,U,opts));
 %% Use Info smoother: (there is no reduction here ever)
 [Xcs,Pcs,Xp,Pp,rejSamples,logLInfo]=statInfoFilter(Y,A,C,Q,R,[],[],B,D,U,opts); 
 tcs=timeit(@() statInfoFilter(Y,A,C,Q,R,[],[],B,D,U,opts));
+%tcs2=timeit(@() statInfoFilter2(Y,A,C,Q,R,[],[],B,D,U,opts)); %This filter does not compute x,P by default, just i and I
+%% Use Info smoother: (there is no reduction here ever)
+opts.fastFlag=false;
+opts.noReduceFlag=false;
+[Xsqrt,Pcs,rejSamples,logLsqrt]=statSqrtFilter(Y,A,C,Q,R,[],[],B,D,U,opts); 
+tsqrt=timeit(@() statSqrtFilter(Y,A,C,Q,R,[],[],B,D,U,opts));
 %% Visualize results
 figure
 for i=1:2
     subplot(3,1,i)
     hold on
     plot(Xf(i,:),'DisplayName','Filtered','LineWidth',2)
-    plot(XfNR(i,:),'DisplayName','Filtered','LineWidth',2)
+    plot(XfNR(i,:),'DisplayName','Filtered NR','LineWidth',2)
     plot(Xcs(i,:),'DisplayName','InfoFiltered','LineWidth',2)
+    plot(Xsqrt(i,:),'DisplayName','SQRTFiltered','LineWidth',2)
     plot(X(i,:),'DisplayName','Actual','LineWidth',2)
 
     legend
     if i==1
-        title(['This runtime= ' num2str(tf) ', NoReduce runtime= ' num2str(tfNR) ', Info runtime= ' num2str(tcs)]);
+        title(['This runtime= ' num2str(tf) ', NoReduce runtime= ' num2str(tfNR) ', Info runtime= ' num2str(tcs) ', Sqrt runtime= ' num2str(tsqrt)]);
     elseif i==2
-        title(['This log-L= ' num2str(logL) ', NoReduce log-L= ' num2str(logLNR)  ', Info log-L= ' num2str(logLInfo)]);
+        title(['This log-L= ' num2str(logL) ', NoReduce log-L= ' num2str(logLNR)  ', Info log-L= ' num2str(logLInfo) ', Sqrt log-L= ' num2str(logLsqrt)]);
     end
 end
 subplot(3,1,3)
@@ -56,18 +63,29 @@ for i=1:2
     hold on
     set(gca,'ColorOrderIndex',1)
     p(1)=plot(Xf(i,:)-X(i,1:end-1));
-    p(2)=plot(Xcs(i,:)-X(i,1:end-1));
+     p(2)=plot(XfNR(i,:)-X(i,1:end-1));
+    p(3)=plot(Xcs(i,:)-X(i,1:end-1));
+        p(4)=plot(Xsqrt(i,:)-X(i,1:end-1));
 
     set(gca,'ColorOrderIndex',1)
     aux=sqrt(mean((X(i,1:end-1)-Xf(i,:)).^2));
     b1=bar(1900+400*i,aux,'BarWidth',100,'EdgeColor','None');
     text(1850+400*i,1.2*aux,num2str(aux,3),'Color',b1.FaceColor)
-    aux=sqrt(mean((X(i,1:end-1)-Xcs(i,:)).^2));
+    
+        aux=sqrt(mean((X(i,1:end-1)-XfNR(i,:)).^2));
     b1=bar(2000+400*i,aux,'BarWidth',100,'EdgeColor','None');
-    text(1950+400*i,1.4*aux,num2str(aux,3),'Color',b1.FaceColor)
+    text(1950+400*i,1.2*aux,num2str(aux,3),'Color',b1.FaceColor)
+    
+    aux=sqrt(mean((X(i,1:end-1)-Xcs(i,:)).^2));
+    b1=bar(2100+400*i,aux,'BarWidth',100,'EdgeColor','None');
+    text(2050+400*i,1.4*aux,num2str(aux,3),'Color',b1.FaceColor)
+    grid on
+    
+      aux=sqrt(mean((X(i,1:end-1)-Xsqrt(i,:)).^2));
+    b1=bar(2200+400*i,aux,'BarWidth',100,'EdgeColor','None');
+    text(2150+400*i,1.4*aux,num2str(aux,3),'Color',b1.FaceColor)
     grid on
 end
-    legend(p)
 title('Residuals')
 axis([0 3000 -.02 .02])
 axis tight
