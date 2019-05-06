@@ -256,13 +256,26 @@ classdef linsys
             newThis.R(sub2ind([newSize, newSize],padIdx,padIdx))=Rpad;
             newThis.R(oldIdx,oldIdx)=this.R;
         end
-        function newThis=reduce(this,excludeIdx)
+        function newThis=excludeOutput(this,excludeIdx)
            newThis=this;
            newThis.C(excludeIdx,:)=[];
            newThis.D(excludeIdx,:)=[];
            newThis.R(excludeIdx,:)=[];
            newThis.R(:,excludeIdx)=[];
-
+        end
+        function [newThis,redDataSet]=reduce(this,datSet)
+            %dataSet argument is optional
+            if nargin<2
+                Y=zeros(this.Noutput,1);
+            else
+                Y=datSet.out;
+            end
+            exc=isinf(diag(this.R));
+            this=this.excludeOutput(exc); %Excluding infinite variance outputs
+            Y=Y(~exc,:);
+           [Cnew,Rnew,Ynew,cRnew,logLmargin,Dnew]=reduceModel(this.C,this.R,Y,this.D);
+           newThis=linsys(this.A,Cnew,Rnew,this.B,Dnew,this.Q);
+           redDataSet=dset(datSet.in,Ynew);
         end
         function hs=get.hash(this)
            %This uses an external MEX function to compute the MD5 hash

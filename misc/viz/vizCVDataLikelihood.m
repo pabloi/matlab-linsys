@@ -1,4 +1,4 @@
-function [fh] = vizCVDataLikelihood(model,testSet)
+function [fh] = vizCVDataLikelihood(model,testSet,reduceFlag)
 if ~iscell(testSet)
     testSet={testSet};
 end
@@ -20,7 +20,11 @@ for kd=1:Md %One row of subplots per dataset
 %        iC=initCond(dFit{i}.stateEstim.state(:,1),model{i,kd}.Q); %Same init condition as EM sets
 %        dFit{i}=model{i,kd}.fit(testSet{kd},iC); %Fit with  init cond
 %    end
-    logLtest=cellfun(@(x) x.goodnessOfFit,dFit);
+%    if nargin>2 && reduceFlag
+%        logLtest=cellfun(@(x) x.reducedGoodnessOfFit,dFit);
+%    else
+        logLtest=cellfun(@(x) x.goodnessOfFit,dFit);
+%    end
     yy=logLtest;
     yy=yy-min(yy);
     nn='\Delta logL';

@@ -1,4 +1,4 @@
-function [Cnew,Rnew,Ynew,cRnew,logLmargin]=reduceModel(C,R,Y)
+function [Cnew,Rnew,Ynew,cRnew,logLmargin,Dnew]=reduceModel(C,R,Y,D)
   [D2,D1]=size(C);
   [icR,cR]=pinvchol(R); %This works if R is semidefinite, but in general
   %semidefinite R is unworkable, as R+C*P*C' needs to be invertible.
@@ -30,4 +30,9 @@ function [Cnew,Rnew,Ynew,cRnew,logLmargin]=reduceModel(C,R,Y)
   %term, instead of recomputing it.
   %Further, we can show that: (using Matrix Inversion Lemma)
   %y'*inv(R+C*P*C')*y = y'*inv(Rnew+Cnew*P*Cnew')*y -(y'*inv(R)*y - ynew'*inv(Rnew)*ynew)
+  if nargin>3 && ~isempty(D)
+      Dnew=(C'*icR)*(icR'*D);
+  else
+      Dnew=[];
+  end
 end

@@ -7,6 +7,7 @@ properties (SetAccess = immutable)
   initialCondition=initCond([],[]);
   fitMethod='KS';
   goodnessOfFit %Metric to quantify the fit, can be logL, RMSE depending on how data was fit
+  %reducedGoodnessOfFit
 end
 
 properties (Dependent)
@@ -34,6 +35,11 @@ methods
       this.dataSet=datSet;
       this.fitMethod=fitMethod;
       this.goodnessOfFit=logL;
+      %Compute reduced log-l: (that is, ignoring portion of the output
+      %outside of the span of C)
+      %[redSys,redDatSet]=model.reduce(datSet);
+      %[~,~,~,~,redLogL]=redSys.Ksmooth(redDatSet,initC);
+      %this.reducedGoodnessOfFit=redLogL;
   end
   function res=get.residual(this)
       res=this.output - this.dataSet.out;
