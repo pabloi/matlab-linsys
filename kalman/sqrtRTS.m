@@ -8,8 +8,10 @@ function [newcPst,newXs,newPt,Ht]=sqrtRTS(cPft,cPst,xp,xf,prevXs,At,cQt)
   Nx=size(cQt,1);
   if ~any(infIdx) %The usual case: we have a proper/numerically well-conditioned prior from filter
      AcPft=cPft*At;
+     %[~,cPpt]=qr([cQt; AcPft],0);
+     %Ht=cPpt'\(cPpt\AcPft'*cPft);
      Ht=(AcPft'*AcPft+cQt'*cQt)\AcPft'*cPft;
-     M=[cQt zeros(Nx); cPft*At cPft; zeros(Nx) cPst*Ht];
+     M=[cQt zeros(Nx); AcPft cPft; zeros(Nx) cPst*Ht];
      [~,R]=qr(M,0);
      newcPst=R(Nx+1:end,Nx+1:end);
      newPt=(cPst'*cPst)*Ht;
