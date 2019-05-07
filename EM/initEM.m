@@ -9,10 +9,14 @@ function [A,B,C,D,Q,R,x0,P0]=initEM(Y,U,X,opts,P,Pt)
       error('Xguess has to be a guess of the states (D x N matrix) or a scalar indicating the number of states to be estimated')
   elseif numel(X)==1 %X is just dimension, initializing as usual
       d=X;
-      if any(isnan(Y(:))) %Removing NaNs first
-        Y2=substituteNaNs(Y')';
+      if ~iscell(Y)
+          %if any(isnan(Y(:))) %Removing NaNs first
+            Y2=substituteNaNs(Y')';
+          %else
+          %  Y2=Y;
+          %end
       else
-        Y2=Y;
+         Y2=cellfun(@(x) substituteNaNs(x')',Y,'UniformOutput',false);
       end
       %[A,B,C,D,X,Q,R]=subspaceIDv2(Y2,U,d); %Works if no missing data, is slow
       [X]=initGuessOld(Y2,U,d,opts);
@@ -29,7 +33,7 @@ end
 
 function [A1,B1,C1,D1,Q1,R1,x01,P01]=initParams(Y,U,X,opts,Pguess,Ptguess)
   if isa(Y,'cell')
-      [P,Pt]=cellfun(@(x,u,p) initCov(x,u,p),X,U,Pguess,'UniformOutput',false);
+      [P,Pt]=cellfun(@(x,u,p) initCov(x,u,p),X(:),U(:),Pguess(:),'UniformOutput',false);
   else
       %Initialize covariance to plausible values:
       [P,Pt]=initCov(X,U,Pguess,Ptguess);
@@ -69,7 +73,7 @@ end
 %This function used to be used instead of the subspace method
 function [X]=initGuessOld(Y,U,D1,opts)
   if isa(Y,'cell')
-      X=initGuessOld(cell2mat(Y),cell2mat(U),D1,opts);
+      X=initGuessOld(cell2mat(Y(:)'),cell2mat(U(:)'),D1,opts);
       X=mat2cell(X,size(X,1),cellfun(@(x) size(x,2),Y));
   else
       idx=~any(isnan(Y),1);

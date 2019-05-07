@@ -11,6 +11,16 @@ emptyIdx=cellfun(@isempty,aux);
 auxIdx=1:length(aux);
 defaultArgs(auxIdx(~emptyIdx))=aux(~emptyIdx); %Replacing defaults with whatever was given
 [x0,P0,B,D,U,opts]=defaultArgs{[1:6]};
+if iscell(U)
+    Nu=cellfun(@(x) size(x,1),U);
+    if any(diff(Nu)~=0)
+        error('Multiple inputs given but with inconsistent sizes')
+    end
+    Nu=Nu(1);
+else
+    Nu=size(U,1);
+end
+    
 
 if ~isfield(opts,'fastFlag') || isempty(opts.fastFlag)
   opts.fastFlag=0; %No fast mode
@@ -25,22 +35,22 @@ if ~isfield(opts,'noReduceFlag') || isempty(opts.noReduceFlag)
   opts.noReduceFlag=false;
 end
 if ~isfield(opts,'indD') %Leave empty as empty
-  opts.indD=1:size(U,1);
+  opts.indD=1:Nu;
 end
 if ~isfield(opts,'indB') %Leave empty as empty
-  opts.indB=1:size(U,1);
+  opts.indB=1:Nu;
 end
-if size(U,1)~=size(D,2)
+if Nu~=size(D,2)
   if isempty(D)
-    D=zeros(1,size(U,1));
+    D=zeros(1,Nu);
     warning('D was empty but Ud was not. Replacing D with 0')
   else
     error('Incompatible sizes of D, U')
   end
 end
-if size(U,1)~=size(B,2)
+if Nu~=size(B,2)
   if isempty(B)
-    B=zeros(D1,size(U,1));
+    B=zeros(D1,Nu);
     warning('B was empty but Ud was not. Replacing B with 0')
   else
     error('Incompatible sizes of B, U')

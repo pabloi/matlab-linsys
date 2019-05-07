@@ -38,7 +38,7 @@ for i=1:optR.Nreps
     fprintf(['\n Starting rep ' num2str(i) '. Best logL so far=' num2str(bestLL,8) ' (iter=' num2str(lastSuccess) ') \n']);
 
     %Initialize starting point:
-    Xguess=guess(nd,Y(optR.includeOutputIdx,:),U,optR);
+    Xguess=guess(nd,Y,U,optR);
 
     %Optimize:
     %try
@@ -98,12 +98,13 @@ end
 
 function Xguess=guess(nd,Y,U,opts)
     if isa(U,'cell')
-        u=cell2mat(U);
-        y=cell2mat(Y);
+        u=cell2mat(U(:)');
+        y=cell2mat(Y(:)');
     else
         y=Y;
         u=U;
     end
+    y=y(opts.includeOutputIdx,:);
     [ny,N]=size(y);
     if isempty(opts.fixA)
       A1=diag(exp(-1./exp(log(N/2)*rand(nd,1)))); %WLOG, diagonal matrix with log-uniformly spaced time-constants in the [1,N/2] interval

@@ -201,7 +201,7 @@ end
 
 %Estimate x0,P0:
 if isa(X,'cell')
-    [x0,P0]=cellfun(@(x,p) estimateInit(x,p,A,Q),X,P,'UniformOutput',false);
+    [x0,P0]=cellfun(@(x,p) estimateInit(x,p,A,Q),X(:),P(:),'UniformOutput',false);
 else
     [x0,P0]=estimateInit(X,P,A,Q);
 end
