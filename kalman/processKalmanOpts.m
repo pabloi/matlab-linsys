@@ -46,3 +46,6 @@ if size(U,1)~=size(B,2)
     error('Incompatible sizes of B, U')
   end
 end
+if ~isfield(opts,'noLogL') || isempty(opts.noLogL)
+  opts.noLogL=false; %Requesting the computation of log-L by default
+end
