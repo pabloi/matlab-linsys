@@ -33,30 +33,20 @@ end
 
 function [A1,B1,C1,D1,Q1,R1,x01,P01]=initParams(Y,U,X,opts,Pguess,Ptguess)
   if isa(Y,'cell')
-      [P,Pt]=cellfun(@(x,u,p) initCov(x,u,p),X(:),U(:),Pguess(:),'UniformOutput',false);
+      [P,Pt]=cellfun(@(x,u,p,pt) initCov(x,u,p,pt),X(:),U(:),Pguess(:),Ptguess(:),'UniformOutput',false);
   else
       %Initialize covariance to plausible values:
       [P,Pt]=initCov(X,U,Pguess,Ptguess);
-
-      %Move things to gpu if needed
-      if isa(Y,'gpuArray')
-          U=gpuArray(U);
-          X=gpuArray(X);
-          P=gpuArray(P);
-          Pt=gpuArray(Pt);
-      end
   end
 
 %Initialize guesses of A,B,C,D,Q,R
 [A1,B1,C1,D1,Q1,R1,x01,P01]=estimateParams(Y,U,X,P,Pt,opts);
-%[A1,B1,C1,x01,~,Q1,P01] = canonize(A1,B1,C1,x01,Q1,P01,'canonicalAlt');
-%UPDATE: Canonization is incompatible with fixed values for some parameters.
 end
 
 function [P,Pt]=initCov(X,U,P,Pt)
     [~,N]=size(X);
     %Initialize covariance to plausible values:
-    if nargin<2 || isempty(P)
+    if nargin<3 || isempty(P)
       dX=diff(X');
       if ~all(U(:)==0)
         dX=dX- U(:,1:end-1)'*(U(:,1:end-1)'\dX); %Projection orthogonal to input
@@ -65,7 +55,7 @@ function [P,Pt]=initCov(X,U,P,Pt)
       P=repmat(Px,1,1,N);
       %Px1=(dX(2:end,:)'*dX(1:end-1,:));
       Pt=repmat(.2*diag(diag(Px)),1,1,N);
-    elseif nargin<3 || isempty(Pt)
+    elseif nargin<4 || isempty(Pt)
       Pt=.2*P;
     end
 end

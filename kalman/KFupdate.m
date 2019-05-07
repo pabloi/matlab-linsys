@@ -4,18 +4,15 @@ function [newX,newP,iL,rejectedSample,logL]=KFupdate(C,R,y,x,P,rejectZ2threshold
 %R observation noise covariance. %Needs to be only PSD, but PD is HIGHLY recommended
 %P prior state covariance, Needs to be PSD only
 %R +C*P*C' should be strictly PD. Numerical issues some time prevent this computation being done accurately
+
 rejectedSample=false;
-%cS= coder.nullcopy(R);
 %cS=chol(R+C*P*C');
 [cS]=mycholcov2(R+C*P*C'); %This ignores the upper triangle of the matrix
-%iL=coder.nullcopy(cS);
 iL=cS\eye(size(R));
 CiL=C'*iL;
-%PCiL=coder.nullcopy(CiL);
 PCiL=P*CiL;
 
 
-%innov=coder.nullcopy(y);
 innov=y-C*x;
 iLy=iL'*innov;
 z2=iLy'*iLy;%sum(iLy.^2,1); %z^2 scores
