@@ -142,7 +142,7 @@ Ct=C';
 
 %Do just the update for i=firstInd; (equivalent to predict+update, when A=I, Q=0)
 i=firstInd;
-[prevX,cPt,K,logL(i),rejSamples(i)] = sqrtPredictUpdate(Y_D(:,i),prevX, cPt, cRt, zeros(size(cQt)), eye(size(At)), Ct,zeros(size(BU(:,i-1))),rejThreshold);
+[prevX,cPt,K,logL(i),rejSamples(i)] = sqrtPredictUpdate(Y_D(:,i),prevX, cPt, cRt, zeros(size(cQt)), eye(size(At)), Ct,zeros(size(prevX)),rejThreshold);
 X(:,i)=prevX;  P(:,:,i)=cPt; %Store results
 
 %Do predict+update for remaining steps:
