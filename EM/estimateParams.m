@@ -141,9 +141,7 @@ if isempty(opts.fixQ)
   sQ=mycholcov(Q2);
   Q2=sQ'*sQ; %Enforcing psd, unclear if necessary
   if ~opts.robustFlag
-      Q1=(w*w')/(Nw);
-  %Covariance of EXPECTED residuals given the data and params
-  %not designed to deal with outliers, autocorrelated w
+      Q1=(w*w')/(Nw); %Covariance of EXPECTED residuals given the data and params
   %Note: if we dont have exact extimates of A,B, then the residuals w are not
   %iid gaussian. They will be autocorrelated AND have outliers with respect
   %to the best-fitting multivariate normal. Thus, we benefit from doing a
@@ -162,7 +160,11 @@ if isempty(opts.fixQ)
       [Q1]=robCov(w);%,95); %Fast variant of robustcov() estimation
       %Q1=squeeze(median(w.*reshape(w',1,size(w,2),size(w,1)),2));
   end
-  Q=Q1 +Q2+opts.minQ*eye(size(Q1));
+  Q=Q1+Q2;
+  %Enforcing minimum value in diagonal: (regularization)
+  q=diag(Q);
+  q(q<opts.minQ)=opts.minQ;
+  Q(1:(D1+1):end)=q;
 else
   Q=opts.fixQ;
 end
@@ -192,9 +194,7 @@ if isempty(opts.fixR)
   end
   r=diag(R);
   r(r<opts.minR)=opts.minR; %Minimum value for diagonal elements, avoids ill-conditioned situations
-  I=eye(size(R));
-  R=R.*(1-I)+diag(r);
-  %R=R+opts.minR*eye(size(R)); %Avoid numerical issues from PSD, but not PD, ill-conditioned matrices
+  R(1:No+1:end)=r;
 else
   R=opts.fixR;
 end
