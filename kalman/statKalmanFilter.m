@@ -97,7 +97,7 @@ end
 
 %Define constants for sample rejection:
 logL=nan(1,N); %Row vector
-rejThreshold=0;
+rejThreshold=NaN;
 if opts.outlierFlag
   rejThreshold=chi2inv(.99,D2);
 end
@@ -135,12 +135,17 @@ end
 
 %Run filter for remaining steps:
 M=max([M,firstInd+find(cumsum(~any(isnan(Y_D(:,firstInd+1:end)),1))>=D1,1,'first')]); %Ensures at least 1 non-nan sample is processed
+doLogL= nargout>5 && ~opts.noLogL; %logL was requested
 for i=firstInd:M
   y=Y_D(:,i); %Output at this step
 
   %First, do the update given the output at this step:
   if ~any(isnan(y)) %If measurement is NaN, skip update.
-     [prevX,prevP,logL(i),rejSamples(i),icS]=KFupdate(C,R,y,prevX,prevP,rejThreshold);
+    if doLogL
+     [prevX,prevP,icS,rejSamples(i),logL(i)]=KFupdate(C,R,y,prevX,prevP,rejThreshold);
+   else
+     [prevX,prevP,icS,rejSamples(i)]=KFupdate(C,R,y,prevX,prevP,rejThreshold);
+   end
   end
   X(:,i)=prevX;  P(:,:,i)=prevP; %Store results
 

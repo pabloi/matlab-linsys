@@ -29,6 +29,11 @@ BU=B*U;
 %TODO
 
 %Step 1: forward filter
+if nargout>8 && ~opts.noLogL %logL requested
+    opts.noLogL=false;
+else
+    opts.noLogL=true;
+end
 [Xf,Pf,Xp,Pp,rejSamples,logL]=statKalmanFilter(Y,A,C,Q,R,x0,P0,B,D,U,opts);
 
 %Step 2: backward pass:
@@ -126,12 +131,12 @@ function [newPs,newXs,newPt,H]=backStepRTS(pp,pf,ps,xp,xf,prevXs,A,cQ,bu,iA)
   %https://en.wikipedia.org/wiki/Kalman_filter#Fixed-interval_smoothers)
   %Notably, the Rauch-Tung-Striebel math is equivalent to a Kalman-filter
   %update, where xf,Pf are the priors (which come from filtering up to step k)
-  % x*=Ax+Bu+v is the observation model, where v~N(0,P*+Q) 
-  % [that is, A takes the place of C, B of D, and Q+P* of R in the usual notation], 
+  % x*=Ax+Bu+v is the observation model, where v~N(0,P*+Q)
+  % [that is, A takes the place of C, B of D, and Q+P* of R in the usual notation],
   % and x*,P* are the MLE estimators of x_{k+1} given all the observations
   % from k+1 to the end (i.e. future samples only)
   % The RTS recursion is useful because it manages to compute newXs, newPs
-  % without computing x* and P* explicitly [P* satisfies 
+  % without computing x* and P* explicitly [P* satisfies
   %inv(P*)+inv(pp)=inv(ps), and x* satisfies inv(P*)x*+inv(pp)xp=inv(ps)xs]
   % Further, this implies that Ps=(I-KA)*Pf;, where K=Pf*A'*inv(Pp+P*),
   % which in turn satisfies K=Pf*A'*inv(Pp)*(Pp-Ps)*inv(Pp)
@@ -154,7 +159,7 @@ function [newPs,newXs,newPt,H]=backStepRTS(pp,pf,ps,xp,xf,prevXs,A,cQ,bu,iA)
       %H=pf*(A'*invPp);
       %HcP=H*cP';
       %State update:
-      newXs=xf+H*(prevXs-xp); %=H*prevXs +(xf-H*xp); 
+      newXs=xf+H*(prevXs-xp); %=H*prevXs +(xf-H*xp);
       %Compute across-steps covariance:
       newPt=ps*H'; %This should be such that A*newPt' is hermitian
       %More stable state covariance update:
@@ -165,7 +170,7 @@ function [newPs,newXs,newPt,H]=backStepRTS(pp,pf,ps,xp,xf,prevXs,A,cQ,bu,iA)
       %newPs=(eye-K*A)*pf;
       %To enforce: (makes it slower)
       %cS=mycholcov(pf - HcP*HcP'); %Should be psd: proof? Can also be computed in a PSD-enforcing way by using chol(Pf). Solution: cS'*cS = cPf'*(eye - (cPf*A'*icP)*(cPf*A'*icP)')*cPf;
-      %newPs=HcPs*HcPs'+cS'*cS;%=HcPs*HcPs' + (pf - HcP*HcP');%=pf- H*(pp-ps)*H'; %The term in parenthesis is psd = inv(inv(pf)+A'*inv(Q)*A)    
+      %newPs=HcPs*HcPs'+cS'*cS;%=HcPs*HcPs' + (pf - HcP*HcP');%=pf- H*(pp-ps)*H'; %The term in parenthesis is psd = inv(inv(pf)+A'*inv(Q)*A)
   else %This happens when we started filtering from an improper prior
     %(infinite uncertainty) or very large uncertainties and we go back to smooth
     %those (almost) infinitely uncertain samples

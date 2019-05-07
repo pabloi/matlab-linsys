@@ -1,4 +1,4 @@
-function [newX,newP,logL,rejectedSample,iL]=KFupdate(C,R,y,x,P,rejectZ2threshold)
+function [newX,newP,iL,rejectedSample,logL]=KFupdate(C,R,y,x,P,rejectZ2threshold)
 %Computes the update step of the Kalman filter
 %C arbitrary matrix
 %R observation noise covariance. %Needs to be only PSD, but PD is HIGHLY recommended
@@ -17,20 +17,21 @@ PCiL=P*CiL;
 
 %innov=coder.nullcopy(y);
 innov=y-C*x;
-halfLog2Pi=0.91893853320467268;
-%halfLogdetSigma=0; %Declaring type
-halfLogdetSigma= sum(log(diag(cS)));
-%iLy=coder.nullcopy(innov);
 iLy=iL'*innov;
-%z2 = 0; %Declaring type
 z2=iLy'*iLy;%sum(iLy.^2,1); %z^2 scores
-logL=-.5*z2 -halfLogdetSigma-size(y,1)*halfLog2Pi;
-
-if rejectZ2threshold>0 && z2>rejectZ2threshold %Reject sample, no update
+if nargout>4 %logL requested
+  halfLog2Pi=0.91893853320467268;
+  halfLogdetSigma= sum(log(diag(cS)));
+  logL=-.5*z2 -halfLogdetSigma-size(y,1)*halfLog2Pi;
+end
+if rejectZ2threshold==0
+  warning('0 threshold')
+end
+if nargin>5 && z2>rejectZ2threshold %Reject sample, no update
     rejectedSample=true;
     newX=x;
     newP=P;
-else
+else %Accepted sample
     newX=x+PCiL*iLy; %P*C'*inv(S) = K
     %newP = P - PCiL*PCiL'; %This is fine if no ill-conditioned matrices
     %are ever present, such that PCiL*PCiL' has a larger
