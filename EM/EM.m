@@ -41,7 +41,6 @@ else
   nx=size(Xguess,1);
 end
 [opts] = processEMopts(opts,Nu,nx,ny); %This is a fail-safe to check for proper options being defined.
-nny=length(opts.includeOutputIdx);
 if opts.fastFlag~=0 && ( (~isa(Y,'cell') && any(isnan(Y(:)))) || (isa(Y,'cell') && any(any(isnan(cell2mat(Y)))) ) )
    warning('EM:fastAndLoose','Requested fast filtering but data contains NaNs. Filtering/smoothing will be approximate, if it works at all. log-L is not guaranteed to be non-decreasing (disabling warning).')
    warning('off','EM:logLdrop') %If samples are NaN, fast filtering may make the log-L drop (smoothing is not exact, so the expectation step is not exact)
@@ -64,16 +63,18 @@ end
 
 %% ------------Init stuff:-------------------------------------------
 % Init params
- Yred=Y(opts.includeOutputIdx,:); %Does not work if it is a cell
- [A1,B1,C1,D1,Q1,R1,x01,P01]=initEM(Yred,U,Xguess,opts,Pguess,Ptguess);
- [X1,P1,Pt1,~,~,~,~,~,bestLogL]=statKalmanSmoother(Yred,A1,C1,Q1,R1,x01,P01,B1,D1,U,opts);
+if ~iscell(Y)
+    Yred=Y(opts.includeOutputIdx,:); %Does not work if it is a cell
+else
+    Yred=cellfun(@(x) x(opts.includeOutputIdx,:),Y,'UniformOutput',false);
+end
+[A1,B1,C1,D1,Q1,R1,x01,P01]=initEM(Yred,U,Xguess,opts,Pguess,Ptguess);
+opts.evalLogL=true;
+[X1,P1,Pt1,bestLogL]=estimateStates(Yred,A1,C1,Q1,R1,x01,P01,B1,D1,U,opts);
+
 
 %Initialize log-likelihood register & current best solution:
-logl=nan(opts.Niter,1);
-logl(1)=bestLogL;
-if isa(Y,'gpuArray')
-    logl=nan(Niter,1,'gpuArray');
-end
+logl=nan(opts.Niter,1); logl(1)=bestLogL;
 A=A1; B=B1; C=C1; D=D1; Q=Q1; R=R1; x0=x01; P0=P01; P=P1; Pt=Pt1; X=X1;
 
 %Initialize target logL:
@@ -82,15 +83,13 @@ if isempty(opts.targetLogL)
 end
 %% ----------------Now, do E-M-----------------------------------------
 breakFlag=false;
-improvement=true;
-%initialLogLgap=opts.targetLogL-bestLogL;
-nonNaNsamples=sum(~any(isnan(Y),1));
+msg='';
 if opts.verbose
 disp(['Iter = 1, target logL = ' num2str(opts.targetLogL,8) ', current logL=' num2str(bestLogL,8) ', \tau =' num2str(-1./log(sort(eig(A)))')])
 end
 dropCount=0;
-opts.evalLogL=20; %Evaluating logL only once every N iterations. Shaves some computation time (~5%) when doing non-fast filtering
-opts.dispStep=5; %Displaying info only once every M logL evluations
+opts.evalLogL=1; %Evaluating logL only once every N iterations. Shaves some computation time (~5%) when doing non-fast filtering
+opts.dispStep=100; %Displaying info only once every M logL evluations
 dS=opts.dispStep*opts.evalLogL;
 for k=1:opts.Niter-1 %MAIN LOOP
 	%E-step: compute the distribution of latent variables given current parameter estimates
@@ -108,7 +107,7 @@ for k=1:opts.Niter-1 %MAIN LOOP
     if mod(k,opts.evalLogL)==0; opts.noLogL=false; else; opts.noLogL=true; end
     [X1,P1,Pt1,l]=estimateStates(Yred,A1,C1,Q1,R1,x01,P01,B1,D1,U,opts);
 
-    %Check improvements:
+    %Check stop conditions:
     [logl,dropCount,breakFlag,msg]=checkStopping(l,k,opts,logl,dropCount,bestLogL,X1);
     if l>bestLogL %There was improvement
       A=A1; B=B1; C=C1; D=D1; Q=Q1; R=R1; x0=x01; P0=P01; X=X1; P=P1; Pt=Pt1;
@@ -116,7 +115,13 @@ for k=1:opts.Niter-1 %MAIN LOOP
     end
 
     %Print some info
-    printInfo(l,logl,k,dS,opts,breakFlag,msg,A,A1)
+    if opts.verbose && (mod(k,dS)==0) %Print info
+        lastChange=l-logl(k+1-dS); %Change since last printing
+        if isnan(lastChange)
+            1;
+        end
+        disp(['Iter = ' num2str(k) ', \Delta logL = ' num2str(lastChange,3) ', over target = ' num2str((l-opts.targetLogL),3) ', \tau =' num2str(-1./log(sort(eig(A1)))',3)]) %This displays logL over target, not in a per-sample per-dim way (easier to probe if logL is increasing significantly)
+    end
     if breakFlag && ~opts.robustFlag
         break
     end
@@ -126,7 +131,7 @@ for k=1:opts.Niter-1 %MAIN LOOP
 
 end %for loop
 
-%%
+%% Some housekeeping
 if opts.fastFlag~=0 %Re-enable disabled warnings
     warning('on','statKFfast:unstable');
     warning('on','statKFfast:NaN');
@@ -136,7 +141,8 @@ if opts.fastFlag~=0 %Re-enable disabled warnings
     warning('on','statKSfast:fewSamples')
 %Comput optimal states and logL without the fastFlag
   opts.fastFlag=0;
-    [X,P,Pt,~,~,~,~,~,bestLogL]=statKalmanSmoother(Yred,A1,C1,Q1,R1,x01,P01,B1,D1,U,opts);
+  opts.noLogL=false;
+  [X,P,Pt,bestLogL]=estimateStates(Yred,A1,C1,Q1,R1,x01,P01,B1,D1,U,opts);
 end
 if opts.logFlag
   outLog.vaps(k,:)=sort(eig(A1));
@@ -146,8 +152,12 @@ if opts.logFlag
   outLog.bestLogL=bestLogL;
   %diary('off')
 end
+%%
+%Display final message:
+fprintf([msg ' \n']);
+disp(['Finished. Number of iterations = ' num2str(k) ', logL = ' num2str(bestLogL,8) ', \tau =' num2str(-1./log(sort(eig(A)))')])
 
-%If some outputs were excluded, replace the corresponding values in C,R:
+%% If some outputs were excluded, replace the corresponding values in C,R:
 if size(Yred,1)<size(Y,1)
     Raux=R;
     R=diag(inf(ny,1));
@@ -163,31 +173,30 @@ if size(Yred,1)<size(Y,1)
 end
 end  %Function
 
-function [X1,P1,Pt1,l]=estimateStates(Yred,A1,C1,Q1,R1,x01,P01,B1,D1,U,opts)
-    if isa(Yred,'cell') %Data is many realizations of same system
-        [X1,P1,Pt1,~,~,~,~,~,l1]=cellfun(@(y,x0,p0,u) statKalmanSmoother(y,A1,C1,Q1,R1,x0,p0,B1,D1,u,opts),Yred,x01,P01,U,'UniformOutput',false);
-        l=sum(cell2mat(l1));
-    else
-        [X1,P1,Pt1,~,~,~,~,~,l]=statKalmanSmoother(Yred,A1,C1,Q1,R1,x01,P01,B1,D1,U,opts);
-    end
-end
-
-function printInfo(l,logl,k,dS,opts,breakFlag,msg,A,A1)
-    if opts.verbose && (mod(k,dS)==0 || breakFlag) %Print info
-        pOverTarget=100*((l-opts.targetLogL)/abs(opts.targetLogL));
-        if k>=dS && ~breakFlag
-            lastChange=l-logl(k+1-dS,1); %Change since last printing
-            disp(['Iter = ' num2str(k) ', \Delta logL = ' num2str(lastChange,3) ', over target = ' num2str((l-opts.targetLogL),3) ', \tau =' num2str(-1./log(sort(eig(A1)))',3)]) %This displays logL over target, not in a per-sample per-dim way (easier to probe if logL is increasing significantly)
-        else %k==1 || breakFlag
-            l=max(logl);
-            pOverTarget=100*((l-opts.targetLogL)/abs(opts.targetLogL));
-            disp(['Iter = ' num2str(k) ', logL = ' num2str(l,8) ', % over target = ' num2str(pOverTarget) ', \tau =' num2str(-1./log(sort(eig(A)))')])
-            if breakFlag; fprintf([msg ' \n']); end
+function [X1,P1,Pt1,l]=estimateStates(Y,A1,C1,Q1,R1,x01,P01,B1,D1,U,opts)
+    %try %Because of precision issues, this may fail. The try-catch adds minor overhead
+        if isa(Y,'cell') %Data is many realizations of same system
+            [X1,P1,Pt1,~,~,~,~,~,l1]=cellfun(@(y,x0,p0,u) statKalmanSmoother(y,A1,C1,Q1,R1,x0,p0,B1,D1,u,opts),Y(:),x01(:),P01(:),U(:),'UniformOutput',false);
+            l=sum(cell2mat(l1));
+        else
+            [X1,P1,Pt1,~,~,~,~,~,l]=statKalmanSmoother(Y,A1,C1,Q1,R1,x01,P01,B1,D1,U,opts);
         end
-    end
+        %For future release: try a fast smoother, and if it fails or logl
+        %drops, use the more accurate sqrt smoother. 
+        %TO DO: covariance matrices from sqrt need to be converted to full
+        %form (they are in the sqrt form)
+    %catch %Slower but robust to non-psd matrices:
+    %    disp('Smoothing failed, using sqrt-filter')
+    %    if isa(Y,'cell') 
+    %        [X1,P1,Pt1,~,~,~,l1]=cellfun(@(y,x0,p0,u) statSqrtSmoother(y,A1,C1,Q1,R1,x0,p0,B1,D1,u,opts),Y(:),x01(:),P01(:),U(:),'UniformOutput',false);
+    %        l=sum(cell2mat(l1));
+    %    else
+    %        [X1,P1,Pt1,~,~,~,l]=statSqrtSmoother(Y,A1,C1,Q1,R1,x01,P01,B1,D1,U,opts);
+    %    end
+    %end
 end
 
-function [logL,dropCount,breakFlag,msg]=checkStopping(l,k,opts,logL,dropCount,bestLogL,Z)
+function [logl,dropCount,breakFlag,msg]=checkStopping(l,k,opts,logl,dropCount,bestLogL,Z)
     %There are three stopping criteria:
     %1) number of iterations
     %2) improvement in logL per dimension of output less than some threshold. It makes sense to do it per dimension of output because in high-dimensional models, the number of parameters of the model is roughly proportional to the number of output dimensions. IDeally, this would be done per number of free model parameters, so it has a direct link to significant improvements in log-L (Wilk's theorem suggests we should expect an increase in logL of 1 per each extra free param, so when improvement is well below this, we can stop).
@@ -206,7 +215,7 @@ function [logL,dropCount,breakFlag,msg]=checkStopping(l,k,opts,logL,dropCount,be
       logl(k+1)=l;
       delta=l-logl(k);
       improvement=delta>=0;
-      logL100ago=logl(max(k-100,1),1);
+      logL100ago=logl(max(k-100,1));
       targetRelImprovement100=(l-logL100ago)/(opts.targetLogL-logL100ago);
       belowTarget=max(l,bestLogL)<opts.targetLogL;
       relImprovementLast100=l-logL100ago; %Assessing the improvement on logl over the last 50 iterations (or less if there aren't as many)
@@ -235,6 +244,7 @@ function [logL,dropCount,breakFlag,msg]=checkStopping(l,k,opts,logL,dropCount,be
           breakFlag=true;
       end
       %Check if we should stop early (to avoid wasting time):
+      nny=length(opts.includeOutputIdx);
       if k>100 && (belowTarget && (targetRelImprovement100)<opts.targetTol) && ~opts.robustFlag%Breaking if improvement less than tol of distance to targetLogL
          msg='Unlikely to reach target value. Stopping.';
          breakFlag=true;
@@ -242,7 +252,7 @@ function [logL,dropCount,breakFlag,msg]=checkStopping(l,k,opts,logL,dropCount,be
           %Considering the system stalled if improvement on logl per dimension of output is <tol
           msg='Increase is within tolerance (local max). Stopping.';
           breakFlag=true;
-      elseif k==opts.Niter-1
+      elseif k==(opts.Niter-1)
           msg='Max number of iterations reached. Stopping.';
           breakFlag=true;
       elseif dropCount>10 %More than 10 drops in 100
