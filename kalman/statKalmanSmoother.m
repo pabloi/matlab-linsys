@@ -155,9 +155,7 @@ function [newPs,newXs,newPt,H]=backStepRTS(pp,pf,ps,xp,xf,prevXs,A,cQ,bu,iA)
       %First, compute gain:
       HcP=(pf*(A'*icP)); %H*cP'
       H=HcP*icP'; %H=AP'/pp; %Faster, although worse conditioned, matters a lot when smoothing
-      %Equivalent: (numerically too?)
-      %H=pf*(A'*invPp);
-      %HcP=H*cP';
+      %Equivalent: H=pf*(A'*invPp); HcP=H*cP';
       %State update:
       newXs=xf+H*(prevXs-xp); %=H*prevXs +(xf-H*xp);
       %Compute across-steps covariance:
@@ -165,9 +163,6 @@ function [newPs,newXs,newPt,H]=backStepRTS(pp,pf,ps,xp,xf,prevXs,A,cQ,bu,iA)
       %More stable state covariance update:
       HcPs=H*cPs';
       newPs= HcPs*HcPs' + (pf - HcP*HcP'); %The term in parenthesis is psd although this is not numerically enforced
-      %Alt enforcing:
-      %K=pf*A'*(invPP-invPP*ps*invPP);
-      %newPs=(eye-K*A)*pf;
       %To enforce: (makes it slower)
       %cS=mycholcov(pf - HcP*HcP'); %Should be psd: proof? Can also be computed in a PSD-enforcing way by using chol(Pf). Solution: cS'*cS = cPf'*(eye - (cPf*A'*icP)*(cPf*A'*icP)')*cPf;
       %newPs=HcPs*HcPs'+cS'*cS;%=HcPs*HcPs' + (pf - HcP*HcP');%=pf- H*(pp-ps)*H'; %The term in parenthesis is psd = inv(inv(pf)+A'*inv(Q)*A)
@@ -182,18 +177,7 @@ function [newPs,newXs,newPt,H]=backStepRTS(pp,pf,ps,xp,xf,prevXs,A,cQ,bu,iA)
     %It may be better conditioned that standard RTS to deal with large Pp (trace(Pp)>> trace(Ps))
   end
 end
-function [newPs,newXs,newPt,H]=backStepRTS2(pp,pf,ps,xp,xf,prevXs,A,cQ,bu,iA)
-  [~,~,ipp]=pinvchol2(pp); %What happens if pp is NOT invertible (null eigenvalues)?
-  H=pf*A'*ipp;
-  KA=A'*(ipp-ipp*ps*ipp)*A; %PSD
-  newPs=pf-pf*KA*pf; %=(eye(size(pf))-pf*KA)*pf;
-  %=pf -pf*A'*ipp*A*pf + H*ps*H'
-  %But: pf*A'*ipp*A*pf = inv(A)*(eye-Q*ipp)*A*pf = pf -inv(A)*Q*H'
-  %Then: newPs = inv(A)*Q*H' + H*ps*H', which is always PSD, but may not
-  %guarantee that trace(newPs)<trace(pf) because of numerical issues
-  newXs=xf+H*(prevXs-xp);
-  newPt=ps*H';
-end
+
 function [newPs,newXs,newPt,H]=backStepRTS_invA(invCholPp,cholPs,xp,prevXs,cholQ,bu,iA)
   %An RTS-equivalent backward recursion assuming that A is invertible
   %Note that inverting Pp (as RTS requires), implies that A*Pf*A'+Q is invertible,

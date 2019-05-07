@@ -8,15 +8,6 @@ function [cInvA,cA,invA]=pinvchol(A)
 [cA,r]=mycholcov(A);
 %cA(abs(cA)<eps)=0; %Sometimes chol() manages to compute the Chol decomposition of practically null matrices
 cInvA=mldivide(cA(1:r,:),eye(r));
-%ALT:
-% [L,D]=ldl(A);
-% d=diag(D);
-% sd=sqrt(1./d);
-% aux=d<1e-9; %Threshold for PD (below this, the corresponding eigenvalue is considered to be 0)
-% if any(aux)
-%     sd(aux)=0; %pseudo-inverse
-% end
-% cInvA=L'\diag(sd);
 
 if nargout>2
     invA=cInvA*cInvA';

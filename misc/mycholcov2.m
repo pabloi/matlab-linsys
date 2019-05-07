@@ -1,17 +1,15 @@
 function [cA,L,D]=mycholcov2(A)
-%A Cholesky-like decomposition that accepts semidefinite matrices, and
-%always returns a triangular matrix, unlike Matlab's cholcov().
-%For under-rank matrices, this returns a rectangular factor of size rxn,
-%where r is the rank of the matrix, and n is the size of A. This allows for
-%fast computation of pseudo-inverse with backlash, something that can't
-%happen if the matrix has all-0 rows.
-%See also: cholcov, testMyCholCov, pinvchol
+%A Cholesky-like decomposition that accepts semidefinite matrices.
+%Returns a permuted unit triangular matrix.
+%For under-rank matrices, cA will contain all-zero rows.
+%This is different from mycholcov behavior, which guarantees triangularity
+%but returns rectangular factors when A is underrank.
+%See also: cholcov, mycholcov, testMyCholCov, pinvchol
 
 %To do: efficiently check if A has Infinite non-diagonal elements. That would be bad (they can't be interpreted properly for inversion)
 %Thus, any non-diagonal elements corresponding to a row or column with an Inf diagonal should be set to 0
-%Further,
 if nargout<=1 %Just the cholesky decomposition
-  [cA,p]=chol(A); %This can handle infinite diagonal elements, but NOT singular covariances
+  [cA,p]=chol(A); %This can handle infinite diagonal elements, but NOT singular covariances. 3x slower than chol with single argument
 end
 dth=1e2*eps; %Threshold to say that an eigenvalue is truly non-zero.
 if nargout>1 || p~=0 %Not positive definite, need to complete

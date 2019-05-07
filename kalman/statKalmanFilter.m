@@ -96,7 +96,7 @@ if any(zeroVar) %0 variance is very problematic: it means that the output equati
 end
 littleVar=(diag(dR)<1e-8);
 if any(littleVar)
-    warning('statKF:smalObsVar','Observation variance along some dimensions is too small, this will lead to numerical issues')
+    warning('statKF:smallObsVar','Observation variance along some dimensions is too small, this will lead to numerical issues')
 end
 
 %Define constants for sample rejection:
