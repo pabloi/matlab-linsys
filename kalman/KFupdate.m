@@ -21,7 +21,10 @@ iLy=iL'*innov;
 z2=iLy'*iLy;%sum(iLy.^2,1); %z^2 scores
 if nargout>4 %logL requested
   halfLog2Pi=0.91893853320467268;
-  halfLogdetSigma= sum(log(diag(cS)));
+  halfLogdetSigma= sum(log(diag(cS))); %This presumes that cS is triangular, 
+  %which may not be the case for some ill-conditioned matrices [LDL only guarantees a permuted triangular matrix]
+  %In practice it may not matter, because if the matrix has very small
+  %eigenvalues then the log-likelihood will be close to -Inf
   logL=-.5*z2 -halfLogdetSigma-size(y,1)*halfLog2Pi;
 end
 if rejectZ2threshold==0

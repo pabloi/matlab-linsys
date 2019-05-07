@@ -94,6 +94,10 @@ if any(zeroVar) %0 variance is very problematic: it means that the output equati
     %part will be equivalent to the kalman filter projected onto the states
     %known exactly from the deterministic part)
 end
+littleVar=(diag(dR)<1e-8);
+if any(littleVar)
+    warning('statKF:smalObsVar','Observation variance along some dimensions is too small, this will lead to numerical issues')
+end
 
 %Define constants for sample rejection:
 logL=nan(1,N); %Row vector
@@ -206,7 +210,11 @@ end
 if firstInd~=1
     %warning('statKF:logLnoPrior',['Filter was computed from an improper uniform prior as starting point. Ignoring ' num2str(firstInd-1) ' points for computation of log-likelihood.'])
 end
-aux=logL+logLmargin;
-logL=nansum(aux(firstInd:end)); %Full log-L
+if doLogL
+    aux=logL+logLmargin;
+    logL=nansum(aux(firstInd:end)); %Full log-L
+else
+    logL=NaN;
+end
 %logL=nanmean(aux(firstInd:end))/size(Y,1); %Per-sample, per-dimension of output PROVIDED (not necessarily used)
 end
