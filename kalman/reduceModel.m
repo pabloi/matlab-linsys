@@ -1,6 +1,6 @@
 function [Cnew,Rnew,Ynew,cRnew,logLmargin,Dnew]=reduceModel(C,R,Y,D)
   [D2,D1]=size(C);
-  [icR,cR]=pinvchol(R); %This works if R is semidefinite, but in general
+  [icR,cR]=pinvchol2(R); %This works if R is semidefinite, but in general
   %semidefinite R is unworkable, as R+C*P*C' needs to be invertible.
   %Even assuming P invertible at each update, it still requires R to be
   %invertible for all vectors orthogonal to the span of C at least)
@@ -8,7 +8,7 @@ function [Cnew,Rnew,Ynew,cRnew,logLmargin,Dnew]=reduceModel(C,R,Y,D)
   J=C'*icR; %Cholesky-like decomp of C'*inv(R)*C
   Yaux=icR'*Y;
   Rnew=J*J'; Ynew=J*Yaux; Cnew=Rnew;
-  [icRnew,cRnew]=pinvchol(Rnew);
+  [icRnew,cRnew]=pinvchol2(Rnew);
 
   %Now, compute factors to correct the estimated log-likelihood when it is computed from the reduced model:
   dimMargin=D2-D1; %Difference of data dim

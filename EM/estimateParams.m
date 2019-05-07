@@ -133,13 +133,11 @@ end
 
 if isempty(opts.fixQ)
   % MLE estimator of Q, under the given assumptions:
-  aux=mycholcov(SP_); %Enforce symmetry
+  aux=mycholcov2(SP_); %Enforce symmetry
   Aa=A*aux';
   Nw=size(w,2);
   APt=A*SPt';
   Q2=(S_P-(APt+APt')+Aa*Aa')/(Nw);
-  sQ=mycholcov(Q2);
-  Q2=sQ'*sQ; %Enforcing psd, unclear if necessary
   if ~opts.robustFlag
       Q1=(w*w')/(Nw);
   %Covariance of EXPECTED residuals given the data and params
@@ -163,13 +161,15 @@ if isempty(opts.fixQ)
       %Q1=squeeze(median(w.*reshape(w',1,size(w,2),size(w,1)),2));
   end
   Q=Q1 +Q2+opts.minQ*eye(size(Q1));
+  cQ=chol(Q);
+  Q=cQ*cQ'; %Enforcing PSD
 else
   Q=opts.fixQ;
 end
 
 %MLE of R:
 if isempty(opts.fixR)
-  aux=mycholcov(SP); %Enforce symmetry
+  aux=mycholcov2(SP); %Enforce PSD
   Ca=C*aux';
   Nz=size(z,2);
   %if ~robustFlag

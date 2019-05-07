@@ -148,10 +148,10 @@ function [newPs,newXs,newPt,H]=backStepRTS(pp,pf,ps,xp,xf,prevXs,A,cQ,bu,iA)
   %2) Pp has very small ones (possibly 0): inverse of Pp does not exist. Bad idea. This means that two states are highly coupled or one state is known exactly (and therefore should not get updated on the smoothing pass). A possible strategy is to rotate the space such that one state is known exactly and try again with the remaining states. Another strategy is to inject artificial uncertainty.
   %3) Pp has both: As before, remove 0's and try again.
   %4) Pp has neither: standard recursion!
-  cPs=mycholcov(ps);
+  cPs=mycholcov2(ps);
   infIdx=isinf(diag(pp));
   if ~any(infIdx) %The usual case: we have a proper/numerically well-conditioned prior from filter
-      [icP,~]=pinvchol(pp); %What happens if pp is NOT invertible (null eigenvalues)?
+      [icP,~]=pinvchol2(pp); %What happens if pp is NOT invertible (null eigenvalues)?
       %First, compute gain:
       HcP=(pf*(A'*icP)); %H*cP'
       H=HcP*icP'; %H=AP'/pp; %Faster, although worse conditioned, matters a lot when smoothing
