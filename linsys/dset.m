@@ -12,42 +12,102 @@ classdef dset
         Nsamp %Number of samples
         hash %MD5 hash
         nonNaNSamp
+        isMultiple
     end
     methods
         function this = dset(in,out)
-            this.in=in;
-            this.out=out;
-            if size(in,2)~=size(out,2)
-                error('dset:constructor','Inconsistent input and output sample sizes')
+            if iscell(in) 
+                this.in=in;
+                if iscell(out) %Both are cells
+                    this.out=out;
+                else
+                    for i=1:length(in)
+                        this.out{i}=out;
+                    end
+                end
+            elseif iscell(out) %Only out is cell
+                this.out=out;
+                for i=1:length(out)
+                    this.in{i}=in;
+                end
+            else %Both are arrays
+                this.in=in;
+                this.out=out;
+            end
+            if ~this.isMultiple
+                if size(in,2)~=size(out,2)
+                    error('dset:constructor','Inconsistent input and output sample sizes')
+                end
+            else 
+                if length(this.in)~=length(this.out)
+                    error('dset:constructor','Inconsistent number of inputs and outputs');
+                end
+                for i=1:length(this.in)
+                    if size(this.in{i},2)~=size(this.out{i},2)
+                        error('dset:constructor','Inconsistent input and output sample sizes')
+                    end
+                end
             end
         end
+        function flag=get.isMultiple(this)
+            flag=iscell(this.in);
+        end
         function Nin=get.Ninput(this)
-            Nin=size(this.in,1);
+            if ~this.isMultiple
+                Nin=size(this.in,1);
+            else
+                Nin=cellfun(@(x) size(x,1),this.in);
+            end
         end
         function Nout=get.Noutput(this)
-            Nout=size(this.out,1);
+            if ~this.isMultiple
+                Nout=size(this.out,1);
+            else
+                Nout=cellfun(@(x) size(x,1),this.out);
+            end
         end
         function Nsample=get.Nsamp(this)
-            Nsample=size(this.in,2);
+            if ~this.isMultiple
+                Nsample=size(this.in,2);
+            else
+                Nsample=cellfun(@(x) size(x,2),this.in);
+            end
         end
         function N=get.nonNaNSamp(this)
-            N=sum(~any(isnan(this.out))); %Non-NaN samples counted only
+            if ~this.isMultiple
+                N=sum(~any(isnan(this.out))); %Non-NaN samples counted only
+            else
+                N=cellfun(@(x) sum(~any(isnan(x))),this.out);
+            end
         end
         function hs=get.hash(this)
            %This uses an external MEX function to compute the MD5 hash
-           hs=GetMD5([this.in;this.out]);
+           if ~this.isMultiple
+               hs=GetMD5([this.in;this.out]);
+           else
+               hs=GetMD5([cell2mat(this.in); cell2mat(this.out)]);
+           end
         end
         function [res,resLS]=getDataProjections(this,model)
+            if this.isMultiple
+                error('Unimplemented')
+            end
             yd=this.out-model.D*this.in;
             res=model.C\(yd);
             [CtRinvC,~,CtRinvY]=reduceModel(model.C,model.R,yd);
             resLS=CtRinvC\CtRinvY;
         end
         function newThis=reduce(this,excludeIdx)
+            if this.isMultiple
+                error('Unimplemented')
+            end
             newThis=this;
             newThis.out(excludeIdx,:)=[];
         end
         function multiSet=split(this,breaks)
+            if this.isMultiple
+                error('Unimplemented')
+            end
             %Splits a dataset along the specified breaks. Returns a cell-array of dset.
             %Breaks is a vector indicating the first data sample of each sub-set.
             %New sets are contiguous (previous one ends on the last sample before current one).
@@ -67,6 +127,9 @@ classdef dset
             end
         end
         function multiSet=blockSplit(this,blockSize,Npartitions)
+            if this.isMultiple
+                error('Unimplemented')
+            end
             %Splits the dataset into Npartitions by alternating blocks of blockSize
             %If number of samples is not an exact multiple of blocksize, the last incomplete block is discarded and not assigned anywher.
             %There is no guarantee that the partitions will have equal sizes
@@ -95,6 +158,9 @@ classdef dset
             end
         end
         function multiSet=alternate(this,N)
+            if this.isMultiple
+                error('Unimplemented')
+            end
            %Creates N different data folds by putting 1 every N datapoints
            %into each dataset
            [ou] = foldSplit(this.out',N); %Foldsplit works along first dim
@@ -104,18 +170,30 @@ classdef dset
            end
         end
         function [fh,fh2]=vizFit(this,models)
+            if this.isMultiple
+                error('Unimplemented')
+            end
             [fh,fh2] = vizDataFit(models,this);
         end
         function fh=vizRes(this,models)
+            if this.isMultiple
+                error('Unimplemented')
+            end
             [fh] = vizDataRes(models,this);
         end
         function fh=compareModels(this,models)
+            if this.isMultiple
+                error('Unimplemented')
+            end
             %To do: if model is fittedLinsys and the hash of all the
             %datasets coincides with the hash of this, use
             %fittedLinsys.compare()
             [fh] = vizDataLikelihood(models,this);
         end
         function l=logL(this,mdl,initC)
+            if this.isMultiple
+                error('Unimplemented')
+            end
             if nargin<3
                 initC=initCond([],[]);
             end
@@ -128,10 +206,16 @@ classdef dset
             end
         end
         function r=flatResiduals(this)
+            if this.isMultiple
+                error('Unimplemented')
+            end
             [J,B,C,D,Q,R,logLperSamplePerDim]=getFlatModel(this.out,this.in);
             r=this.out-D*this.in;
         end
         function W=estimateVar(this)
+            if this.isMultiple
+                error('Unimplemented')
+            end
            diffU=diff(this.in,[],2);
            diffY=diff(this.out,[],2);
            diffY=diffY(:,all(diffU==0)); %sample differences when input=constant
