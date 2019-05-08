@@ -6,13 +6,17 @@ properties (SetAccess = immutable)
   stateEstim
   initialCondition=initCond([],[]);
   fitMethod='KS';
-  goodnessOfFit %Metric to quantify the fit, can be logL, RMSE depending on how data was fit
+  logL
   %reducedGoodnessOfFit
 end
 
 properties (Dependent)
   output
+  oneAheadOutput
   residual
+  oneAheadResidual
+  deterministicResidual
+  goodnessOfFit %Metric to quantify the fit, can be logL, RMSE depending on how data was fit
 end
 methods
   function this=dataFit(model,datSet,fitMethod,initC)
@@ -34,7 +38,7 @@ methods
       this.model=model;
       this.dataSet=datSet;
       this.fitMethod=fitMethod;
-      this.goodnessOfFit=logL;
+      this.logL=logL;
       %Compute reduced log-l: (that is, ignoring portion of the output
       %outside of the span of C)
       %[redSys,redDatSet]=model.reduce(datSet);
@@ -45,7 +49,35 @@ methods
       res=this.output - this.dataSet.out;
   end
   function out=get.output(this)
-      out=this.model.C*this.stateEstim.state(:,1:end-1)+this.model.D*this.dataSet.in;
+      N=size(this.dataSet.out);
+      out=this.model.C*this.stateEstim.state(:,1:N)+this.model.D*this.dataSet.in;
+  end
+  function out=get.oneAheadOutput(this)
+      if strcmp(this.fitMethod,'KS')
+          warning('dataFit:oneAheadOutputNotPredictive','Requesting one-ahead output for smoothed states. This makes no sense (because smoothing uses future data to fit!).')
+      end
+      N=size(this.dataSet.out);
+      predictedState=[this.initialCondition.state this.model.A*this.stateEstim.state(:,1:N-1)+this.model.B*this.dataSet.in(:,1:N-1)];
+      relevantInput=[zeros(size(this.dataSet.in,1),1) this.dataSet.in(:,1:N-1)];
+      out=this.model.C*predictedState+this.model.D*relevantInput;
+  end
+  function res=get.deterministicResidual(this)
+      %This function is here for convenience, as this does not depend on
+      %the fit
+      [datSet,~]=this.model.simulate(this.dataSet.in,this.initialCondition,true,true);
+      res=datSet.out - this.dataSet.out;
+  end
+  function gof=get.goodnessOfFit(this)
+     switch this.fitMethod 
+         case 'KF' 
+             gof=this.logL;
+         case 'KS' 
+             gof=this.logL;
+         case 'LS'
+             gof=sqrt(mean(sum(this.residual.^2,1)));
+         otherwise
+             error('Unimplemented')
+     end
   end
 end
 
