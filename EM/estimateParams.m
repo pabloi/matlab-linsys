@@ -163,8 +163,8 @@ if isempty(opts.fixQ)
   q=diag(Q);
   q(q<opts.minQ)=opts.minQ;
   Q(1:(D1+1):end)=q;
-  cQ=chol(Q);
-  Q=cQ*cQ'; %Enforcing PSD
+  cQ=mycholcov(Q);
+  Q=cQ'*cQ; %Enforcing PSD
 else
   Q=opts.fixQ;
 end
