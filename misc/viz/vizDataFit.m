@@ -67,7 +67,7 @@ end
 %% Measures of output error:
 %dataVariance=norm(datSet.out,'fro');
 rr=datSet.flatResiduals;
-residualReference=norm(rr,'fro'); %Residuals from flat model
+residualReference=sqrt(sum(nansum(rr.^2))); %Residuals from flat model
 dY=diff(datSet.out,[],2);
 dU=diff(datSet.in,[],2);
 idx=all(dU==0);
@@ -84,8 +84,8 @@ for ll=1:2
                 %iC=[]; %Start from 0?
                 [simSet]=model{k}.simulate(U,iC,true,true);
                 res=datSet.out -simSet.out;
-                rmseTimeCourse=sum(res.^2);
-                aux1=norm(res,'fro')/residualReference;
+                rmseTimeCourse=nansum(res.^2);
+                aux1=sqrt(sum(nansum(res.^2)))/residualReference;
                 %aux1=sum(sum(abs(res)));
                 tt={'Deterministic output error'; '(RMSE, mov. avg.)'};
             case 3 % MLE state output error
@@ -93,8 +93,8 @@ for ll=1:2
             case 2 %One ahead error
                 [modelOut]=dFit{k}.output;
                 res=modelOut-datSet.out;
-                rmseTimeCourse=sum(res.^2);
-                aux1=norm(res,'fro')/residualReference;
+                rmseTimeCourse=nansum(res.^2);
+                aux1=sqrt(sum(nansum(res.^2)))/residualReference;
                 %aux1=sum(sum(abs(res)));
                 tt={'KF prediction output error';'(RMSE, mov. avg.)'};
         end

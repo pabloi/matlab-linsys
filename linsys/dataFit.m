@@ -20,8 +20,10 @@ properties (Dependent)
 end
 methods
   function this=dataFit(model,datSet,fitMethod,initC)
-      if nargin<4
+      if nargin<4 || isempty(initC)
         initC=initCond([],[]);
+        %D1=size(model.A,1);
+        %initC=initCond(zeros(D1,1), 1e5*eye(D1));
       end
       if nargin<3 || isempty(fitMethod)
         fitMethod='KS';
@@ -48,16 +50,23 @@ methods
   function res=get.residual(this)
       res=this.output - this.dataSet.out;
   end
+  function res=get.oneAheadResidual(this)
+      res=this.oneAheadOutput - this.dataSet.out;
+  end
   function out=get.output(this)
-      N=size(this.dataSet.out);
+      N=size(this.dataSet.out,2);
       out=this.model.C*this.stateEstim.state(:,1:N)+this.model.D*this.dataSet.in;
   end
   function out=get.oneAheadOutput(this)
       if strcmp(this.fitMethod,'KS')
-          warning('dataFit:oneAheadOutputNotPredictive','Requesting one-ahead output for smoothed states. This makes no sense (because smoothing uses future data to fit!).')
+          error('dataFit:oneAheadOutputNotPredictive','Requesting one-ahead output for smoothed states. This makes no sense (because smoothing uses future data to fit!).')
       end
-      N=size(this.dataSet.out);
-      predictedState=[this.initialCondition.state this.model.A*this.stateEstim.state(:,1:N-1)+this.model.B*this.dataSet.in(:,1:N-1)];
+      N=size(this.dataSet.out,2);
+      iC=this.initialCondition.state;
+      if isempty(iC)
+          iC=nan(size(this.model.A,1),1);
+      end
+      predictedState=[iC this.model.A*this.stateEstim.state(:,1:N-1)+this.model.B*this.dataSet.in(:,1:N-1)];
       relevantInput=[zeros(size(this.dataSet.in,1),1) this.dataSet.in(:,1:N-1)];
       out=this.model.C*predictedState+this.model.D*relevantInput;
   end
@@ -74,7 +83,7 @@ methods
          case 'KS' 
              gof=this.logL;
          case 'LS'
-             gof=sqrt(mean(sum(this.residual.^2,1)));
+             gof=sqrt(nanmean(nansum(this.residual.^2,1)));
          otherwise
              error('Unimplemented')
      end

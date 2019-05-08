@@ -18,14 +18,17 @@ if nargin<3 || isempty(method)
 method='logL';
 end
 for kd=1:Md %One row of subplots per dataset
-    dFit=cellfun(@(x) x.fit(testSet{kd}),model(:,kd),'UniformOutput',false); %Fit with improper initial condition
+    ic=[];
     switch method
         case 'logL'
+            dFit=cellfun(@(x) x.fit(testSet{kd},ic,'KS'),model(:,kd),'UniformOutput',false); %Fit with improper initial condition
             logLtest=cellfun(@(x) x.logL,dFit);
         case 'oneAheadRMSE'
-            logLtest=cellfun(@(x) sqrt(mean(sum(x.oneAheadResidual.^2))),dFit);
+            dFit=cellfun(@(x) x.fit(testSet{kd},ic,'KF'),model(:,kd),'UniformOutput',false); %Fit with improper initial condition
+            logLtest=cellfun(@(x) sqrt(nanmean(nansum(x.oneAheadResidual.^2))),dFit); %This can have NaNs for improper priors
         case 'detRMSE'
-            logLtest=cellfun(@(x) sqrt(mean(sum(x.deterministicResidual.^2))),dFit);
+            dFit=cellfun(@(x) x.fit(testSet{kd},ic,'KS'),model(:,kd),'UniformOutput',false); %Fit with improper initial condition
+            logLtest=cellfun(@(x) sqrt(mean(nansum(x.deterministicResidual.^2))),dFit);
     end
     yy=logLtest;
     yy=yy-min(yy);
