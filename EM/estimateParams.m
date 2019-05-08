@@ -138,8 +138,8 @@ if isempty(opts.fixQ)
   Nw=size(w,2);
   APt=A*SPt';
   Q2=(S_P-(APt+APt')+Aa*Aa')/(Nw);
-  sQ=mycholcov(Q2);
-  Q2=sQ'*sQ; %Enforcing psd, unclear if necessary
+  %sQ=mycholcov(Q2);
+  %Q2=sQ'*sQ; %Enforcing psd, unclear if necessary
   if ~opts.robustFlag
       Q1=(w*w')/(Nw); %Covariance of EXPECTED residuals given the data and params
   %Note: if we dont have exact extimates of A,B, then the residuals w are not
@@ -165,6 +165,8 @@ if isempty(opts.fixQ)
   q=diag(Q);
   q(q<opts.minQ)=opts.minQ;
   Q(1:(D1+1):end)=q;
+  cQ=mycholcov(Q);
+  Q=cQ'*cQ;
 else
   Q=opts.fixQ;
 end
