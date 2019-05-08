@@ -61,7 +61,7 @@ for i=1:slowSamples
       %This handles infinite variances well, as long as Q is invertible.
       %As a trade-off, the computed covariances/information matrix may not
       %be psd (difference of psd matrices).
-      [cholAuxP,~,auxP]=pinvchol2(prevI+AtiQA); %This may be problematic if Q has some 0 variances where we have 0 info.
+      [cholAuxP,~,auxP]=pinvchol(prevI+AtiQA); %This may be problematic if Q has some 0 variances where we have 0 info.
       HH=(ciQA*cholAuxP);
       prevI=ciQ*(ey - HH*HH')*ciQ'; %I think this expression is better conditioned
       previ=iQA*auxP*previ+prevI*BU(:,i);
@@ -87,7 +87,7 @@ for i=1:slowSamples
       %dim of state), the inverse of prevI will contain infinite elements
       %and this may be crap.
       %NOTE: this does not work well if there are improper priors
-      [cOldP,~,oldP]=pinvchol2(prevI);
+      [cOldP,~,oldP]=pinvchol(prevI);
       oldX=oldP*previ;
       AcP=A*cOldP;
       prevP=AcP*AcP'+Q;

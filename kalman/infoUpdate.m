@@ -13,14 +13,13 @@ function [new_i,newI,new_x,newP,logL,rejectedSample,oldI]=infoUpdate(CtRinvC,CtR
   
   %Do the update:
   if nargin<8 || isempty(oldI)
-      [cholOldI,cholOldP,oldI]=pinvchol2(P); %Prior information matrix not given, computing from prior covariance
-      oldI=cholOldI*cholOldI';
+      [cholOldI,cholOldP,oldI]=pinvchol(P); %Prior information matrix not given, computing from prior covariance
   end
   newI=oldI + CtRinvC;
   new_i=oldI*x + CtRinvY;
   
   if nargout>2 %If new state and covariance were requested:
-    [cholP,cholInvP,newP]=pinvchol2(newI);
+    [cholP,cholInvP,newP]=pinvchol(newI);
     new_x=newP*new_i; 
     if (nargout>4 || rejectFlag) 
         %[logL,z2]=logLnormal(CtRinvY-CtRinvC*x,CtRinvC*P*CtRinvC+CtRinvC); %This is slow, requires inversion 
@@ -29,7 +28,7 @@ function [new_i,newI,new_x,newP,logL,rejectedSample,oldI]=infoUpdate(CtRinvC,CtR
         else
             logDetOldI=log(diag(cholOldI));
         end
-        [logL,z2]=logLnormalAlt(CtRinvY-CtRinvC*x,invCRC-newP,2*sum(log(diag(cholInvP))-logDetOldI)+logDetCRC);
+        [logL,z2]=logLnormalAlt(CtRinvY-CtRinvC*x,invCRC-newP,2*sum(log(diag(cholP))-logDetOldI)+logDetCRC);
         if rejectFlag && z2>rejectZ2threshold %Reject sample, no update
             rejectedSample=true;  
             newI=oldI;

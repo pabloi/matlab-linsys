@@ -1,6 +1,6 @@
 function [Cnew,Rnew,Ynew,cRnew,logLmargin,Dnew]=reduceModel(C,R,Y,D)
   [D2,D1]=size(C);
-  [icR,cR]=pinvchol2(R); %This works if R is semidefinite, but in general
+  [icR,~,~,dR]=pinvldl(R); %This works if R is semidefinite, but in general
   %semidefinite R is unworkable, as R+C*P*C' needs to be invertible.
   %Even assuming P invertible at each update, it still requires R to be
   %invertible for all vectors orthogonal to the span of C at least)
@@ -8,14 +8,15 @@ function [Cnew,Rnew,Ynew,cRnew,logLmargin,Dnew]=reduceModel(C,R,Y,D)
   J=C'*icR; %Cholesky-like decomp of C'*inv(R)*C
   Yaux=icR'*Y;
   Rnew=J*J'; Ynew=J*Yaux; Cnew=Rnew;
-  [icRnew,cRnew]=pinvchol2(Rnew);
+  [icRnew,~,L,dRn]=pinvldl(Rnew);
+  cRnew=dRn.*L';
 
   %Now, compute factors to correct the estimated log-likelihood when it is computed from the reduced model:
   dimMargin=D2-D1; %Difference of data dim
   if dimMargin<0
       logLmargin=0;
   else
-      logDetMargin=sum(log(diag(cRnew)))-sum(log(diag(cR)));
+      logDetMargin=sum(log((dRn)))-sum(log((dR)));
       aux=icRnew'*Ynew;
       z2Margin=sum(Yaux.^2,1)-sum(aux.^2,1); %Difference of scores using R vs Rnew
       %Fun-fact: if R is optimized (as is in EM), then we expect the z2Margin to be roughly (exactly?): mean(z2Margin) =D2-D1. This is because the residuals along dimensions that get reduced can be used to design the optimal R given the residuals, and such value corresponds exacty to samples being on average 1-std away from the mean

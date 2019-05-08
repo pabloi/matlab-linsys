@@ -53,7 +53,7 @@ end
 
 %Precompute for efficiency:
 [CtRinvC,~,CtRinvY,~,logLmargin]=reduceModel(C,R,Y_D); 
-[cholInvCRC,~,invCRC]=pinvchol2(CtRinvC);
+[cholInvCRC,~,invCRC]=pinvldl(CtRinvC);
 logDetCRC=-2*sum(log(diag(cholInvCRC)));
 %For the first steps do an information update if P0 contains infinite elements
 infVariances=isinf(diag(prevP));

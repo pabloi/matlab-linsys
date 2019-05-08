@@ -8,7 +8,7 @@ function [previ,prevI]=state2info(x0,prevP)
       prevI=zeros(size(prevP));
       aux=~infVariances;
       redP=prevP(aux,aux); %Selecting submatrix of components that have finite  variance
-      [~,~,redI]=pinvchol(redP);
+      [~,~,redI]=pinvchol2(redP);
       prevI(aux,aux)=redI; %Computing inverse of the finite submatrix of P0
       x0(infVariances)=0; %No estimation available
   else %No infinite variances, simply compute pseudo-inverse

@@ -134,8 +134,8 @@ end
 
 %Run filter for remaining steps:
 M=max([M,firstInd+find(cumsum(~any(isnan(Y_D(:,firstInd+1:end)),1))>=D1,1,'first')]); %Ensures at least 1 non-nan sample is processed
-cQt=chol(Q)';
-cPt=chol(prevP)';
+cQt=mycholcov2(Q)';
+cPt=mycholcov2(prevP)';
 cRt=chol(R)';
 At=A';
 Ct=C';

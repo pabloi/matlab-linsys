@@ -65,7 +65,7 @@ end
 %Innov=Y-C*Xp(:,1:N);
 pp=Pp(:,:,end);
 iA=inv(A); %If this throws a warning A may not be invertible
-cQ=mycholcov2(Q);
+cQ=mycholcov(Q);
 for i=N-1:-1:N-M1
   %First, get estimates from forward pass:
   xf=Xf(:,i); %Previous posterior estimate of covariance at this step
