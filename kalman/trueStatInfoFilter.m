@@ -10,6 +10,11 @@ prevI=I0;
 
 %Pre-comp for efficiency:
 invertibleQ=all(diag(Q)>0);
+iA=inv(A);
+invertibleA=all(all(abs(iA*A-eye(size(A)))<1e-6));
+if ~invertibleA
+    [Ua,Sa]=eig(A);
+end
 [ciQ,~,iQ]=pinvchol(Q);
 iQA=iQ*A;
 ciQA=ciQ'*A;
@@ -45,16 +50,37 @@ for i=1:slowSamples
   I(:,:,i)=prevI; %Store results
 
   %Then, predict next step: (if prevI==0 there is no need for this)
-  if invertibleQ %Also requires invertible prevI+A*inv(Q)*A'
+  %Using a giant if-else tree to deal with edge cases.
+  if all(prevI(:)==0)
+      if invertibleA %Trivial (zero-info) case, sometimes happens when starting with improper priors
+          prevI=prevI; %All zeros
+          previ=previ;
+      else %Non-invertible case means that A projects along some subspace, and thus the uncertainty in the orthogonal subspace goes to whatever Q's projection on that subspace is
+          %I think this requires Q's projection orthogonal to A's subspace to be invertible (i.e. nonzero
+          %eigenvalues)
+          warning('Using untested code!')
+          pA=pinv(A)*A; %projection(B) = B*projector;
+          pO=eye(size(A)) - pA; %B= projection(B) + B*pO;
+          pOcQ=pO'*ciQ;
+          prevI=pOcQ*pOcQ';
+      end
+  elseif invertibleQ %Also requires invertible prevI+A*inv(Q)*A'
       [cholAuxP,~,auxP]=pinvchol(prevI+AtiQA); %This may be problematic if Q has some 0 variances where we have 0 info.
       HH=(ciQA*cholAuxP);
-      prevI=ciQ*(ey - HH*HH')*ciQ'; %I think this expression is better conditioned
+      prevI=ciQ*(ey - HH*HH')*ciQ'; %I think this expression is better conditioned, but does not guarantee PSD
       previ=iQA*auxP*previ+prevI*BU(:,i);
   elseif invertibleA && all(Q(:)==0) %This can probably be made to work when not all Q==0, by restricting to differnt subspaces
       cI=mycholcov(prevI);
       iAcI=iA'*cI;
       prevI=iAcI*iAcI';
       previ=iA'*previ+prevI*BU(:,i);
+  %To check:
+  %elseif invertibleA %Also requires invertible prevI+A*inv(Q)*A'
+  %    [cholAuxP,~,auxP]=pinvchol(prevI+AtiQA); %
+  %    cI=mycholcov(prevI);
+  %    iAcI=iA'*cI;
+  %    prevI=iAcI*iAcI' -iA'*prevI*(auxP)*prevI*iA ; %Need to put in PSD enforcing form
+  %    previ=iA'*(eye - auxP*iQ)*previ+prevI*BU(:,i);
   else %Not invertible Q, but some elements of Q are different from 0, or A is non-invertible
       [x,P]=info2state(previ,prevI); %Requires one pinvchol
       if all(all(abs(P*prevI-eye(size(prevI)))<1e-5)) %Invertible prevI: doing traditional update
