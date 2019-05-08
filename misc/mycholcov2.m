@@ -11,7 +11,7 @@ function [cA,L,D]=mycholcov2(A)
 if nargout<=1 %Just the cholesky decomposition
   [cA,p]=chol(A); %This can handle infinite diagonal elements, but NOT singular covariances. 3x slower than chol with single argument
 end
-dth=1e2*eps; %Threshold to say that an eigenvalue is truly non-zero.
+dth=1e4*eps; %Threshold to say that an eigenvalue is truly non-zero.
 if nargout>1 || p~=0 %Not positive definite, need to complete
   [L,D]=ldl(A); %This always works but is much slower than the algorithm for chol() so using only if necessary
   L(isnan(L))=0; %This happens if A has non-diagonal Inf values

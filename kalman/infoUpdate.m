@@ -26,9 +26,9 @@ function [new_i,newI,new_x,newP,logL,rejectedSample,oldI]=infoUpdate(CtRinvC,CtR
         if isempty(cholOldI)
             logDetOldI=0;
         else
-            logDetOldI=log(diag(cholOldI));
+            logDetOldI=log(diag(oldI));
         end
-        [logL,z2]=logLnormalAlt(CtRinvY-CtRinvC*x,invCRC-newP,2*sum(log(diag(cholP))-logDetOldI)+logDetCRC);
+        [logL,z2]=logLnormalAlt(CtRinvY-CtRinvC*x,invCRC-newP,sum(log(diag(newP))-logDetOldI)+logDetCRC);
         if rejectFlag && z2>rejectZ2threshold %Reject sample, no update
             rejectedSample=true;  
             newI=oldI;

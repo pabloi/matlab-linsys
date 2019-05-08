@@ -15,6 +15,12 @@ function [X,P,Xp,Pp,rejSamples,logL,Ip,I]=statInfoFilter(Y,A,C,Q,R,varargin)
 %
 %See also: statInfoSmoother, statKalmanFilter, infoUpdate, KFupdate
 
+%To do: use statInfoFilter2 (trueStatInfoFilter) and enforce conversion
+%through state space (when priors are proper) so X,P are computed in the
+%filtering stage itself, and there is no need to add a conversion stage at
+%the end
+
+error('Deprecated: use statInfoFilter2')
 
 [D2,N]=size(Y); D1=size(A,1);
 %Init missing params:

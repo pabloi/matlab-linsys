@@ -35,7 +35,7 @@ Y_D=Y-D*U; BU=B*U;
 
 %Precompute for efficiency:
 [CtRinvC,~,CtRinvY]=reduceModel(C,R,Y_D);
-[~,~,iA]=pinvchol(A);
+[iA]=pinv(A);
 cQ=mycholcov(Q);
 iAcQ=iA*cQ;
 
@@ -51,7 +51,7 @@ if isempty(pp) %No parallel pool open, doing regular for, issue warning
 
     %Step 2: backward pass: this is just running the filter backwards (makes sense only if A is invertible)
     %This can be run in parallel to the fwd filter!
-    [ifb,Ib]=trueStatInfoFilter(fliplr(CtRinvY),CtRinvC,iA,iAcQ*iAcQ',-iA*fliplr(BU),zeros(size(previ)),zeros(size(prevI)),M);
+    [ifb,Ib]=trueStatInfoFilter(fliplr(CtRinvY),CtRinvC,iA,iAcQ*iAcQ',-iA*fliplr([zeros(size(BU,1),1),BU(:,1:end-1)]),zeros(size(previ)),zeros(size(prevI)),M);
     %If the forward pass started from an uniformative prior (previ=0) then Ib
     %should be exactly If (minus numerical errors). If it started from
     %somewhere else, they should still converge to the same value.
@@ -85,31 +85,3 @@ if nargout>6
         PtAt=[];
     end
 end
-
-% %DEBUG:
-% for i=1:N
-%     [xf(:,i),Pf(:,:,i)]=info2state(iif(:,i),If(:,:,i));
-%     [xb(:,i),Pb(:,:,i)]=info2state(ifb(:,i),Ib(:,:,i));
-%     [xs(:,i),Ps(:,:,i)]=info2state(is(:,i),Is(:,:,i));
-% end
-% 
-% figure;
-% 
-% subplot(2,1,1)
-% plot(xf','LineWidth',2); 
-% hold on; 
-% set(gca,'ColorOrderIndex',1)
-% plot(fliplr(xb)','--');
-% set(gca,'ColorOrderIndex',1)
-% plot(xs','-.')
-% 
-% subplot(2,1,2)
-% plot(squeeze(Pf(1,1,:)),'LineWidth',2); 
-% hold on; 
-% plot(squeeze(Pf(2,2,:)),'LineWidth',2); 
-% set(gca,'ColorOrderIndex',1)
-% plot(squeeze(Pb(1,1,:)),'--'); 
-% plot(squeeze(Pb(2,2,:)),'--'); 
-% set(gca,'ColorOrderIndex',1)
-% plot(squeeze(Ps(1,1,:)),'-.'); 
-% plot(squeeze(Ps(2,2,:)),'-.'); 

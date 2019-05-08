@@ -45,58 +45,36 @@ for i=1:slowSamples
   I(:,:,i)=prevI; %Store results
 
   %Then, predict next step: (if prevI==0 there is no need for this)
-  properPriors=diag(prevI)~=0;
-  if any(~properPriors) && ~invertibleQ
-    warning('trueStatInfoFilter:nonInvQ','Q was not invertible but improper priors were given. Regularizing Q for invertibility')
-    %This is a workaround. The other alternative is to set improper priors
-    %to large but finite values, so we do not need the inverse of Q.
-    Q=Q+1e-7*eye(size(Q));
-    invertibleQ=true;
-    [ciQ,~,iQ]=pinvchol(Q);
-    iQA=iQ*A;
-    ciQA=ciQ'*A;
-    AtiQA=ciQA'*ciQA;
-  end
-  if any(~properPriors) && invertibleQ 
-      %This handles infinite variances well, as long as Q is invertible.
-      %As a trade-off, the computed covariances/information matrix may not
-      %be psd (difference of psd matrices).
+  if invertibleQ %Also requires invertible prevI+A*inv(Q)*A'
       [cholAuxP,~,auxP]=pinvchol(prevI+AtiQA); %This may be problematic if Q has some 0 variances where we have 0 info.
       HH=(ciQA*cholAuxP);
       prevI=ciQ*(ey - HH*HH')*ciQ'; %I think this expression is better conditioned
       previ=iQA*auxP*previ+prevI*BU(:,i);
-  elseif all(properPriors) %All proper priors, can do traditional Kalman update.
-      %This case is simple: invert I, compute updated P, invert P
+  elseif invertibleA && all(Q(:)==0) %This can probably be made to work when not all Q==0, by restricting to differnt subspaces
+      cI=mycholcov(prevI);
+      iAcI=iA'*cI;
+      prevI=iAcI*iAcI';
+      previ=iA'*previ+prevI*BU(:,i);
+  else %Not invertible Q, but some elements of Q are different from 0, or A is non-invertible
       [x,P]=info2state(previ,prevI); %Requires one pinvchol
-      [previ,prevI]=state2info(A*x+BU(:,i),A*P*A'+Q);
-  elseif ~invertibleQ %Case where some improper priors are present, 
-      %but Q is not invertible 
-      error('This does not work well. Infinity covariances may get propagated depending on structure of A')
-      %There has to be a solution to this problem, because the absence of
-      %state noise (non-invertible Q) cannot mean that we have LESS info
-      %about the states (i.e. for same system and invertible Q there is an
-      %MLE estimate).
-      %Further, the Kalman filter in the limit case were some covariance
-      %elements are very large tends to exist for any Q, so it is a matter
-      %of finding it.
-      
-      %OLD idea:
-      %At least some info available: doing alternative way, which: 
-      %guarantees PSD, works with non-inv Q, and as a bonus computes P and x
-      %Con: if C'*inv(R)*C is under-rank (e.g. when dim of obs is less than
-      %dim of state), the inverse of prevI will contain infinite elements
-      %and this may be crap.
-      %NOTE: this does not work well if there are improper priors
-      [cOldP,~,oldP]=pinvchol(prevI);
-      oldX=oldP*previ;
-      AcP=A*cOldP;
-      prevP=AcP*AcP'+Q;
-      aux=find(~properPriors);
-      prevP(aux,:)=0;
-      prevP(:,aux)=0;
-      prevP(sub2ind([D1,D1],aux,aux))=Inf;
-      prevX=A*oldX+BU(:,i);
-      [previ,prevI]=state2info(prevX,prevP); %Requires one pinvchol
+      if all(all(abs(P*prevI-eye(size(prevI)))<1e-5)) %Invertible prevI: doing traditional update
+         [previ,prevI]=state2info(A*x+BU(:,i),A*P*A'+Q); 
+      else %Enforcing invertibility of Q through regularization
+        warning('trueStatInfoFilter:nonInvQ','Q was not invertible but improper priors were given. Regularizing Q for invertibility')
+        %This is a workaround. The other alternative is to set improper priors
+        %to large but finite values, so we do not need the inverse of Q.
+        %This workaround presumes that prevI+A*inv(Q)*A' is invertible
+        Q=Q+1e-7*eye(size(Q));
+        invertibleQ=true;
+        [ciQ,~,iQ]=pinvchol(Q);
+        %iQA=iQ*A;
+        ciQA=ciQ'*A;
+        AtiQA=ciQA'*ciQA;
+        [cholAuxP,~,auxP]=pinvchol(prevI+AtiQA); %This may be problematic if Q has some 0 variances where we have 0 info.
+        HH=(ciQA*cholAuxP);
+        prevI=ciQ*(ey - HH*HH')*ciQ'; %I think this expression is better conditioned
+        previ=iQA*auxP*previ+prevI*BU(:,i);
+      end
   end
 
   if nargout>2 %Store Xp, Pp if requested:
