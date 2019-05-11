@@ -149,7 +149,9 @@ function [newPs,newXs,newPt,H]=backStepRTS(pp,pf,ps,xp,xf,prevXs,A,cQ,bu,iA)
   %3) Pp has both: As before, remove 0's and try again.
   %4) Pp has neither: standard recursion!
   cPs=mycholcov(ps);
-  infIdx=isinf(diag(pp));
+  %infIdx=isinf(diag(pp)); %This is never true, because of all the pseudo-inverting, Pp gets evaluated to a very large, but finite matrix 
+  infIdx=diag(pp)>1e4*diag(ps); 
+  invertibleA=norm(A*iA-eye(size(A)),'fro')<1e-9;
   if ~any(infIdx) %The usual case: we have a proper/numerically well-conditioned prior from filter
       [icP,~]=pinvchol(pp); %What happens if pp is NOT invertible (null eigenvalues)?
       %First, compute gain:
@@ -166,7 +168,8 @@ function [newPs,newXs,newPt,H]=backStepRTS(pp,pf,ps,xp,xf,prevXs,A,cQ,bu,iA)
       %To enforce: (makes it slower)
       %cS=mycholcov(pf - HcP*HcP'); %Should be psd: proof? Can also be computed in a PSD-enforcing way by using chol(Pf). Solution: cS'*cS = cPf'*(eye - (cPf*A'*icP)*(cPf*A'*icP)')*cPf;
       %newPs=HcPs*HcPs'+cS'*cS;%=HcPs*HcPs' + (pf - HcP*HcP');%=pf- H*(pp-ps)*H'; %The term in parenthesis is psd = inv(inv(pf)+A'*inv(Q)*A)
-  else %This happens when we started filtering from an improper prior
+  elseif invertibleA %This happens when we started filtering from an improper prior
+  %elseif invertibleA %This happens when we started filtering from an improper prior 
     %(infinite uncertainty) or very large uncertainties and we go back to smooth
     %those (almost) infinitely uncertain samples
     %This is fine if A is invertible. Otherwise it will be problematic
@@ -175,6 +178,15 @@ function [newPs,newXs,newPt,H]=backStepRTS(pp,pf,ps,xp,xf,prevXs,A,cQ,bu,iA)
     [newPs,newXs,newPt,H]=backStepRTS_invA(icP,cPs,xp,prevXs,cQ,bu,iA);
     %This function could be used whenever inv(A) is defined, not just with inifinte elements in Pp.
     %It may be better conditioned that standard RTS to deal with large Pp (trace(Pp)>> trace(Ps))
+    
+    %An approximate attempt: (presumes ALL diagonal elements of Pf are much larger than those of Ps) 
+    %[newPs,newXs,newPt,H]=backStepRTS_invAapprox(cPs,prevXs,cQ,bu,iA); 
+
+   else 
+      warning('Improper priors with non-invertible A, will not smooth last few samples. Argh.') 
+      newPs=pf; 
+      newXs=xf; 
+      newPt=NaN; 
   end
 end
 
@@ -222,5 +234,15 @@ function [newPs,newXs,newPt,newDelta,newLambda]=backStepBF(xf,Pf,innov,Pp,prevPp
   I_KCA=I_KC'*A';
   newLambda=I_KCA*prevLambda - CicS*icS'*innov;
   newDelta=I_KCA*prevDelta*I_KCA' + CtinvSC;
-
 end
+
+function [newPs,newXs,newPt,H]=backStepRTS_invAapprox(cholPs,prevXs,cholQ,bu,iA) 
+  %An RTS-equivalent backward recursion assuming that A is invertible, in 
+  %the limit of Pf going to infinity (and thus Pp going to infinity) 
+  iAcQ=iA*cholQ'; 
+  H=iAcQ*iAcQ'; 
+  newPt=(cholPs'*cholPs)*H'; 
+  iAcS=iA*cholPs'; 
+  newPs= iAcS*iAcS'+H; 
+  newXs=iA*(prevXs-bu); 
+end 
