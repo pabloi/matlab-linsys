@@ -22,6 +22,8 @@ function [newcPst,newXs,newPt,Ht]=sqrtRTS(cPft,cPst,xp,xf,prevXs,At,cQt)
      newXs=xf+Ht'*(prevXs-xp);
   else %This happens when we started filtering from an improper prior
       if invertibleA
+          AcPf=A*cPft;
+          pp=AcPf*AcPf'+cQt*cQt;
           [icP,~]=pinvchol2(pp); %Handles infinite (and 0 covariances) covariances. Substitutes non-diagonal Inf elements by 0.
           [newPs,newXs,newPt,H]=backStepRTS_invA(icP,cPs,xp,prevXs,cQ,bu,iA);
       else
