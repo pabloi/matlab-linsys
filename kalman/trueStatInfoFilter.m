@@ -9,14 +9,15 @@ previ=i0;
 prevI=I0;
 
 %Pre-comp for efficiency:
+ey=eye(size(Q));
 [ciQ,~,iQ]=pinvchol2(Q);
-invertibleQ=norm(Q*iQ,'fro')<1e-9;
+invertibleQ=norm(Q*iQ-ey,'fro')<1e-9;
 iA=pinv(A); %This is order-of-magnitude slower than inv(A)
-invertibleA=norm(A*iA,'fro')<1e-9;
+invertibleA=norm(A*iA-ey,'fro')<1e-9;
 iQA=iQ*A;
 ciQA=ciQ'*A;
 AtiQA=ciQA'*ciQA;
-ey=eye(size(Q));
+
 
 %Init arrays:
 ip=nan(D1,N+1);      ii=nan(D1,N);
@@ -41,12 +42,15 @@ for i=1:slowSamples
   if invertibleQ
       if invertibleA
           cI=mycholcov(prevI); %Could use chol() if prevI was guaranteed to be invertible, which has to be the case for invertibleA and after processing enough non-nan samples.
-          iAcI=iA'*cI;
+          iAcI=iA'*cI';
+          %r=size(iAcI,2); %cI may be underrank
           [cP]=chol(iQ+iAcI*iAcI'); %Should always exist in this case
-          icP=ey/cP;
-          b=iAcI*icP;
-          prevI=iAcI*(ey - b*b')*iAcI';
-          previ=iQ*(icP*icP')*iA'*previ+prevI*BU(:,i);
+          iAicP=iA/cP;
+          %icPt=cP\ey; %Should equal chol(inv(cP'*cP))
+          b=cI*iAicP; %iAcI'*icPt; 
+          iAcIb=iAcI*b;
+          prevI=iAcI*iAcI' - iAcIb*iAcIb';
+          previ=iQA*(iAicP*iAicP')*previ+prevI*BU(:,i); %=iQ*A*(iAicP*iAicP')
       else %prevI+A'*iQ*A needs to be invertible? Or can this be computed even on the PSD case?
           [cholAuxP,~,auxP]=pinvchol(prevI+AtiQA); %Needs pinvchol2?
           HH=(ciQA*cholAuxP);
@@ -88,7 +92,7 @@ end
 %Get steady-state values:
 oldI=prevI+CtRinvC; %Updated value
 %Invert (not always available precomputed)
-[~,prevP]=info2state(previ,prevI); %Requires one pinvchol
+%[~,prevP]=info2state(previ,prevI); %Requires one pinvchol
 [~,oldP]=info2state(previ,oldI); %Requires one pinvchol
 %Store:
 Ip(:,:,slowSamples+1:N)=repmat(prevI,1,1,N-slowSamples);

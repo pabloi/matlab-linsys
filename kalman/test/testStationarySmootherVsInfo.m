@@ -32,8 +32,12 @@ opts.noReduceFlag=true;
 [XsNR,~,~,~,~,~,~,~,logLNR]=statKalmanSmoother(Y,A,C,Q,R,[],[],B,D,U,opts); %Kalman smoother estimation of states, given the true parameters (this is the best possible estimation of states)
 tfNR=timeit(@() statKalmanSmoother(Y,A,C,Q,R,[],[],B,D,U,opts));
 %% Use Info smoother:
-[Xcs,~,~,Xf,~,~,~,~,logLInfo]=statInfoSmoother(Y,A,C,Q,R,[],[],B,D,U,opts); 
-tcs=timeit(@() statInfoSmoother(Y,A,C,Q,R,[],[],B,D,U,opts));
+%[Xcs,~,~,Xf,~,~,~,~,logLInfo]=statInfoSmoother(Y,A,C,Q,R,[],[],B,D,U,opts); 
+%tcs=timeit(@() statInfoSmoother(Y,A,C,Q,R,[],[],B,D,U,opts));
+%% Info2 smoother
+[is,Is,iif,If,ip,Ip,Xcs,Pcs,PctAt]=statInfoSmoother2(Y,A,C,Q,R,[],[],B,D,U,opts);
+logLInfo=nan;
+tcs=timeit(@() statInfoSmoother2(Y,A,C,Q,R,[],[],B,D,U,opts));
 %% Use sqrt smoother:
 opts.fastFlag=0;
 opts.noReduceFlag=false;

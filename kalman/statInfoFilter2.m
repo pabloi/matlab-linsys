@@ -1,4 +1,4 @@
-function [ii,I,ip,Ip,x,P]=statInfoFilter2(Y,A,C,Q,R,varargin)
+function [ii,I,ip,Ip,x,P,logL]=statInfoFilter2(Y,A,C,Q,R,varargin)
 %statInfoFilter implements the Information formulation of the Kalman filter
 %assuming stationary (fixed) noise matrices and system dynamics
 %The model is: x[k+1]=A*x[k]+b+v[k], v~N(0,Q)
@@ -27,7 +27,7 @@ M=processFastFlag(opts.fastFlag,A,N);
 Y_D=Y-D*U; BU=B*U;
 
 %Define constants for sample rejection:
-logL=nan(1,N); %Row vector
+logL=nan; %Row vector
 if opts.outlierFlag
     warning('Sample rejection not implemented for information filter')
 end

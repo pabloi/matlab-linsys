@@ -14,46 +14,39 @@ function [X,P,Xp,Pp,rejSamples,logL,Ip,I]=statInfoFilter(Y,A,C,Q,R,varargin)
 %OUTPUTS:
 %
 %See also: statInfoSmoother, statKalmanFilter, infoUpdate, KFupdate
-
-
+ 
+%To do: use statInfoFilter2 (trueStatInfoFilter) and enforce conversion
+%through state space (when priors are proper) so X,P are computed in the
+%filtering stage itself, and there is no need to add a conversion stage at
+%the end
+ 
+error('Deprecated: use statInfoFilter2')
+ 
 [D2,N]=size(Y); D1=size(A,1);
 %Init missing params:
 [x0,P0,B,D,U,opts]=processKalmanOpts(D1,N,varargin);
 M=processFastFlag(opts.fastFlag,A,N);
 
-%TODO: Special case: deterministic system, no filtering needed. This can also be
-%the case if Q << C'*R*C, and the system is stable
-
-%Size checks:
-%TODO
-
-%Init arrays:
-if isa(Y,'gpuArray') %For code to work on gpu
-    Xp=nan(D1,N+1,'gpuArray');      X=nan(D1,N,'gpuArray');
-    Pp=nan(D1,D1,N+1,'gpuArray');   P=nan(D1,D1,N,'gpuArray');
-    rejSamples=false(D2,N,'gpuArray'); Ip=nan(D1,D1,N+1,'gpuArray');
-else
-    Xp=nan(D1,N+1);      X=nan(D1,N);
-    Pp=nan(D1,D1,N+1);   P=nan(D1,D1,N);
-    Ip=nan(D1,D1,N+1);   I=nan(D1,D1,N);
-    rejSamples=false(D2,N); 
-end
+Xp=nan(D1,N+1);      X=nan(D1,N);
+Pp=nan(D1,D1,N+1);   P=nan(D1,D1,N);
+Ip=nan(D1,D1,N+1);   I=nan(D1,D1,N);
+rejSamples=false(D2,N); 
 
 %Priors:
 prevX=x0; prevP=P0; Xp(:,1)=x0; Pp(:,:,1)=P0;
-
+ 
 %Re-define observations to account for input effect:
 Y_D=Y-D*U; BU=B*U;
-
+ 
 %Define constants for sample rejection:
 logL=nan(1,N); %Row vector
 if opts.outlierFlag
     warning('Sample rejection not implemented for information filter')
 end
-
+ 
 %Precompute for efficiency:
 [CtRinvC,~,CtRinvY,~,logLmargin]=reduceModel(C,R,Y_D); 
-[cholInvCRC,~,invCRC]=pinvchol2(CtRinvC);
+[cholInvCRC,~,invCRC]=pinvldl(CtRinvC);
 logDetCRC=-2*sum(log(diag(cholInvCRC)));
 %For the first steps do an information update if P0 contains infinite elements
 infVariances=isinf(diag(prevP));
@@ -72,7 +65,7 @@ if M<N %Do the fast filtering for any remaining steps:
 end
 for i=1:M
   y=CtRinvY(:,i); %Output at this step
-
+ 
   %First, do the update given the output at this step:
   if ~any(isnan(y)) %If measurement is NaN, skip update.
      [~,thisI,prevX,prevP,logL(i),rejSamples(i),prevI]=infoUpdate(CtRinvC,y,prevX,prevP,[],logDetCRC,invCRC);
@@ -89,7 +82,7 @@ for i=1:M
       if nargout>5; Ip(:,:,i)=prevI; I(:,:,i)=thisI; end %Storing the value for the previous step
   end
 end
-
+ 
 %Compute mean log-L over samples and dimensions of the output:
 logL=nanmean(logL+logLmargin)/size(Y,1);
 end

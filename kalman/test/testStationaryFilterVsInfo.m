@@ -1,6 +1,6 @@
 %% Create model:
 D1=2;
-D2=100;
+D2=1;
 N=1000;
 A=diag(rand(D1,1));
 A=.9999*A; %Setting the max eigenvalue to .9999
@@ -32,8 +32,9 @@ opts.noReduceFlag=true;
 [XfNR,~,~,~,~,logLNR]=statKalmanFilter(Y,A,C,Q,R,[],[],B,D,U,opts); %Kalman smoother estimation of states, given the true parameters (this is the best possible estimation of states)
 tfNR=timeit(@() statKalmanFilter(Y,A,C,Q,R,[],[],B,D,U,opts));
 %% Use Info smoother: (there is no reduction here ever)
-[Xcs,Pcs,Xp,Pp,rejSamples,logLInfo]=statInfoFilter(Y,A,C,Q,R,[],[],B,D,U,opts); 
-tcs=timeit(@() statInfoFilter(Y,A,C,Q,R,[],[],B,D,U,opts));
+%[Xcs,Pcs,Xp,Pp,rejSamples,logLInfo]=statInfoFilter(Y,A,C,Q,R,[],[],B,D,U,opts); 
+[ii,I,ip,Ip,Xcs,Pcs,logLInfo]=statInfoFilter2(Y,A,C,Q,R,[],[],B,D,U,opts); 
+tcs=timeit(@() statInfoFilter2(Y,A,C,Q,R,[],[],B,D,U,opts));
 %tcs2=timeit(@() statInfoFilter2(Y,A,C,Q,R,[],[],B,D,U,opts)); %This filter does not compute x,P by default, just i and I
 %% Use Info smoother: (there is no reduction here ever)
 opts.fastFlag=false;

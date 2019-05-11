@@ -51,7 +51,7 @@ if isempty(pp) %No parallel pool open, doing regular for, issue warning
 
     %Step 2: backward pass: this is just running the filter backwards (makes sense only if A is invertible)
     %This can be run in parallel to the fwd filter!
-    [ifb,Ib]=trueStatInfoFilter(fliplr(CtRinvY),CtRinvC,iA,iAcQ*iAcQ',-iA*fliplr(BU),zeros(size(previ)),zeros(size(prevI)),M);
+    [ifb,Ib]=trueStatInfoFilter(fliplr(CtRinvY),CtRinvC,iA,iAcQ*iAcQ',-iA*fliplr([zeros(size(BU,1),1),BU(:,1:end-1)]),zeros(size(previ)),zeros(size(prevI)),M); 
     %If the forward pass started from an uniformative prior (previ=0) then Ib
     %should be exactly If (minus numerical errors). If it started from
     %somewhere else, they should still converge to the same value.
