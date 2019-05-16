@@ -205,7 +205,8 @@ methods(Static)
             BIC=-cellfun(@(x) x.BIC,fittedModels)/2;
             AIC=-cellfun(@(x) x.AIC,fittedModels)/2;
             AICc=-cellfun(@(x) x.AICc,fittedModels)/2;
-            for kj=1:4 %logL, BIC, aic, aicc: constrain BIC,AIC, AICc and LRT stats on logL for fittedLinsys that were fitted to this particular dataset
+            hyb=(BIC+AICc)/2;
+            for kj=1:5 %logL, BIC, aic, aicc: constrain BIC,AIC, AICc and LRT stats on logL for fittedLinsys that were fitted to this particular dataset
                 switch kj
                     case 1
                         yy=logLtest;
@@ -219,8 +220,11 @@ methods(Static)
                     case 4
                         yy=AICc;
                         nn='-\Delta AICc/2';
+                    case 5
+                        yy=hyb;
+                        nn='-\Delta HYB/2';
                 end
-                subplot(1,4,kj)
+                subplot(1,5,kj)
                 hold on
                 Mm=length(fittedModels);
                 DeltaIC=yy-max(yy);
