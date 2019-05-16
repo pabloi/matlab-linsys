@@ -71,7 +71,16 @@ classdef linsys
                     initC=cell(size(datSet));
                 end
                 for i=1:length(datSet)
-                    [X{i},P{i},Xp{i},Pp{i},rejSamples{i},logL(i)] = Kfilter(this,datSet{i},initC{i},opts);
+                    [filteredState{i},oneAheadState{i},rejSamples{i},logL(i)] = Kfilter(this,datSet{i},initC{i},opts);
+                end
+            elseif datSet.isMultiple
+                for i=1:length(datSet.out)
+                    if nargin<3 || isempty(initC)
+                        iC=initCond([],[]);
+                    else
+                        iC=initC.extractSingle(i);
+                    end
+                    [filteredState{i},oneAheadState{i},rejSamples{i},logL(i)] = Kfilter(this,datSet.extractSingle(i),iC,opts);
                 end
             else
                 if nargin<3 || isempty(initC)
@@ -93,8 +102,16 @@ classdef linsys
                 for i=1:length(datSet)
                     [X{i},P{i},Pt{i},Xf{i},Pf{i},Xp{i},Pp{i},rejSamples{i},logL(i)] = Ksmooth(this,datSet{i},initC{i},opts);
                 end
+            elseif datSet.isMultiple
+                for i=1:length(datSet.out)
+                    if nargin<3 || isempty(initC)
+                        iC=initCond([],[]);
+                    else
+                        iC=initC.extractSingle(i);
+                    end
+                    [smoothState{i},filteredState{i},oneAheadState{i},rejSamples{i},logL(i)] = Ksmooth(this,datSet.extractSingle(i),iC,opts);
+                end
             else
-                unusedSamp=0;
                 if nargin<3 || isempty(initC)
                     initC=initCond(zeros(this.order,0)); %Improper prior: can be problematic
                 end
@@ -334,7 +351,11 @@ classdef linsys
                     end
                 elseif order>0
                     [A,B,C,D,Q,R,X,P,logL,outlog]=randomStartEM(datSet.out,datSet.in,order,opts);
-                    iC=initCond(X(:,1),P(:,:,1)); %MLE init condition
+                    if ~datSet.isMultiple
+                        iC=initCond(X(:,1),P(:,:,1)); %MLE init condition
+                    else
+                        iC=initCond(cellfun(@(x) x(:,1),X,'UniformOutput',false),cellfun(@(x) x(:,:,1),P,'UniformOutput',false));
+                    end
                     %this=linsys(A,C,R,B,D,Q,trainInfo(datSet.hash,'repeatedEM',opts));
                     this=fittedLinsys(A,C,R,B,D,Q,iC,datSet,'repeatedEM',opts,logL,outlog);
                     this.name=['rEM ' num2str(order)];

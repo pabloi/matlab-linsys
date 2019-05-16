@@ -8,6 +8,7 @@ end
 properties(Dependent)
   Nsamp
   order
+  isMultiple
 end
 methods
     function this=stateEstimate(x,P,Plag)
@@ -62,6 +63,19 @@ methods
       %Gets a single sample to be used as initial condition in other functions
         initC=initCond(this.state(:,N),this.covar(:,:,N));
     end
-
+    function fl=get.isMultiple(this)
+        fl=iscell(this.state);
+    end
+    function newThis=extractSingle(this,i)
+       if this.isMultiple
+           if i>length(this.state)
+               error('stateEstim:extractSingle',['Single index provided (' num2str(i) ') is larger than available number of states in this object (' num2str(length(this.state)) ').'])
+           else
+               newThis=stateEstimate(this.state{i},this.covar{i});
+           end
+       else
+           error('stateEstim object is not multiple, cannot extract a single set')
+       end
+    end
 end
 end

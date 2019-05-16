@@ -227,5 +227,16 @@ classdef dset
            %third term is negligible, and this becomes an estimate of
            %R+.5*CQC'
         end
+        function newThis=extractSingle(this,i)
+           if this.isMultiple
+               if i>length(this.out)
+                   error('dset:extractSingle',['Single index provided (' num2str(i) ') is larger than available number of dsets in this object (' num2str(length(this.out)) ').'])
+               else
+                   newThis=dset(this.in{i},this.out{i});
+               end
+           else
+               error('dset object is not multiple, cannot extract a single set')
+           end
+        end
     end
 end
