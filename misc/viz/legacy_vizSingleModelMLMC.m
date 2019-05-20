@@ -65,6 +65,7 @@ CD=[model{1}.C model{1}.D];
 XU=[model{1}.Xs;U];
 rotMed='orthonormal';
 rotMed='orthomax';
+rotMed='none';
 %rotMed='promax';
 %rotMed='quartimax';
 %rotMed='pablo';
@@ -104,7 +105,7 @@ for i=1:size(CD,2)
     catch
         imagesc((CDrot(:,i)))
     end
-    set(gca,'XTick',[],'YTick',yt,'YTickLabel',[],'FontSize',fs)
+    set(gca,'XTick',[],'YTick',yt,'YTickLabel',ytl,'FontSize',fs)
     ax=gca;
     ax.YAxis.Label.FontSize=12;
     colormap(flipud(map))
