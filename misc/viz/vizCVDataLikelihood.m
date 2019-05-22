@@ -40,9 +40,9 @@ for kd=1:Md %One row of subplots per dataset
     modelL=exp(DeltaIC);
     w=modelL/sum(modelL); %Computes bayes factors, or Akaike weights. See Wagenmakers and Farrell 2004, Akaike 1978, Kass and Raferty 1995
     for k=1:Mm
-        set(gca,'ColorOrderIndex',k)
-        bar2=bar([k*100],yy(k),'EdgeColor','none','BarWidth',100);
-        text((k)*100,.05*(yy(k)),[num2str(yy(k),6)],'Color','w','FontSize',8,'Rotation',90)
+        set(gca,'ColorOrderIndex',1)
+        bar2=bar([k*100],yy(k),'EdgeColor','k','BarWidth',100);
+        text((k)*100,.05*(yy(k)),[num2str(round(yy(k)),6)],'Color','w','FontSize',8,'Rotation',90)
     end
     set(gca,'XTick',[1:Mm]*100,'XTickLabel',cellfun(@(x) x.name, mdl,'UniformOutput',false),'XTickLabelRotation',90)
     title([nn])

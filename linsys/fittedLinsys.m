@@ -234,8 +234,8 @@ methods(Static)
                 My=max(max(yy),0);
                 my=min(min(yy),0);
                 for k=1:Mm
-                    set(gca,'ColorOrderIndex',k)
-                    bar2=bar([k*100],yy(k),'EdgeColor','none','BarWidth',100);
+                    set(gca,'ColorOrderIndex',1)
+                    bar2=bar([k*100],yy(k),'EdgeColor','k','BarWidth',100);
                     txt=num2str(yy(k),6);
                     txt='';
                     if kj==1 && k>1
@@ -253,7 +253,7 @@ methods(Static)
                       %text((k)*100-35,.9*yy(k),[ num2str(round(100*w(k))) '%'],'Color','w','FontSize',6)
                       txt=[txt ' P=' num2str(round(100*w(k))) '%'];
                     end
-                    text((k)*100,.01*yy(k),txt,'Color','k','FontSize',8,'Rotation',90)
+                    text((k)*100,.01*yy(k),txt,'Color','w','FontSize',8,'Rotation',90)
                 end
                 set(gca,'XTick',[1:Mm]*100,'XTickLabel',cellfun(@(x) x.name, fittedModels,'UniformOutput',false),'XTickLabelRotation',90)
                 title([nn])

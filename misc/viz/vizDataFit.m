@@ -87,7 +87,7 @@ for ll=1:2
                 rmseTimeCourse=nansum(res.^2);
                 aux1=sqrt(sum(nansum(res.^2)))/residualReference;
                 %aux1=sum(sum(abs(res)));
-                tt={'Deterministic output error'; '(RMSE, mov. avg.)'};
+                tt={'Deterministic output error (RMSE, mov. avg.)'};
             case 3 % MLE state output error
                 tt=('KS one-ahead output error (RMSE, mov. avg.)');
             case 2 %One ahead error
@@ -96,7 +96,7 @@ for ll=1:2
                 rmseTimeCourse=nansum(res.^2);
                 aux1=sqrt(sum(nansum(res.^2)))/residualReference;
                 %aux1=sum(sum(abs(res)));
-                tt={'KF prediction output error';'(RMSE, mov. avg.)'};
+                tt={'KF prediction error (RMSE, mov. avg.)'};
         end
         subplot(Nx,Ny,2+(2*ll-2)*Ny) %Time-course of residuals
         hold on
@@ -110,9 +110,10 @@ for ll=1:2
         end
         subplot(Nx,Ny,2+(2*ll-1)*Ny) %Bars of residuals
         hold on
+                set(gca,'ColorOrderIndex',1)
         RMSE=aux1; %Normalized Frobenius norm of residual as % of data variance
-        bar2=bar(k,RMSE,'EdgeColor','none','BarWidth',1,'FaceColor',s1.MarkerFaceColor);
-        text(k,.9*RMSE,[num2str(RMSE,4)],'Color','w','FontSize',6,'Rotation',270)
+        bar2=bar(k,RMSE,'EdgeColor','k','BarWidth',1,'FaceColor',s1.MarkerFaceColor);
+        %text(k,.9*RMSE,[num2str(RMSE,4)],'Color','w','FontSize',6,'Rotation',270)
         set(gca,'XTick',1:length(model),'XTickLabel',cellfun(@(x) x.name,model,'UniformOutput',false))
          if k==length(model)
             axis tight
