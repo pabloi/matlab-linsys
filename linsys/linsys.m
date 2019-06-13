@@ -127,10 +127,10 @@ classdef linsys
                 in=zeros(this.Ninput,1);
             end
             x=zeros(size(stateE.state));
-            P=zeros(size(stateE.uncertainty));
+            P=zeros(size(stateE.covar));
             for j=1:stateE.Nsamp
                 x(:,j)=stateE.state(:,j);
-                P(:,:,j)=stateE.uncertainty(:,:,j);
+                P(:,:,j)=stateE.covar(:,:,j);
                 for i=1:size(in,2);
                     x(:,j)=this.A*x(:,j) + this.B*in(:,i); %Project a single step into the future
                     P(:,:,j)=this.A*P(:,:,j)*this.A' + this.Q;

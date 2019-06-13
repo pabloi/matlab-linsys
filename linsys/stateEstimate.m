@@ -77,5 +77,24 @@ methods
            error('stateEstim object is not multiple, cannot extract a single set')
        end
     end
+    function plot(this,offset,ph)
+        if nargin<3
+            ph=gca;
+        end
+        if nargin<2
+            offset=0;
+        end
+        axes(ph)
+        hold on
+        x=offset+[1:this.Nsamp];
+        for i=1:this.order
+            set(gca,'ColorOrderIndex',i);
+        y=this.state(i,:);
+        pl=plot(x,y);
+        e=1.96*squeeze(sqrt(this.covar(i,i,:)))'; %To represent roughly a 95% CI
+        pp=patch([x fliplr(x)],[y+e, fliplr(y-e)],pl.Color,'EdgeColor','none','FaceAlpha',.5);
+        uistack(pp,'bottom')
+        end
+    end
 end
 end
