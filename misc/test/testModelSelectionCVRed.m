@@ -70,36 +70,50 @@ fh=vizCVDataLikelihood(fitMdlBlkRed,datSetBlk([2,1]));
 fh.Name='Blocked (20) CV';
 fh=vizCVDataLikelihood(fitMdlBlkRed100,datSetBlk100([2,1]));
 fh.Name='Blocked (100) CV';
+%To do: put all in single figure, make pretty
 
-%% Train set log-L:
-fittedLinsys.compare(fitMdlAPRed(:,1))
-fittedLinsys.compare(fitMdlAPRed(:,2))
-fittedLinsys.compare(fitMdlOERed(:,1))
-fittedLinsys.compare(fitMdlOERed(:,2))
-%Need to put these 4 in a single figure, set proper size, remove unnecessary text, export as
-%eps
-fittedLinsys.compare(fitMdlBlkRed(:,1))
-fittedLinsys.compare(fitMdlBlkRed(:,2))
-fittedLinsys.compare(fitMdlBlkRed100(:,1))
-fittedLinsys.compare(fitMdlBlkRed100(:,2))
-%[fh] = vizCVDataLikelihood(fitMdlAP,datSetAP);
-
-%vizCVDataLikelihood(fitMdlBlk,datSetBlk);
-% ah=copyobj(ph([2,3]),fh);
-% ah(1).Title.String={'Adapt-model';'Cross-validation'};
-% ah(1).YAxis.Label.String={'Post-data'; 'log-L'};
-% ah(2).Title.String={'Adapt-model';'-BIC/2'};
-% ah(2).XTickLabel={'1','2','3','4','5','6'};
-% ah(1).XTickLabel={'1','2','3','4','5','6'};
-% ah1=copyobj(ph1([1,4]),fh);
-% ah1(2).Title.String={'Post-model';'Cross-validation'};
-% ah1(2).YAxis.Label.String={'Adapt-data';'log-L'};
-% ah1(2).XAxis.Label.String={'Model Order'};
-% ah1(2).XTickLabel={'1','2','3','4','5','6'};
-% ah1(1).XAxis.Label.String={'Model Order'};
-% ah1(1).XTickLabel={'1','2','3','4','5','6'};
-% ah1(1).Title.String={'Post-model';'-BIC/2'};
-% set(gcf,'Name','Adapt/Post cross-validation');
+%% in-sample criteria:
+load testModelSelectionRed.mat
+fitMdlRed=[{linsys.id(simDatSet,0,opts)};fitMdlRed];
+mdlList=[fitMdlRed fitMdlAPRed fitMdlOERed fitMdlBlkRed fitMdlBlkRed100];
+name={'All','First-half','Second-half','Odd','Even','Odd blks (20)','Even blks (20)','Odd blks (100)','Even blks (100)'};
+f1=figure('Units','Pixels','InnerPosition',[100 100 300*2 300*4]);
+M=size(mdlList,2);
+for i=1:M
+    fh=fittedLinsys.compare(mdlList(:,i));
+    ph=findobj(fh,'Type','Axes');
+    p1=copyobj(ph,f1);
+            close(fh)
+    if i==1
+        set(p1,'XTickLabel',{'Flat','1','2','3','4','5','6'})
+    else
+        set(p1,'XTickLabel',{})
+    end
+    p1=p1(end:-1:1);
+    p1(1).YAxis.Label.String=name{i};
+    delete(p1(end))
+    for k=1:length(p1)-1
+       p1(k).Position=[.1+(k-1)*.225 .05+(i-1)*(.93/M) .2 .9*.93/M]; 
+       if i~=M
+       p1(k).Title.String='';
+       end
+       if k~=1
+           p1(k).YTickLabel={};
+       end
+       axes(p1(k))
+       grid off
+       bb=findobj(p1(k),'Type','bar');
+       set(bb,'EdgeColor','w','FaceAlpha',.5);
+       tt=findobj(p1(k),'Type','text');
+       set(tt,'Color','k')
+       if k==1
+       for kk=1:length(tt)
+          tt(kk).String=[regexp(tt(kk).String,'p.*$','match')];%regexp('p*',tt(kk).String) ;
+       end
+       end
+    end
+end
+saveFig(f1,'./','inSampleModelSelection',0)
 
 %% Show results as table:
 clear all
