@@ -104,7 +104,10 @@ classdef dset
             newThis=this;
             newThis.out(excludeIdx,:)=[];
         end
-        function multiSet=split(this,breaks)
+        function multiSet=split(this,breaks,returnAsMultiSet)
+            if nargin<3
+                returnAsMultiSet=false;
+            end
             if this.isMultiple
                 error('Unimplemented')
             end
@@ -121,9 +124,13 @@ classdef dset
             newIn=mat2cell(this.in,this.Ninput,diff(breaks));
             newOut=mat2cell(this.out,this.Noutput,diff(breaks));
             N=length(newIn);
+            if returnAsMultiSet
+                multiSet=dset(newIn,newOut);
+            else
             multiSet=cell(N,1);
             for i=1:N
               multiSet{i}=dset(newIn{i},newOut{i});
+            end
             end
         end
         function multiSet=blockSplit(this,blockSize,Npartitions)

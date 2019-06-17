@@ -134,15 +134,15 @@ methods
   end
   function bic=get.BIC(this)
     if strcmp(this.method,'EM') || strcmp(this.method,'repeatedEM')
-      logL=this.goodnessOfFit;
-      bic=-2*logL+log(this.dataSetNonNaNSamples)*this.dof;
+      logL=sum(this.goodnessOfFit);
+      bic=-2*logL+log(sum(this.dataSetNonNaNSamples))*this.dof;
     else
       error('BIC is not defined unless goodness of fit metric is logL')
     end
   end
   function aic=get.AIC(this)
     if strcmp(this.method,'EM') || strcmp(this.method,'repeatedEM')
-      logL=this.goodnessOfFit;
+      logL=sum(this.goodnessOfFit);
       aic=-2*logL+2*this.dof;
     else
       error('AIC is not defined unless goodness of fit metric is logL')
@@ -151,7 +151,7 @@ methods
   function aicc=get.AICc(this)
       if strcmp(this.method,'EM') || strcmp(this.method,'repeatedEM')
         p=this.dof;
-        N=this.dataSetNonNaNSamples;
+        N=sum(this.dataSetNonNaNSamples); %Dealing with models fit to multiple realizations
         v=this.Rdof;
         k=p+v;
         aicc=this.AIC+2*p*k/(N*this.Noutput-k);
@@ -201,7 +201,7 @@ methods(Static)
         fh=figure('Units','Normalized','OuterPosition',[.25 .4 .5 .3]);
 
         %LogL, BIC, AIC, AICc
-            logLtest=cellfun(@(x) x.goodnessOfFit,fittedModels);
+            logLtest=cellfun(@(x) sum(x.goodnessOfFit),fittedModels); %The sum() allows dealing with models fitted to many realizations of a system (gof has one value for each realization)
             BIC=-cellfun(@(x) x.BIC,fittedModels)/2;
             AIC=-cellfun(@(x) x.AIC,fittedModels)/2;
             AICc=-cellfun(@(x) x.AICc,fittedModels)/2;
