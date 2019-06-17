@@ -73,12 +73,15 @@ fh.Name='Blocked (100) CV';
 %To do: put all in single figure, make pretty
 
 %% in-sample criteria:
+load testModelSelectionCVRed.mat
 load testModelSelectionRed.mat
 fitMdlRed=[{linsys.id(simDatSet,0,opts)};fitMdlRed];
 mdlList=[fitMdlRed fitMdlAPRed fitMdlOERed fitMdlBlkRed fitMdlBlkRed100];
-name={'All','First-half','Second-half','Odd','Even','Odd blks (20)','Even blks (20)','Odd blks (100)','Even blks (100)'};
-f1=figure('Units','Pixels','InnerPosition',[100 100 300*2 300*4]);
+cvDatSetList=[{''};datSetAP([2,1]);datSetOE([2,1]);datSetBlk([2,1]);datSetBlk100([2,1])];
+name={'All','First half','Second half','Odd [1]','Even [1]','Odd [20]','Even [20]','Odd [100]','Even [100]'};
+f1=figure('Units','Pixels','InnerPosition',[100 100 300*2 300*6]);
 M=size(mdlList,2);
+panelNx=5;
 for i=1:M
     fh=fittedLinsys.compare(mdlList(:,i));
     ph=findobj(fh,'Type','Axes');
@@ -91,15 +94,17 @@ for i=1:M
     end
     p1=p1(end:-1:1);
     p1(1).YAxis.Label.String=name{i};
-    delete(p1(end))
-    for k=1:length(p1)-1
-       p1(k).Position=[.1+(k-1)*.225 .05+(i-1)*(.93/M) .2 .9*.93/M]; 
+
+    for k=1:length(p1)
+       p1(k).Position=[.07+(k-1)*.9/panelNx .05+(i-1)*(.93/M) .9*.9/panelNx .9*.93/M]; 
        if i~=M
-       p1(k).Title.String='';
+        p1(k).Title.String='';
+       else
+           p1(k).Title.String=regexp(p1(k).Title.String,'\\Delta.*$','match'); %Removing the - sign
        end
-       if k~=1
-           p1(k).YTickLabel={};
-       end
+       p1(k).YTickLabel={};
+       p1(k).YAxis.TickValues=[];
+
        axes(p1(k))
        grid off
        bb=findobj(p1(k),'Type','bar');
@@ -109,10 +114,53 @@ for i=1:M
        if k==1
        for kk=1:length(tt)
           tt(kk).String=[regexp(tt(kk).String,'p.*$','match')];%regexp('p*',tt(kk).String) ;
+          tt(kk).Position(2)=100;
        end
+       else
+           p1(k).YAxis.Color='w';
        end
+       %Set axis origin to flat model:
+       p1(k).YAxis.Limits(1)=bb(end).YData;
+    end
+    delete(p1(end))
+    %Add CV logL panel:
+    if i~=1
+        k=panelNx;
+        [fh] = vizCVDataLikelihood(mdlList(:,i),cvDatSetList{i});
+        p1=copyobj(findobj(fh,'Type','Axes'),f1);
+        close(fh)
+        p1.Position=[.07+(k-1)*.9/panelNx .05+(i-1)*(.93/M) .9*.9/panelNx .9*.93/M]; 
+        if i==2
+            set(p1,'XTickLabel',{'Flat','1','2','3','4','5','6'})
+        else
+            set(p1,'XTickLabel',{})
+        end
+        axes(p1)
+        grid off
+       bb=findobj(p1,'Type','bar');
+       set(bb,'EdgeColor','w','FaceAlpha',.5);
+       tt=findobj(p1,'Type','text');
+       delete(tt)
+       yd=cell2mat(get(bb,'YData'));
+       xd=cell2mat(get(bb,'XData'));
+       [~,idx]=max(yd);
+       text(xd(idx)-33,.9*yd(idx), '*','Color','k','FontSize',12)
+       if i~=M
+           p1.Title.String='';
+       else
+           p1.Title.String='\Delta CVlogL';
+       end
+       p1.YAxis.Limits(1)=bb(end).YData;
+       p1.YAxis.TickLabels={};
+       p1.YAxis.TickValues=[];
+       p1.GridColor='none';
+       p1.YAxis.Color='w';
     end
 end
+tt=findobj(f1,'Type','Text');
+set(tt,'FontName','OpenSans')
+tt=findobj(f1,'Type','Axes');
+set(tt,'FontName','OpenSans')
 saveFig(f1,'./','inSampleModelSelection',0)
 
 %% Show results as table:
