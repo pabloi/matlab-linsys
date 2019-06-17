@@ -195,7 +195,23 @@ classdef linsys
                 initC=initCond([],[]);
             end
             l=dataLogLikelihood(datSet.out,datSet.in,this.A,this.B,this.C,this.D,this.Q,this.R,initC.state,initC.covar,'exact');
-            l=l;
+        end
+        function r=residual(this,datSet,method,iC)
+            if nargin<4
+                %USING MLE initial Condition
+                dfit=this.fit(datSet,[],'KS');
+                iC=dfit.stateEstim.getSample(1);
+            end
+            if nargin<3
+                method='det';
+            end
+            dfit=this.fit(datSet,iC,'KF');
+            switch method
+                case 'oneAhead'
+                    r=dfit.oneAheadResidual;
+                case 'det'
+                    r=dfit.deterministicResidual;
+            end
         end
         function ord=get.order(this)
             ord=size(this.A,1);
@@ -417,7 +433,7 @@ classdef linsys
             vizModels(mdl)
         end
         function compTbl=summaryTable(models)
-            mdl=cellfun(@(x) x.canonize,models,'UniformOutput',false);
+            mdl=cellfun(@(x) x.canonize('canonicalAlt'),models,'UniformOutput',false);
             M=numel(mdl);
             N=max(cellfun(@(x) size(x.A,1),mdl));
             %Check: all models should be same order(?)
@@ -425,31 +441,68 @@ classdef linsys
             B1=nan(N,M);
             dQ=nan(N,M);
             trR=nan(M,1);
-            for i=1:numel(mdl)
+            minR=nan(M,1);
+            maxR=nan(M,1);
+            for i=1:numel(mdl) %Each model
                aux= sort(-1./log(eig(mdl{i}.A)));
                taus(1:length(aux),i) =aux;
-               %aux=mdl{i}.B(:,1);
+               aux=mdl{i}.B(:,1);
+               Bees(1:length(aux),i)=aux;
+               A=mdl{i}.A;
+               aux=(eye(size(A))-A)\aux; %steady-state x under step input in first input component
+               xinf(1:length(aux),i)=aux;
                aux=mdl{i}.detPredict;
                B1(1:length(aux),i)=aux;
-               trR(i)=trace(mdl{i}.R);
+               dR=diag(mdl{i}.R);
+               dR=dR(~isinf(dR)); %Removing infinite values
+               trR(i)=sum(dR);
+               minR(i)=min(dR);
+               maxR(i)=max(dR);
                aux=diag(mdl{i}.Q);
                dQ(1:length(aux),i)=aux;
             end
             varNames={};
             varTbl=[];
             for i=1:N
-                %aux={['T_' num2str(i)],['b_1' num2str(i) ],['Q_' num2str(i)]};
-                %aux={['T_' num2str(i)],['xinf_' num2str(i) ],['Q_' num2str(i)]};
-                aux={['T_' num2str(i)],['Q_' num2str(i)]};
+                aux={['T_' num2str(i)],['Q_' num2str(i)],['xinf_' num2str(i) ]};%['B_' num2str(i)]};
                 varNames=[varNames aux];
-                %varTbl=[varTbl taus(i,:)' B1(i,:)' dQ(i,:)'];
-                varTbl=[varTbl taus(i,:)' dQ(i,:)'];
+                varTbl=[varTbl taus(i,:)' dQ(i,:)' xinf(i,:)'];% Bees(i,:)'];
             end
-            varTbl=[varTbl trR];
-            varNames=[varNames {'trR'}];
+            varTbl=[varTbl trR minR maxR];
+            varNames=[varNames {'trR','minR','maxR'}];
             compTbl=array2table(varTbl);
             compTbl.Properties.VariableNames=varNames;
             compTbl.Properties.RowNames=cellfun(@(x) x.name, mdl, 'UniformOutput',false);
+        end
+        function fh=compareResiduals(modelCollection,datSet,method)
+           if ~isa(datSet,'cell')
+               datSet={datSet};
+           end
+           N=length(datSet);
+           fh=figure;
+           if nargin<3 || isempty(method)
+               method='det';
+           end
+           for j=1:N %Each dataset
+               M=length(modelCollection);
+               r=nan(M,1);
+               for i=1:M %Each model
+                   res=modelCollection{i}.residual(datSet{j},method);
+                   res=sum(res.^2);
+                   if any(isnan(res))
+                       warning('Found NaN residuals, this may be caused by filtering from improper priors. Proceeding by ignoring first NaN samples')
+                       firstNonNaN=find(~isnan(res),1,'first');
+                       res=res(firstNonNaN:end);
+                   end
+                   r(i)=sqrt(sum(res)); %RMSE
+               end
+               subplot(1,N,j)
+               cc=get(gca,'ColorOrder');
+               r=r/r(1); %Normalizing to first model's residuals
+               bar(100*[1:length(r)],r,'FaceColor',cc(1,:),'EdgeColor','w','FaceAlpha',.5,'BarWidth',1)
+               ax=gca;
+               ax.YAxis.Limits=[min(r),1.05];
+           end
         end
     end
 end

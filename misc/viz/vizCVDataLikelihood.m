@@ -35,18 +35,21 @@ for kd=1:Md %One row of subplots per dataset
     nn=['\Delta ' method];
     subplot(Md,1,kd)
     hold on
-    Mm=length(mdl);
+    Mm=size(mdl,1);
     DeltaIC=yy-max(yy);
     modelL=exp(DeltaIC);
     w=modelL/sum(modelL); %Computes bayes factors, or Akaike weights. See Wagenmakers and Farrell 2004, Akaike 1978, Kass and Raferty 1995
     for k=1:Mm
         set(gca,'ColorOrderIndex',1)
-        bar2=bar([k*100],yy(k),'EdgeColor','k','BarWidth',100);
-        text((k)*100,.05*(yy(k)),[num2str(round(yy(k)),6)],'Color','w','FontSize',8,'Rotation',90)
+        bar2=bar([k*100],yy(k),'EdgeColor','w','BarWidth',100,'FaceAlpha',.5);
+        if k>1
+        text((k)*100,.05*(yy(k)),[num2str(round(yy(k)),6)],'Color','k','FontSize',8,'Rotation',90)
+        end
     end
     set(gca,'XTick',[1:Mm]*100,'XTickLabel',cellfun(@(x) x.name, mdl,'UniformOutput',false),'XTickLabelRotation',90)
+    set(gca,'YTick',[])
     title([nn])
-    grid on
+    %grid on
     axis tight;
     aa=axis;
     axis([aa(1:2) 0 1.1*max(yy)])

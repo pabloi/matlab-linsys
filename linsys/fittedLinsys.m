@@ -36,10 +36,10 @@ methods
       if nargin>10
         this.goodnessOfFit=gof;
         %Todo: validate this logL value using the iC, dataSet
-        [~,~,~,logL]=this.Kfilter(dataSet,iC);
-        if abs(gof-logL)>1
-          warning(['Provided gof does not match log-L of model with given initial conditions. gof=' num2str(gof) ', logL now=' num2str(logL) ', gap=' num2str(gof-logL)])
-        end
+        %[~,~,~,logL]=this.Kfilter(dataSet,iC);
+        %if abs(gof-logL)>1
+        %  warning(['Provided gof does not match log-L of model with given initial conditions. gof=' num2str(gof) ', logL now=' num2str(logL) ', gap=' num2str(gof-logL)])
+        %end
       end
       if nargin>6 && ~isempty(iC)
         this.initCondPrior=iC; %Should be initCond object
@@ -231,11 +231,12 @@ methods(Static)
                 modelL=exp(DeltaIC);
                 w=modelL/sum(modelL); %Computes bayes factors, or Akaike weights. See Wagenmakers and Farrell 2004, Akaike 1978, Kass and Raferty 1995
                 yy=yy-min(yy);
+                yy=yy-yy(1); %Plotting with respect to first model in list
                 My=max(max(yy),0);
                 my=min(min(yy),0);
                 for k=1:Mm
                     set(gca,'ColorOrderIndex',1)
-                    bar2=bar([k*100],yy(k),'EdgeColor','k','BarWidth',100);
+                    bar2=bar([k*100],yy(k),'EdgeColor','w','BarWidth',100,'FaceAlpha',.5);
                     txt=num2str(yy(k),6);
                     txt='';
                     if kj==1 && k>1
@@ -253,7 +254,7 @@ methods(Static)
                       %text((k)*100-35,.9*yy(k),[ num2str(round(100*w(k))) '%'],'Color','w','FontSize',6)
                       txt=[txt ' P=' num2str(round(100*w(k))) '%'];
                     end
-                    text((k)*100,.01*yy(k),txt,'Color','w','FontSize',8,'Rotation',90)
+                    text((k)*100,.01*yy(k),txt,'Color','k','FontSize',8,'Rotation',90)
                 end
                 set(gca,'XTick',[1:Mm]*100,'XTickLabel',cellfun(@(x) x.name, fittedModels,'UniformOutput',false),'XTickLabelRotation',90)
                 title([nn])
