@@ -18,7 +18,11 @@ if r~=size(R,1)
 end
 
 if isa(Y,'cell') %Case where input/output data corresponds to many realizations of system, requires Y,U,x0,P0 to be cells of same size
-    logL=cellfun(@(y,u,x0,p0) dataLogLikelihood(y,u,A,B,C,D,Q,R,x0,p0,method),Y,U,X0,P0);
+    if ~isa(X0,'cell')
+        logL=cellfun(@(y,u) dataLogLikelihood(y,u,A,B,C,D,Q,R,X0,P0,method),Y,U);
+    else
+        logL=cellfun(@(y,u,x0,p0) dataLogLikelihood(y,u,A,B,C,D,Q,R,x0,p0,method),Y,U,X0,P0);
+    end
     logL=sum(logL);
 else
 
