@@ -80,6 +80,7 @@ end
 load testModelSelectionCVRed_reps.mat
 mdl=fitMdl(:); %All models in a unidimensional array
 cv=reshape(cvlogl(:,1:size(fitMdl,2),:,:),numel(mdl),size(cvlogl,3),size(cvlogl,4));
+dr=reshape(detResiduals(:,1:size(fitMdl,2),:,:),numel(mdl),size(cvlogl,3),size(cvlogl,4));
 %Get summary metrics:
 pNames={'goodnessOfFit','BIC','AIC','AICc'};
 dSetNames={'all','odd[1]','even[1]','odd[20]','even[20]','first half','second half','odd[100]','even[100]'};
@@ -94,7 +95,7 @@ end
 figure('Units','Pixels','InnerPosition',[100 100 300*3 300*5])   
 for i=1:9 %all 9 datasets
     for k=1:Nparams
-        subplot(9,5,k+(i-1)*5)
+        subplot(9,6,k+(i-1)*6)
         hold on
          cc=get(gca,'ColorOrder');
         d=squeeze(metrics.(pNames{k})(:,i,:));
@@ -132,7 +133,7 @@ for i=1:9 %all 9 datasets
     end
     %Add cv-logl
     if i>1
-    subplot(9,5,i*5)
+    subplot(9,6,(i-1)*6+5)
     hold on
     d=squeeze(cv(:,i,:));
     d=d-d(:,1);
@@ -160,6 +161,36 @@ for i=1:9 %all 9 datasets
             ax.XAxis.TickValues=[];
         end
     end
+    %Add det residuals:
+    subplot(9,6,(i-1)*6+6)
+    hold on
+    d=squeeze(dr(:,i,:));
+    d=d(:,1)-d;
+    d=d(69:end,:); %First 68 reps did not compute residuals
+    [~,bestModel]=max(d,[],2); 
+    plot(0:5,d','Color',cc(6,:))
+    ax=gca;
+    ax.YAxis.Limits(1)=0;
+    if i==1
+    title('1-det. residuals')
+    end
+    clear count
+    for l=0:5 %For each order, count how many times it is selected by the criterion
+        count(l+1)=sum((l+1)==bestModel);
+        %text(l-.3,mean(d(l+1,:)),num2str(count),'Color','r','FontSize',12)
+    end
+    y=ax.YAxis.Limits(2);
+    bb=bar(0:5, y*count/numel(bestModel), 'FaceColor','k');
+    uistack(bb,'bottom')
+    ax.XAxis.Limits=[-.5 5.5];
+    ax.YAxis.TickValues=[];
+    if i==9
+        ax.XAxis.TickValues=[0:5];
+        xlabel('Model order')
+    else
+        ax.XAxis.TickValues=[];
+    end
+    
 end
 
 %% A cleaner version: logL (LRT), AIC, BIC, AICc just for the full dataset, CV log-L for half-splits
@@ -181,7 +212,11 @@ for k=1:Nparams
     d=d-d(1,:);
     plot(0:5,d,'Color',cc(k,:))
     if i==1
-    title(pNames{k})
+        if k==1
+            title('logL')
+        else
+            title(pNames{k})
+        end
     end
     clear count
     for l=0:5 %For each order, count how many times it is selected by the criterion

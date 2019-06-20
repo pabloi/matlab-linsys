@@ -123,6 +123,8 @@ classdef linsys
         end
         function stateE=predict(this,stateE,in)
             %Predicts new states for N samples in the future, given current state
+            %N is given by the input size
+            %All states are assumed to evolve with the same input
             if nargin<3 %Projecting a single stride in the future, with null input
                 in=zeros(this.Ninput,1);
             end
@@ -131,11 +133,29 @@ classdef linsys
             for j=1:stateE.Nsamp
                 x(:,j)=stateE.state(:,j);
                 P(:,:,j)=stateE.covar(:,:,j);
-                for i=1:size(in,2);
+                for i=1:size(in,2)
                     x(:,j)=this.A*x(:,j) + this.B*in(:,i); %Project a single step into the future
                     P(:,:,j)=this.A*P(:,:,j)*this.A' + this.Q;
                 end
             end
+            stateE=stateEstimate(x,P);
+        end
+        function stateE=predict2(this,stateE,in,M)
+            %Predicts new states for N samples in the future, given a
+            %state series (assmued consecutive, each point is predicted M samples into the future using a single input series)
+            %Input samples are assumed to be temporally aligned with the
+            %stateE samples.
+            x=zeros(size(stateE.state));
+            P=zeros(size(stateE.covar));
+            for j=1:(size(in,2)-M)
+                x(:,j)=stateE.state(:,j);
+                P(:,:,j)=stateE.covar(:,:,j);
+                for i=1:M
+                    x(:,j)=this.A*x(:,j) + this.B*in(:,i+j); %Project a single step into the future
+                    P(:,:,j)=this.A*P(:,:,j)*this.A' + this.Q;
+                end
+            end
+            stateE=stateEstimate(x,P);
         end
         function [datSet,stateE]=simulate(this,input,initC,deterministicFlag,noiselessFlag)
             %Simulates a realization of the modeled system given the initial
@@ -172,8 +192,58 @@ classdef linsys
           end
           [this.A,this.B,this.C,~,V,this.Q,~] = canonize(this.A,this.B,this.C,[],this.Q,[],method);
         end
+        function this=scale(this,k)
+           %Transforms the system by scaling states
+           if numel(k)==1 %All states scaled equally
+               k=k*ones(this.order,1);
+           elseif numel(k)~=this.order
+               error('')
+           end
+           this=this.transform(diag(k));
+        end
         function [this]=transform(this,V)
             [this.A,this.B,this.C,this.Q]=transform(V,this.A,this.B,this.C,this.Q);
+        end
+        function this=shiftStates(this,K)
+            %Transforms the model by trying to accomodate new states x'=x+K*u 
+            I=eye(size(this.A));
+            this.B=this.B+(I-this.A)*K;
+            this.D=this.D-this.C*K;
+        end
+        function [this,K]=mleShift(this,datSet)
+           %Finds the MLE shift of the model to accomodate a dataSet (as in shiftStates) 
+           N=this.order;
+           M=this.Ninput;
+           zeroInds=all(this.B==0); %Ignoring these
+           M=M-sum(zeroInds);
+           K0=zeros(N,M);
+           k=fminunc(@(x) -this.shiftStates(reshape(x,N,M)).logL(datSet),K0(:));
+           aux=reshape(k,N,M);
+           K=zeros(size(this.B));
+           K(:,~zeroInds)=aux;
+           this=shiftStates(this,K);
+        end
+        function this=EMrefine(this,datSet)
+           %Runs the EM algorithm to maximize logL of the parameters for the dataset given 
+           %with this model as starting point 
+           smoothState=this.Ksmooth(datSet);
+           opts.indB=~all(this.B==0); %Respecting the mask of B
+           opts.indD=~all(this.D==0); %Respecting the mask of D
+           opts.Niter=1000; %To avoid too long refinement
+           opts.convergenceTol=1e-5;
+           if isa(this,'fittedLinsys')
+           opts.includeOutputIdx=this.trainOptions.includeOutputIdx; %Only fitting to subset of data, as originally done
+           end
+           if isa(smoothState,'cell')
+               st=cellfun(@(x) x.state,smoothState,'UniformOutput',false);
+               P=cellfun(@(x) x.covar,smoothState,'UniformOutput',false);
+               Pt=cellfun(@(x) x.lagOneCovar,smoothState,'UniformOutput',false);
+           else
+               st=smoothState.state;
+               P=smoothState.covar;
+               Pt=smoothState.lagOneCovar;
+           end
+           [this.A,this.B,this.C,this.D,this.Q,this.R]=EM(datSet.out,datSet.in,st,opts,P,Pt);
         end
         function newThis=upsample(this,Nfactor)
             error('unimplemented')
@@ -186,6 +256,177 @@ classdef linsys
         function [fh,fh2]=vizFit(this,datSet,initC)
           [fh,fh2]=datSet.vizFit(this);
         end
+        function [f1]=vizSingleFit(this,datSet,initC)
+            if nargin<3
+                initC=[];
+            end
+           dfit=this.fit(datSet,initC,'KS'); %MLE fit
+           f1=figure('Name','State fits','Units','Pixels','InnerPosition',[100 100 300*6 300*3]);
+           %For each state and input associated with NON-ZERO B column,
+           %plot state estimates, data projections, and contribution to
+           %output
+           Mx=this.order;
+           indB=find(sum(this.B~=0)~=0);
+           Mu=length(indB);
+           M=Mx+Mu;
+           xMargin=.05;
+           xWidth=.9/M;
+           xCoverage=.9; %Determines whitespace
+           yMargin=.05;
+           yHeight=(1-2*yMargin)/3;
+           yCoverage=.9;
+           CD=[this.C this.D];
+           dataProj=(CD\datSet.out);
+           mC=max(max(abs(this.D(:,indB))));
+           %States first:
+           for i=1:M
+               %States:
+               ax=axes('Position',[xMargin+xWidth*(i-1) yMargin+2*yHeight xCoverage*xWidth yCoverage*yHeight]);
+               scatter(1:size(dataProj,2),dataProj(i,:),5,.5*ones(1,3),'filled','MarkerFaceAlpha',.3,'DisplayName','Data projection')
+               hold on
+               if i<=Mx
+                    dfit.stateEstim.marginalize(i).plot(0,ax); %States
+                    addedTXT=[', \tau = ' num2str(-1./log(this.A(i,i)),3) ', b = ' num2str(this.B(i,indB),2) ];
+                    title(['State ' num2str(i) addedTXT])
+                    pp=findobj(ax,'Type','Patch');
+                    pp.DisplayName='99.7% CI';
+                    pp=findobj(ax,'Type','Line');
+                    pp.DisplayName='State MLE';
+                    uistack(pp,'top')
+               else
+                   pp=plot(datSet.in(indB(i-Mx),:),'LineWidth',2,'DisplayName','Input');
+                   uistack(pp,'top')
+                   if Mu>1
+                    title(['Input ' num2str(indB(i-Mx))])
+                   else
+                       title('Input')
+                   end
+               end
+               axis tight
+               ax.XAxis.Limits=[1,datSet.Nsamp];
+               if i==1
+                   legend('Location','NorthEast','Box','off')
+               end
+               %C,D columns
+               ax=axes('Position',[xMargin+xWidth*(i-1) yMargin xCoverage*xWidth yHeight+yCoverage*yHeight]);
+               imagesc(reshape(CD(:,i),12,15)')
+               ex1=[0.8500    0.3250    0.0980]; %2nd MAtlab default color
+               ex2=[0.4660    0.6740    0.1880]; %5th Matlab default color
+               gamma=1;
+               map=[bsxfun(@plus,ex1.^(1/gamma),bsxfun(@times,1-ex1.^(1/gamma),[0:.01:1]'));bsxfun(@plus,ex2.^(1/gamma),bsxfun(@times,1-ex2.^(1/gamma),[1:-.01:0]'))].^gamma;
+               colormap(map)
+               caxis([-1 1]*mC)
+               if i==M
+                   pos=ax.Position;
+                   colorbar
+                   ax.Position=pos;
+               end
+           end
+        end
+        function f2=vizSingleRes(this,datSet,initC,windows,Nahead)
+            if nargin<5 || isempty(Nahead)
+                Nahead=1;
+            end
+            if nargin<3
+                initC=[];
+            end
+            if nargin<4 || isempty(windows)
+                windows=sort(round(datSet.Nsamp*rand(5,1)));
+            end
+            winSize=5;
+            windows(windows>datSet.Nsamp-winSize)=[];
+            windows(windows<1)=[];
+            dfit=this.fit(datSet,initC,'KF'); %MLE fit  
+            predictedOut=dfit.NaheadOutput(Nahead);
+            predictedRes=datSet.out-predictedOut;
+           f2=figure('Name','Data residuals','Units','Pixels','InnerPosition',[100 100 300*4.1 300*4]); 
+           M=length(windows);
+           xMargin=.05;
+           xWidth=.88/M;
+           xCoverage=.9; %Determines whitespace
+           yMargin=.05;
+           yHeight=(1-2*yMargin)/5;
+           yCoverage=.9;
+           indB=find(sum(this.B~=0)~=0);
+           mC=max(max(abs(this.D(:,indB)))); %Same scaling as vizSingleFit
+           ex1=[0.8500    0.3250    0.0980]; %2nd MAtlab default color
+           ex2=[0.4660    0.6740    0.1880]; %5th Matlab default color
+           gamma=1;
+           map=[bsxfun(@plus,ex1.^(1/gamma),bsxfun(@times,1-ex1.^(1/gamma),[0:.01:1]'));bsxfun(@plus,ex2.^(1/gamma),bsxfun(@times,1-ex2.^(1/gamma),[1:-.01:0]'))].^gamma;
+                 
+           for i=1:M
+               relevantSamples=windows(i)+[1:winSize]-1;
+               for j=1:3 %Data, prediction, residual images
+                    ax=axes('Position',[xMargin+(i-1)*xWidth yMargin+(4-(j-1))*yHeight xCoverage*xWidth yCoverage*yHeight]);
+                    switch j
+                        case 1 %Data
+                            d=mean(datSet.out(:,relevantSamples),2);
+                            ttl={ 't=' ; [ '[' num2str(windows(i)) ',' num2str(windows(i)+winSize) ']' ] };
+                            yl='data';
+                        case 2 %Prediction
+                            d=mean(predictedOut(:,relevantSamples),2);
+                            yl={[num2str(Nahead) '-ahead'];['prediction']};
+                        case 3 %Residuals
+                            d=mean(predictedRes(:,relevantSamples),2);
+                           yl={[num2str(Nahead) '-ahead'];['residual']};
+                    end
+                    imagesc(reshape(d,12,15)')
+                     colormap(map)
+                   caxis([-1 1]*mC)
+                   if i==M && j==1
+                       pos=ax.Position;
+                       colorbar
+                       ax.Position=pos;
+                   end
+                   if j==1
+                       title(ttl)
+                   end
+                   if i==1
+                   ylabel(yl)
+                   end
+                   ax.XAxis.TickValues=[];
+                   ax.YAxis.TickValues=[];
+               end
+           end
+           % Residual time courses: (RMSE)
+           ax=axes('Position',[xMargin yMargin+(1)*yHeight xCoverage*xWidth+(M-2)*xWidth yCoverage*yHeight]);
+           rmse=sqrt(sum(predictedRes.^2));
+           rmsePrevSample=[nan sqrt(sum((datSet.out(:,2:end)-datSet.out(:,1:end-1)).^2))];
+           avg11=conv2(datSet.out,ones(1,11)/11,'same');
+           avgPrev11=[nan(size(datSet.out,1),11) avg11(:,6:end-6)];
+           rmsePrev11= sqrt(sum((datSet.out-avgPrev11).^2));
+           rmseFlat=sqrt(sum((datSet.out-datSet.out/datSet.in *datSet.in).^2));
+           filtSize=3;
+           rmse=medfilt1(rmse,filtSize,'truncate');
+           rmsePrevSample=medfilt1(rmsePrevSample,filtSize,'truncate');
+           rmsePrev11=medfilt1(rmsePrev11,filtSize,'truncate');
+           rmseFlat=medfilt1(rmseFlat,filtSize,'truncate');
+           hold on
+           plot(rmsePrevSample,'k','DisplayName','Prev. sample')
+           %plot(rmsePrev11,'Color',.5*ones(1,3),'DisplayName', 'Prev. 11 samples')
+           plot(rmseFlat,'Color',.5*ones(1,3),'DisplayName', 'Flat model')
+           set(ax,'ColorOrderIndex',1)
+           plot(rmse,'LineWidth',2,'DisplayName','3-state model')
+           ax.YAxis.Scale='log';
+           ylabel({'RMSE';'residual'})
+           ax.XAxis.Limits=[1 length(rmse)];
+           ax.XAxis.TickValues=[];
+           legend('Location','NorthEast')
+           %ax=axes('Position',[xMargin+(M-1)*xWidth yMargin+(1)*yHeight xCoverage*xWidth yCoverage*yHeight]);
+               
+           % First PC of residual, timecourse and image:
+           nanIdx=any(isnan(predictedRes));
+           [p,c,~]=pca(predictedRes(:,~nanIdx),'Centered','off');
+           ax=axes('Position',[xMargin yMargin xCoverage*xWidth+(M-2)*xWidth yCoverage*yHeight]);
+           plot(find(~nanIdx),p(:,1),'LineWidth',2)
+           ylabel({'first PC';' of residual'})
+           ax.XAxis.Limits=[1 length(rmse)];
+           ax=axes('Position',[xMargin+(M-1)*xWidth yMargin xCoverage*xWidth 2*yCoverage*yHeight]);
+           imagesc(reshape(c(:,1),12,15)')
+           colormap(map)
+           caxis([-1 1]*mC)
+           title({'First PC';'of residual'})
+        end
         function fh=vizRes(this,datSet,initC)
             [fh]=datSet.vizRes(this);
         end
@@ -197,13 +438,21 @@ classdef linsys
             l=dataLogLikelihood(datSet.out,datSet.in,this.A,this.B,this.C,this.D,this.Q,this.R,initC.state,initC.covar,'exact');
         end
         function r=residual(this,datSet,method,iC)
-            if nargin<4
-                %USING MLE initial Condition
-                dfit=this.fit(datSet,[],'KS');
-                iC=dfit.stateEstim.getSample(1);
-            end
             if nargin<3
                 method='det';
+            end
+            if nargin<4 %No initial condition provided, computing an appropriate one
+                if strcmp(method,'oneAhead') %For one ahead predictions, could also use infinite uncertainty as initCond
+                    %USING MLE initial Condition
+                    dfit=this.fit(datSet,[],'KS');
+                elseif strcmp(method,'det')
+                    %IF the method is deterministic, it is best to look for
+                    %an initial condition  forcing Q=0 (it will be a more
+                    %likely value for a deterministic system).
+                    this.Q=zeros(size(this.Q));
+                    dfit=this.fit(datSet,[],'KF'); %Using KF because KS does not work well with Q=0 (backpropagation issues, need to review)
+                end
+                iC=dfit.stateEstim.getSample(1);
             end
             dfit=this.fit(datSet,iC,'KF');
             switch method

@@ -77,9 +77,21 @@ methods
            error('stateEstim object is not multiple, cannot extract a single set')
        end
     end
-    function plot(this,offset,ph)
-        if nargin<3
+    function newThis=marginalize(this,N)
+        if isempty(this.lagOneCovar)
+            newThis=stateEstimate(this.state(N,:),this.covar(N,N,:));
+        else
+            newLagOne=this.lagOneCovar(N,N,:);
+            newThis=stateEstimate(this.state(N,:),this.covar(N,N,:),newLagOne);
+        end
+    end
+    function plot(this,offset,prc,ph)
+        
+        if nargin<4
             ph=gca;
+        end
+        if nargin<3
+            prc=99.7; %99.7% percentile, roughly +- 3 std
         end
         if nargin<2
             offset=0;
@@ -87,13 +99,18 @@ methods
         axes(ph)
         hold on
         x=offset+[1:this.Nsamp];
+        if prc>=0 && prc<=100
+            f=norminv(1-.5*(1-prc/100),0,1); %Number of std away to get this percentile of the distribution in the shaded area
+        else
+            error('prc must be a number between 0 and 100')
+        end
         for i=1:this.order
             set(gca,'ColorOrderIndex',i);
-        y=this.state(i,:);
-        pl=plot(x,y);
-        e=1.96*squeeze(sqrt(this.covar(i,i,:)))'; %To represent roughly a 95% CI
-        pp=patch([x fliplr(x)],[y+e, fliplr(y-e)],pl.Color,'EdgeColor','none','FaceAlpha',.5);
-        uistack(pp,'bottom')
+            y=this.state(i,:);
+            pl=plot(x,y,'LineWidth',2);
+            e=f*squeeze(sqrt(this.covar(i,i,:)))'; %To represent roughly a 99.7% CI (smaller CIs are usually hard to see)
+            pp=patch([x fliplr(x)],[y+e, fliplr(y-e)],pl.Color,'EdgeColor','none','FaceAlpha',.5);
+            uistack(pp,'bottom')
         end
     end
 end
