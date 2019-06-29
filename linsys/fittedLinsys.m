@@ -18,6 +18,7 @@ properties (Dependent)
   AICc
   %fittedOutput
   %fittedResiduals
+  fittedLogL
 end
 methods
   function this=fittedLinsys(A,C,R,B,D,Q,iC,dataSet,methodName,opts,gof,outlog)
@@ -132,18 +133,23 @@ methods
     end
     df=Nr;
   end
+  function ll=get.fittedLogL(this)
+      if strcmp(this.method,'EM') || strcmp(this.method,'repeatedEM')
+        ll=sum(this.goodnessOfFit);
+      else
+          error('logL is not the goodness of fit metric unless EM was used to fit the model')
+      end
+  end
   function bic=get.BIC(this)
     if strcmp(this.method,'EM') || strcmp(this.method,'repeatedEM')
-      logL=sum(this.goodnessOfFit);
-      bic=-2*logL+log(sum(this.dataSetNonNaNSamples))*this.dof;
+      bic=-2*this.fittedLogL+log(sum(this.dataSetNonNaNSamples))*this.dof;
     else
       error('BIC is not defined unless goodness of fit metric is logL')
     end
   end
   function aic=get.AIC(this)
     if strcmp(this.method,'EM') || strcmp(this.method,'repeatedEM')
-      logL=sum(this.goodnessOfFit);
-      aic=-2*logL+2*this.dof;
+      aic=-2*this.fittedLogL+2*this.dof;
     else
       error('AIC is not defined unless goodness of fit metric is logL')
     end

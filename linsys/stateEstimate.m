@@ -90,7 +90,7 @@ methods
         if nargin<4
             ph=gca;
         end
-        if nargin<3
+        if nargin<3 || isempty(prc)
             prc=99.7; %99.7% percentile, roughly +- 3 std
         end
         if nargin<2

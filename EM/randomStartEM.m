@@ -62,7 +62,7 @@ end
 warning('on','statKF:logLnoPrior');
 
 refineLog=[];
-if optR.refineFastFlag && optR.fastFlag~=0 %Fast allowed
+if ~optR.disableRefine && optR.refineFastFlag && optR.fastFlag~=0 %Fast allowed
   disp(['Refining solution... (fast) Best logL so far=' num2str(bestLL,8) '(iter=' num2str(lastSuccess) ')']);
   opt2.Niter=optR.refineMaxIter; %This will go fast, can afford to have many iterations, it will rarely reach the limit.
   opt2.convergenceTol=optR.refineTol/optR.fastRefineTolFactor;
@@ -84,9 +84,11 @@ opt2.fastFlag=0;
 opt2.Niter=optR.refineMaxIter;
 opt2.convergenceTol=optR.refineTol;
 opt2.targetLogL=bestLL;
+if ~optR.disableRefine
 [Ai,Bi,Ci,Di,Qi,Ri,Xi,Pi,bestLL1,refineLog2,Pti]=EM(Y,U,X,opt2,P,Pt); %Refine solution, should work always
 if bestLL1>bestLL
     A=Ai; B=Bi; C=Ci; D=Di; Q=Qi; R=Ri; X=Xi; P=Pi; bestLL=bestLL1; Pt=Pti;
+end
 end
 
 disp(['End. Best logL=' num2str(bestLL,8)]);

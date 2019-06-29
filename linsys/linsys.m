@@ -285,7 +285,7 @@ classdef linsys
                scatter(1:size(dataProj,2),dataProj(i,:),5,.5*ones(1,3),'filled','MarkerFaceAlpha',.3,'DisplayName','Data projection')
                hold on
                if i<=Mx
-                    dfit.stateEstim.marginalize(i).plot(0,ax); %States
+                    dfit.stateEstim.marginalize(i).plot(0,[],ax); %States
                     addedTXT=[', \tau = ' num2str(-1./log(this.A(i,i)),3) ', b = ' num2str(this.B(i,indB),2) ];
                     title(['State ' num2str(i) addedTXT])
                     pp=findobj(ax,'Type','Patch');
@@ -342,7 +342,7 @@ classdef linsys
            f2=figure('Name','Data residuals','Units','Pixels','InnerPosition',[100 100 300*4.1 300*4]); 
            M=length(windows);
            xMargin=.05;
-           xWidth=.88/M;
+           xWidth=.86/M;
            xCoverage=.9; %Determines whitespace
            yMargin=.05;
            yHeight=(1-2*yMargin)/5;
@@ -396,6 +396,7 @@ classdef linsys
            avgPrev11=[nan(size(datSet.out,1),11) avg11(:,6:end-6)];
            rmsePrev11= sqrt(sum((datSet.out-avgPrev11).^2));
            rmseFlat=sqrt(sum((datSet.out-datSet.out/datSet.in *datSet.in).^2));
+           (rmseFlat/rmse)^2
            filtSize=3;
            rmse=medfilt1(rmse,filtSize,'truncate');
            rmsePrevSample=medfilt1(rmsePrevSample,filtSize,'truncate');
@@ -416,16 +417,21 @@ classdef linsys
                
            % First PC of residual, timecourse and image:
            nanIdx=any(isnan(predictedRes));
-           [p,c,~]=pca(predictedRes(:,~nanIdx),'Centered','off');
+           [p,c,a]=pca(predictedRes(:,~nanIdx),'Centered','off');
+           k=sqrt(sum(c(:,1).^2))/sqrt(sum(this.D(:,1).^2));
+           c=c/k;
+           p=p*k;
+           v=a(1)/sum(a); %Variance explained by first PC
            ax=axes('Position',[xMargin yMargin xCoverage*xWidth+(M-2)*xWidth yCoverage*yHeight]);
-           plot(find(~nanIdx),p(:,1),'LineWidth',2)
-           ylabel({'first PC';' of residual'})
+           %plot(find(~nanIdx),p(:,1),'LineWidth',2)
+           scatter(find(~nanIdx),p(:,1),5,.4*ones(1,3),'filled','MarkerEdgeColor','none')
+           ylabel({'PC1';' of residual'})
            ax.XAxis.Limits=[1 length(rmse)];
            ax=axes('Position',[xMargin+(M-1)*xWidth yMargin xCoverage*xWidth 2*yCoverage*yHeight]);
            imagesc(reshape(c(:,1),12,15)')
            colormap(map)
            caxis([-1 1]*mC)
-           title({'First PC';'of residual'})
+           title(['PC1 of residual (' num2str(v*100,2) '%)'])
         end
         function fh=vizRes(this,datSet,initC)
             [fh]=datSet.vizRes(this);
@@ -682,7 +688,7 @@ classdef linsys
             vizModels(mdl)
         end
         function compTbl=summaryTable(models)
-            mdl=cellfun(@(x) x.canonize('canonicalAlt'),models,'UniformOutput',false);
+            mdl=cellfun(@(x) x.canonize('canonicalAlt').scale(1/sqrt(sum(x.D(:,1).^2))),models,'UniformOutput',false);
             M=numel(mdl);
             N=max(cellfun(@(x) size(x.A,1),mdl));
             %Check: all models should be same order(?)
@@ -713,9 +719,9 @@ classdef linsys
             varNames={};
             varTbl=[];
             for i=1:N
-                aux={['T_' num2str(i)],['Q_' num2str(i)],['xinf_' num2str(i) ]};%['B_' num2str(i)]};
+                aux={['T_' num2str(i)],['Q_' num2str(i)],['B_' num2str(i)]};
                 varNames=[varNames aux];
-                varTbl=[varTbl taus(i,:)' dQ(i,:)' xinf(i,:)'];% Bees(i,:)'];
+                varTbl=[varTbl taus(i,:)' dQ(i,:)' Bees(i,:)'];
             end
             varTbl=[varTbl trR minR maxR];
             varNames=[varNames {'trR','minR','maxR'}];

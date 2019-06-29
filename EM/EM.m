@@ -224,7 +224,7 @@ function [logl,dropCount,breakFlag,msg]=checkStopping(l,k,opts,logl,dropCount,be
       logL100ago=logl(max(k-100,1));
       targetRelImprovement100=(l-logL100ago)/(opts.targetLogL-logL100ago);
       belowTarget=max(l,bestLogL)<opts.targetLogL;
-      relImprovementLast100=l-logL100ago; %Assessing the improvement on logl over the last 50 iterations (or less if there aren't as many)
+      relImprovementLast100=l-logL100ago; %Assessing the improvement on logl over the last 100 iterations (or less if there aren't as many)
 
       %Check for warning conditions:
       if ~improvement %This should never happen
