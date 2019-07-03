@@ -5,6 +5,7 @@ sigma=75/1.1; %Realistic based on group-level analysis of responses
 range=[-200:4:200];
 p=1./(1+exp((range+bias)/sigma));
 pObsGivenState=[p;1-p];
+pStateInitial=ones(101,1)/101; %Uniform prior, over 101 possible PSE values representing the [-200:200] mm/s range (4mm/s jumps)
 
 transitionWidth=15;
 R=[ones(1,transitionWidth)./[1:transitionWidth],zeros(1,101-transitionWidth)];
@@ -20,6 +21,9 @@ observations=discretizeObs(binornd(1,underlyingObsP),2,[0,1]);
 %Inference:
 [pPredicted, pUpdated, pSmoothed] = HMMnonStationaryInferenceAlt(observations,observationTimes,input,pObsGivenState,pStateGivenPrev,pStateInitial);
 
+%Compute viterbi sequence:
+[optSeq,logL]=nonStatViterbi(observations,pStateGivenPrev,pObsGivenState,pStateInitial,input,observationTimes);
+
 %Viz:
 [fh] = vizHMMInference(pSmoothed,pStateGivenPrev(0),pObsGivenState,observations,observationTimes,range,[0 1],1:N);
 
@@ -27,15 +31,11 @@ observations=discretizeObs(binornd(1,underlyingObsP),2,[0,1]);
 ph=findobj(fh,'Type','Axes');
 axes(ph(2))
 plot(1:N,underlyingState,'k','LineWidth',1)
+%Add viterbi sequence: 
+plot(1:N,optSeq,'r')
 
 %Add avg. observation:
 axes(ph(1))
 hold on
 aux=splitapply(@(x) sum(x==2)/length(x), observations, observationTimes);
 plot(1:N,aux,'r')
-
-%Add viterbi sequence: %TO DO
-%[optSeq,logL]=viterbi(obs,transitionMatrix,emissionMatrix,priorP);
-%%Viterbi is not implemented to have multiple obs at a single time, nor
-%%times with no obs.
-%plot(1:N,optSeq,'r')

@@ -44,7 +44,13 @@ observations=observations(idx);
 
 %Define relevant sizes:
 N=length(observations);
-[D,M]=size(pObsGivenState); %M should equal N
+if ~isa(pObsGivenState,'function_handle')
+    O=pObsGivenState;
+    O=columnNormalize(O);
+else
+    O=pObsGivenState(0);
+end
+[D,M]=size(O); %M should equal N
 
 %Define init state if not given:
 if nargin<4
