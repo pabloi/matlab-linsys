@@ -18,6 +18,7 @@ properties (Dependent)
   AICc
   %fittedOutput
   %fittedResiduals
+  fittedLogL
 end
 methods
   function this=fittedLinsys(A,C,R,B,D,Q,iC,dataSet,methodName,opts,gof,outlog)
@@ -36,10 +37,10 @@ methods
       if nargin>10
         this.goodnessOfFit=gof;
         %Todo: validate this logL value using the iC, dataSet
-        [~,~,~,logL]=this.Kfilter(dataSet,iC);
-        if abs(gof-logL)>1
-          warning(['Provided gof does not match log-L of model with given initial conditions. gof=' num2str(gof) ', logL now=' num2str(logL) ', gap=' num2str(gof-logL)])
-        end
+        %[~,~,~,logL]=this.Kfilter(dataSet,iC);
+        %if abs(gof-logL)>1
+        %  warning(['Provided gof does not match log-L of model with given initial conditions. gof=' num2str(gof) ', logL now=' num2str(logL) ', gap=' num2str(gof-logL)])
+        %end
       end
       if nargin>6 && ~isempty(iC)
         this.initCondPrior=iC; %Should be initCond object
@@ -132,18 +133,23 @@ methods
     end
     df=Nr;
   end
+  function ll=get.fittedLogL(this)
+      if strcmp(this.method,'EM') || strcmp(this.method,'repeatedEM')
+        ll=sum(this.goodnessOfFit);
+      else
+          error('logL is not the goodness of fit metric unless EM was used to fit the model')
+      end
+  end
   function bic=get.BIC(this)
     if strcmp(this.method,'EM') || strcmp(this.method,'repeatedEM')
-      logL=this.goodnessOfFit;
-      bic=-2*logL+log(this.dataSetNonNaNSamples)*this.dof;
+      bic=-2*this.fittedLogL+log(sum(this.dataSetNonNaNSamples))*this.dof;
     else
       error('BIC is not defined unless goodness of fit metric is logL')
     end
   end
   function aic=get.AIC(this)
     if strcmp(this.method,'EM') || strcmp(this.method,'repeatedEM')
-      logL=this.goodnessOfFit;
-      aic=-2*logL+2*this.dof;
+      aic=-2*this.fittedLogL+2*this.dof;
     else
       error('AIC is not defined unless goodness of fit metric is logL')
     end
@@ -151,7 +157,7 @@ methods
   function aicc=get.AICc(this)
       if strcmp(this.method,'EM') || strcmp(this.method,'repeatedEM')
         p=this.dof;
-        N=this.dataSetNonNaNSamples;
+        N=sum(this.dataSetNonNaNSamples); %Dealing with models fit to multiple realizations
         v=this.Rdof;
         k=p+v;
         aicc=this.AIC+2*p*k/(N*this.Noutput-k);
@@ -201,11 +207,12 @@ methods(Static)
         fh=figure('Units','Normalized','OuterPosition',[.25 .4 .5 .3]);
 
         %LogL, BIC, AIC, AICc
-            logLtest=cellfun(@(x) x.goodnessOfFit,fittedModels);
+            logLtest=cellfun(@(x) sum(x.goodnessOfFit),fittedModels); %The sum() allows dealing with models fitted to many realizations of a system (gof has one value for each realization)
             BIC=-cellfun(@(x) x.BIC,fittedModels)/2;
             AIC=-cellfun(@(x) x.AIC,fittedModels)/2;
             AICc=-cellfun(@(x) x.AICc,fittedModels)/2;
-            for kj=1:4 %logL, BIC, aic, aicc: constrain BIC,AIC, AICc and LRT stats on logL for fittedLinsys that were fitted to this particular dataset
+            hyb=(BIC+AICc)/2;
+            for kj=1:5 %logL, BIC, aic, aicc: constrain BIC,AIC, AICc and LRT stats on logL for fittedLinsys that were fitted to this particular dataset
                 switch kj
                     case 1
                         yy=logLtest;
@@ -219,19 +226,23 @@ methods(Static)
                     case 4
                         yy=AICc;
                         nn='-\Delta AICc/2';
+                    case 5
+                        yy=hyb;
+                        nn='-\Delta HYB/2';
                 end
-                subplot(1,4,kj)
+                subplot(1,5,kj)
                 hold on
                 Mm=length(fittedModels);
                 DeltaIC=yy-max(yy);
                 modelL=exp(DeltaIC);
                 w=modelL/sum(modelL); %Computes bayes factors, or Akaike weights. See Wagenmakers and Farrell 2004, Akaike 1978, Kass and Raferty 1995
                 yy=yy-min(yy);
+                yy=yy-yy(1); %Plotting with respect to first model in list
                 My=max(max(yy),0);
                 my=min(min(yy),0);
                 for k=1:Mm
-                    set(gca,'ColorOrderIndex',k)
-                    bar2=bar([k*100],yy(k),'EdgeColor','none','BarWidth',100);
+                    set(gca,'ColorOrderIndex',1)
+                    bar2=bar([k*100],yy(k),'EdgeColor','w','BarWidth',100,'FaceAlpha',.5);
                     txt=num2str(yy(k),6);
                     txt='';
                     if kj==1 && k>1

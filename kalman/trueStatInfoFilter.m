@@ -60,7 +60,7 @@ for i=1:slowSamples
   elseif all(Q(:)==0)
       if invertibleA
           cI=mycholcov(prevI); %Could use chol() if prevI was guaranteed to be invertible, which has to be the case for invertibleA and after processing enough non-nan samples.
-          iAcI=iA'*cI;
+          iAcI=iA'*cI';
           prevI=iAcI*iAcI';
           previ=iA'*previ+prevI*BU(:,i);
       else %Some info will go to infinity! (0 uncertainty along some state subspace, numerically ugly)

@@ -268,7 +268,7 @@ else %Data is in matrix form, i.e., single realization
         xx1=X(:,2:end)*X(:,1:end-1)';
         %Remove data associated to NaN values:
         if any(any(isnan(Y)))
-          idx=~any(isnan(Y));
+          idx=~any(isnan(Y),1);
           Y=Y(:,idx);
           X=X(:,idx);
           U=U(:,idx);

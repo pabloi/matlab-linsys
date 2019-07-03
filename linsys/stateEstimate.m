@@ -8,6 +8,7 @@ end
 properties(Dependent)
   Nsamp
   order
+  isMultiple
 end
 methods
     function this=stateEstimate(x,P,Plag)
@@ -62,6 +63,55 @@ methods
       %Gets a single sample to be used as initial condition in other functions
         initC=initCond(this.state(:,N),this.covar(:,:,N));
     end
-
+    function fl=get.isMultiple(this)
+        fl=iscell(this.state);
+    end
+    function newThis=extractSingle(this,i)
+       if this.isMultiple
+           if i>length(this.state)
+               error('stateEstim:extractSingle',['Single index provided (' num2str(i) ') is larger than available number of states in this object (' num2str(length(this.state)) ').'])
+           else
+               newThis=stateEstimate(this.state{i},this.covar{i});
+           end
+       else
+           error('stateEstim object is not multiple, cannot extract a single set')
+       end
+    end
+    function newThis=marginalize(this,N)
+        if isempty(this.lagOneCovar)
+            newThis=stateEstimate(this.state(N,:),this.covar(N,N,:));
+        else
+            newLagOne=this.lagOneCovar(N,N,:);
+            newThis=stateEstimate(this.state(N,:),this.covar(N,N,:),newLagOne);
+        end
+    end
+    function plot(this,offset,prc,ph)
+        
+        if nargin<4
+            ph=gca;
+        end
+        if nargin<3 || isempty(prc)
+            prc=99.7; %99.7% percentile, roughly +- 3 std
+        end
+        if nargin<2
+            offset=0;
+        end
+        axes(ph)
+        hold on
+        x=offset+[1:this.Nsamp];
+        if prc>=0 && prc<=100
+            f=norminv(1-.5*(1-prc/100),0,1); %Number of std away to get this percentile of the distribution in the shaded area
+        else
+            error('prc must be a number between 0 and 100')
+        end
+        for i=1:this.order
+            set(gca,'ColorOrderIndex',i);
+            y=this.state(i,:);
+            pl=plot(x,y,'LineWidth',2);
+            e=f*squeeze(sqrt(this.covar(i,i,:)))'; %To represent roughly a 99.7% CI (smaller CIs are usually hard to see)
+            pp=patch([x fliplr(x)],[y+e, fliplr(y-e)],pl.Color,'EdgeColor','none','FaceAlpha',.5);
+            uistack(pp,'bottom')
+        end
+    end
 end
 end

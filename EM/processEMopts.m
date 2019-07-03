@@ -41,6 +41,7 @@ defaultOpts.refineTol=1e-4; %Very picky, increase in logL every 1e2 iterations p
 defaultOpts.refineMaxIter=2e4;
 defaultOpts.refineFastFlag=true; %Fast refining before slow one
 defaultOpts.fastRefineTolFactor=10;  %Lower tolerance, as in fast mode we can afford to do more evaluations and use this to skip locally-flat regions.
+defaultOpts.disableRefine=false; %Allowing by default
 
 %Assign any options that were not provided with default values:
 fNames=fieldnames(defaultOpts);

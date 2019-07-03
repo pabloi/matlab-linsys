@@ -50,6 +50,15 @@ end
 %% Define colormap:
 ex1=[1,0,0];
 ex2=[0,0,1];
+cc=[0    0.4470    0.7410
+    0.8500    0.3250    0.0980
+    0.9290    0.6940    0.1250
+    0.4940    0.1840    0.5560
+    0.4660    0.6740    0.1880
+    0.3010    0.7450    0.9330
+    0.6350    0.0780    0.1840];
+ex1=cc(2,:);
+ex2=cc(5,:);
 mid=ones(1,3);
 N=100;
 gamma=1.5; %gamma > 1 expands the white (mid) part of the map, 'hiding' low values. Gamma<1 does the opposite
@@ -117,13 +126,13 @@ for i=1:size(CD,2)
     hold on
     aa=axis;
     plot([0.1 1.9]+.5, [16 16],'k','LineWidth',2,'Clipping','off')
-    text(1,17,'DS','FontSize',7)
+    text(.8,17,'DS','FontSize',6)
     plot([2.1 5.9]+.5, [16 16],'k','LineWidth',2,'Clipping','off')
-    text(3,17,'STANCE','FontSize',7)
+    text(2.8,17,'SINGLE','FontSize',6)
     plot([6.1 7.9]+.5, [16 16],'k','LineWidth',2,'Clipping','off')
-    text(7,17,'DS','FontSize',7)
+    text(6.9,17,'DS','FontSize',6)
     plot([8.1 11.9]+.5, [16 16],'k','LineWidth',2,'Clipping','off')
-    text(9,17,'SWING','FontSize',7)
+    text(9,17,'SWING','FontSize',6)
     axis(aa)
 
 end
@@ -157,7 +166,7 @@ viewPoints(viewPoints>N-binw/2)=[];
 Ny=length(viewPoints);
 M=length(model);
 dd=Y(:,1:150);
-dd=dd-mean(dd,2);
+dd=dd-mean(dd,2); %Baseline residuals under flat model
 meanVar=mean(sum(dd.^2,1),2);
 for k=1:3
     for i=1:Ny
@@ -191,13 +200,13 @@ for k=1:3
         axis tight
         if k==1
             %title(['Output at t=' num2str(viewPoints(i))])
-            txt={'Early Adap','Late Adap','Early Post (1-5)','Early(ish) Post (26-30)','Mid post (201-205)'};
+            txt={'Early Adap (1-4)','Late Adap (last 4)','Early Post (1-5)','Early(ish) Post (26-30)','Mid post (201-205)'};
             title(txt{i})
             ax=gca;
             ax.Title.FontSize=10;
         end
         if k==3
-            title(['Residual=' num2str(mean(sum(dd.^2,1),2)/meanVar)])
+            title(['Normalized RMSE=' num2str(sqrt(mean(sum(dd.^2,1),2))/sqrt(meanVar))])
         end
         if i==1
             ylabel(nn)
@@ -214,26 +223,33 @@ subplot(Nx,Ny,1+9*Ny)
 hold on
 dd=model{1}.oneAheadRes;
 %dd=Y-CD*projY;
-aux1=sqrt(sum(dd.^2));
-binw=10;
+aux1=sqrt(sum(dd.^2))/sqrt(meanVar);
+binw=5;
 aux1=conv(aux1,ones(1,binw)/binw,'valid'); %Smoothing
-p1=plot(aux1,'LineWidth',1,'DisplayName','Residual RMSE, 10-stride mov. avg.');
+p1=plot(aux1,'LineWidth',2,'DisplayName','3-state model');
 %title('MLE one-ahead output error (RMSE, mov. avg.)')
 axis tight
 grid on
 set(gca,'YScale','log')
-ind=find(diff(U)~=0);
+%Add previous stride model:
+ind=find(diff(U(1,:))~=0);
+Y2=Y;
 Y(:,ind)=nan;
-aux1=conv2(Y,[-.5,1,-.5]/sqrt(1.5),'valid'); %Y(k)-.5*(y(k+1)+y(k-1));
-aux1=(Y(:,2:end)-Y(:,1:end-1))/sqrt(2);
-aux1=sqrt(sum(aux1.^2));
+aux1=(Y(:,2:end)-Y(:,1:end-1));%/sqrt(2);
+aux1=sqrt(sum(aux1.^2))/sqrt(meanVar);
 aux1=conv(aux1,ones(1,binw)/binw,'valid'); %Smoothing
-plot(aux1,'LineWidth',1,'DisplayName','Instantaneous std') ;
+plot(aux1,'LineWidth',1,'DisplayName','Prev. datapoint','Color',.5*ones(1,3)) ;
 ylabel({'Residual';' RMSE'})
 ax=gca;
 ax.YAxis.Label.FontSize=12;
 ax.YAxis.Label.FontWeight='bold';
-legend('Location','NorthEast')
+ax.YTick=[1:3];
+%Add flat model:
+aux1=Y2-Y2/U*U;
+aux1=sqrt(sum(aux1.^2))/sqrt(meanVar);
+aux1=conv(aux1,ones(1,binw)/binw,'valid'); %Smoothing
+plot(aux1,'LineWidth',1,'DisplayName','Flat','Color','k') ;
+legend('Location','NorthEastOutside')
 
 %subplot(Nx,Ny,2+9*Ny)
 %[pp,cc,aa]=pca((dd'),'Centered','off');
@@ -254,4 +270,13 @@ legend('Location','NorthEast')
 %grid on
 %set(gca,'YScale','log')
 
+end
+%% Save fig
+fName='OpenSans';
+txt=findobj(gcf,'Type','Text');
+set(txt,'FontName',fName);
+ax=findobj(gcf,'Type','Axes');
+set(ax,'FontName',fName);
+for i=1:length(ax)
+    ax(i).Title.FontWeight='normal';
 end

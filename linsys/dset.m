@@ -104,7 +104,10 @@ classdef dset
             newThis=this;
             newThis.out(excludeIdx,:)=[];
         end
-        function multiSet=split(this,breaks)
+        function multiSet=split(this,breaks,returnAsMultiSet)
+            if nargin<3
+                returnAsMultiSet=false;
+            end
             if this.isMultiple
                 error('Unimplemented')
             end
@@ -121,9 +124,13 @@ classdef dset
             newIn=mat2cell(this.in,this.Ninput,diff(breaks));
             newOut=mat2cell(this.out,this.Noutput,diff(breaks));
             N=length(newIn);
+            if returnAsMultiSet
+                multiSet=dset(newIn,newOut);
+            else
             multiSet=cell(N,1);
             for i=1:N
               multiSet{i}=dset(newIn{i},newOut{i});
+            end
             end
         end
         function multiSet=blockSplit(this,blockSize,Npartitions)
@@ -226,6 +233,17 @@ classdef dset
            %that time. If most samples are close to steady-state, then the
            %third term is negligible, and this becomes an estimate of
            %R+.5*CQC'
+        end
+        function newThis=extractSingle(this,i)
+           if this.isMultiple
+               if i>length(this.out)
+                   error('dset:extractSingle',['Single index provided (' num2str(i) ') is larger than available number of dsets in this object (' num2str(length(this.out)) ').'])
+               else
+                   newThis=dset(this.in{i},this.out{i});
+               end
+           else
+               error('dset object is not multiple, cannot extract a single set')
+           end
         end
     end
 end

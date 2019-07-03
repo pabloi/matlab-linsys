@@ -106,7 +106,7 @@ if isempty(which('SmoothLDS')) %Function not found
     cd ../../kalman/test/ %This directory
 end
 mdl=6;
-opts.noReduceFlag=false;
+opts.noReduceFlag=false; %C version is very slow for systems with large number of inputs, but very fast for systems with a low number
 tic
 [Xs,Ps,Pt,logL(mdl)]=statKalmanSmootherCS2006(Y,A,C,Q,R,x0,P0,B,D,U,opts);
 res(mdl)=norm(Xs-X,'fro')^2;
@@ -125,56 +125,74 @@ maxRes(mdl)=max(sum((Xs-X).^2));
 name{mdl}='CS';
 res2KS(mdl)=norm(Xs-Xcs,'fro');
 tc(mdl)=toc;
-
-
+%%
+%save results.mat res tc logL maxRes res2KS name A
 %% Visualize results
-fh=figure;
-subplot(5,1,1) %Bar of residuals
-bar(sqrt(res),'EdgeColor','none')
-set(gca,'XTickLabel',name,'YScale','log')
+%load results.mat
+%name={'KS','KSred','KSredF','IS','CSred','CSred C','CS'};
+idx=1:7;
+figure('Units','Pixels','InnerPosition',[100 100 300*4 300])
+subplot(1,4,1) %Bar of residuals
+bar(sqrt(res(idx)),'EdgeColor','none')
+set(gca,'XTickLabel',name(idx),'YScale','log')
 title('RMSE residuals')
 axis tight
 aa=axis;
-axis([aa(1:2) min(sqrt(res))*.9999 sqrt(max(res(1:end-1)))*1.0001])
+axis([aa(1:2) min(sqrt(res(idx)))*.9999 sqrt(max(res(1:end-1)))*1.0001])
 grid on
 
-subplot(5,1,2) %Bar of residuals to KS
-bar(res2KS,'EdgeColor','none')
-set(gca,'XTickLabel',name)
+subplot(1,4,2) %Bar of residuals to KS
+bar(res2KS(idx),'EdgeColor','none')
+set(gca,'XTickLabel',name(idx))
 title('RMSE residuals to KS')
 axis tight
 aa=axis;
 axis([aa(1:2) 0 1e-12])
 grid on
 
-subplot(5,1,3) %Bar of max res
-bar(sqrt(maxRes),'EdgeColor','none')
-set(gca,'XTickLabel',name)
+subplot(1,4,3) %Bar of max res
+bar(sqrt(maxRes(idx)),'EdgeColor','none')
+set(gca,'XTickLabel',name(idx))
 title('Max sample rMSE')
 axis tight
 aa=axis;
-axis([aa(1:2) 0 sqrt(max(maxRes))*1.1])
+axis([aa(1:2) 0 sqrt(max(maxRes(idx)))*1.1])
 grid on
 
-subplot(5,1,4) %Bar of logL
-bar(logL,'EdgeColor','none')
-set(gca,'XTickLabel',name)
-title('LogL')
-axis tight
-aa=axis;
-axis([aa(1:2) logL(1)+[-1 1]*1e-5])
-grid on
+%subplot(1,5,4) %Bar of logL
+%bar(logL(idx),'EdgeColor','none')
+%set(gca,'XTickLabel',name(idx))
+%title('LogL')
+%axis tight
+%aa=axis;
+%axis([aa(1:2) logL(1)+[-1 1]*1e-5])
+%grid on
 
-subplot(5,1,5) %Bar of running times
-bar(tc/tc(3),'EdgeColor','none')
-set(gca,'XTickLabel',name,'YScale','log','YTick',[.5 1 1e1 1e2 1e3])
+subplot(1,4,4) %Bar of running times
+bar(tc(idx)/tc(3),'EdgeColor','none')
+set(gca,'XTickLabel',name(idx),'YScale','log','YTick',[.5 1 1e1 1e2 1e3])
 axis tight
 aa=axis;
 axis([aa(1:2) .5 2e2])
-title(['Relative running time, KSred fast=' num2str(tc(3))])
+title(['Relative running time(s), KSred fast=' num2str(tc(3),3)])
 grid on
 
 logL
 %Save fig
-print(fh,['results.eps'],'-depsc','-tiff','-r2400')
-save results.mat res tc logL maxRes res2KS
+%print(fh,['results.eps'],'-depsc','-tiff','-r2400')
+
+%% Just time
+load results.mat
+name={'KS','KSred','KSred_f','IS','CSred','CSred C','CS'};
+idx=[1,2,3,7];
+figure('Units','Pixels','InnerPosition',[100 100 300*2 300])
+bar(tc(idx)/tc(3),'EdgeColor','none','FaceAlpha',.7)
+set(gca,'XTickLabel',name(idx),'YScale','log','YTick',[.5 1 1e1 1e2 1e3])
+axis tight
+aa=axis;
+axis([0 5 .5 2e2])
+title(['Smoothing time comparison'])
+text(2.67,1.3,[ num2str(tc(3),3) ' s'])
+ylabel('Relative running time')
+
+grid on

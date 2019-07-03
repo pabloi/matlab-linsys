@@ -36,7 +36,7 @@ else
   ny=size(Y,1);
 end
 if numel(Xguess)==1
-  nx=numel(Xguess); %Order of model
+  nx=Xguess; %Order of model
 else
   nx=size(Xguess,1);
 end
@@ -158,7 +158,13 @@ fprintf([msg ' \n']);
 disp(['Finished. Number of iterations = ' num2str(k) ', logL = ' num2str(bestLogL,8) ', \tau =' num2str(-1./log(sort(eig(A)))')])
 
 %% If some outputs were excluded, replace the corresponding values in C,R:
-if size(Yred,1)<size(Y,1)
+if iscell(Y)
+    Y=cell2mat(Y(:)');
+    U=cell2mat(U(:)');
+end
+n1=size(Y,1);
+n2=size(Yred,1);
+if n2<n1
     Raux=R;
     R=diag(inf(ny,1));
     R(opts.includeOutputIdx,opts.includeOutputIdx)=Raux;
@@ -168,7 +174,7 @@ if size(Yred,1)<size(Y,1)
     %And recompute the most likely values for D: (most likely values are not
     %the same with or without C contributions)
     Daux=D;
-    D=Y/U;
+    D=Y/U; %Computing least-squares estimate for these components of D.
     D(opts.includeOutputIdx,:)=Daux;
 end
 end  %Function
@@ -218,7 +224,7 @@ function [logl,dropCount,breakFlag,msg]=checkStopping(l,k,opts,logl,dropCount,be
       logL100ago=logl(max(k-100,1));
       targetRelImprovement100=(l-logL100ago)/(opts.targetLogL-logL100ago);
       belowTarget=max(l,bestLogL)<opts.targetLogL;
-      relImprovementLast100=l-logL100ago; %Assessing the improvement on logl over the last 50 iterations (or less if there aren't as many)
+      relImprovementLast100=l-logL100ago; %Assessing the improvement on logl over the last 100 iterations (or less if there aren't as many)
 
       %Check for warning conditions:
       if ~improvement %This should never happen

@@ -70,36 +70,98 @@ fh=vizCVDataLikelihood(fitMdlBlkRed,datSetBlk([2,1]));
 fh.Name='Blocked (20) CV';
 fh=vizCVDataLikelihood(fitMdlBlkRed100,datSetBlk100([2,1]));
 fh.Name='Blocked (100) CV';
+%To do: put all in single figure, make pretty
 
-%% Train set log-L:
-fittedLinsys.compare(fitMdlAPRed(:,1))
-fittedLinsys.compare(fitMdlAPRed(:,2))
-fittedLinsys.compare(fitMdlOERed(:,1))
-fittedLinsys.compare(fitMdlOERed(:,2))
-%Need to put these 4 in a single figure, set proper size, remove unnecessary text, export as
-%eps
-fittedLinsys.compare(fitMdlBlkRed(:,1))
-fittedLinsys.compare(fitMdlBlkRed(:,2))
-fittedLinsys.compare(fitMdlBlkRed100(:,1))
-fittedLinsys.compare(fitMdlBlkRed100(:,2))
-%[fh] = vizCVDataLikelihood(fitMdlAP,datSetAP);
+%% in-sample criteria:
+load testModelSelectionCVRed.mat
+load testModelSelectionRed.mat
+fitMdlRed=[{linsys.id(simDatSet,0,opts)};fitMdlRed];
+mdlList=[fitMdlRed fitMdlAPRed fitMdlOERed fitMdlBlkRed fitMdlBlkRed100];
+cvDatSetList=[{''};datSetAP([2,1]);datSetOE([2,1]);datSetBlk([2,1]);datSetBlk100([2,1])];
+name={'All','First half','Second half','Odd [1]','Even [1]','Odd [20]','Even [20]','Odd [100]','Even [100]'};
+f1=figure('Units','Pixels','InnerPosition',[100 100 300*2 300*6]);
+M=size(mdlList,2);
+panelNx=5;
+for i=1:M
+    fh=fittedLinsys.compare(mdlList(:,i));
+    ph=findobj(fh,'Type','Axes');
+    p1=copyobj(ph,f1);
+            close(fh)
+    if i==1
+        set(p1,'XTickLabel',{'Flat','1','2','3','4','5','6'})
+    else
+        set(p1,'XTickLabel',{})
+    end
+    p1=p1(end:-1:1);
+    p1(1).YAxis.Label.String=name{i};
 
-%vizCVDataLikelihood(fitMdlBlk,datSetBlk);
-% ah=copyobj(ph([2,3]),fh);
-% ah(1).Title.String={'Adapt-model';'Cross-validation'};
-% ah(1).YAxis.Label.String={'Post-data'; 'log-L'};
-% ah(2).Title.String={'Adapt-model';'-BIC/2'};
-% ah(2).XTickLabel={'1','2','3','4','5','6'};
-% ah(1).XTickLabel={'1','2','3','4','5','6'};
-% ah1=copyobj(ph1([1,4]),fh);
-% ah1(2).Title.String={'Post-model';'Cross-validation'};
-% ah1(2).YAxis.Label.String={'Adapt-data';'log-L'};
-% ah1(2).XAxis.Label.String={'Model Order'};
-% ah1(2).XTickLabel={'1','2','3','4','5','6'};
-% ah1(1).XAxis.Label.String={'Model Order'};
-% ah1(1).XTickLabel={'1','2','3','4','5','6'};
-% ah1(1).Title.String={'Post-model';'-BIC/2'};
-% set(gcf,'Name','Adapt/Post cross-validation');
+    for k=1:length(p1)
+       p1(k).Position=[.07+(k-1)*.9/panelNx .05+(i-1)*(.93/M) .9*.9/panelNx .9*.93/M]; 
+       if i~=M
+        p1(k).Title.String='';
+       else
+           p1(k).Title.String=regexp(p1(k).Title.String,'\\Delta.*$','match'); %Removing the - sign
+       end
+       p1(k).YTickLabel={};
+       p1(k).YAxis.TickValues=[];
+
+       axes(p1(k))
+       grid off
+       bb=findobj(p1(k),'Type','bar');
+       set(bb,'EdgeColor','w','FaceAlpha',.5);
+       tt=findobj(p1(k),'Type','text');
+       set(tt,'Color','k')
+       if k==1
+       for kk=1:length(tt)
+          tt(kk).String=[regexp(tt(kk).String,'p.*$','match')];%regexp('p*',tt(kk).String) ;
+          tt(kk).Position(2)=100;
+       end
+       else
+           p1(k).YAxis.Color='w';
+       end
+       %Set axis origin to flat model:
+       p1(k).YAxis.Limits(1)=bb(end).YData;
+    end
+    delete(p1(end))
+    %Add CV logL panel:
+    if i~=1
+        k=panelNx;
+        [fh] = vizCVDataLikelihood(mdlList(:,i),cvDatSetList{i});
+        p1=copyobj(findobj(fh,'Type','Axes'),f1);
+        close(fh)
+        p1.Position=[.07+(k-1)*.9/panelNx .05+(i-1)*(.93/M) .9*.9/panelNx .9*.93/M]; 
+        if i==2
+            set(p1,'XTickLabel',{'Flat','1','2','3','4','5','6'})
+        else
+            set(p1,'XTickLabel',{})
+        end
+        axes(p1)
+        grid off
+       bb=findobj(p1,'Type','bar');
+       set(bb,'EdgeColor','w','FaceAlpha',.5);
+       tt=findobj(p1,'Type','text');
+       delete(tt)
+       yd=cell2mat(get(bb,'YData'));
+       xd=cell2mat(get(bb,'XData'));
+       [~,idx]=max(yd);
+       text(xd(idx)-33,.9*yd(idx), '*','Color','k','FontSize',12)
+       if i~=M
+           p1.Title.String='';
+       else
+           p1.Title.String='\Delta CVlogL';
+       end
+       p1.YAxis.Limits(1)=bb(end).YData;
+       p1.YAxis.TickLabels={};
+       p1.YAxis.TickValues=[];
+       p1.GridColor='none';
+       p1.YAxis.Color='w';
+    end
+end
+tt=findobj(f1,'Type','Text');
+set(tt,'FontName','OpenSans')
+tt=findobj(f1,'Type','Axes');
+set(tt,'FontName','OpenSans')
+saveFig(f1,'./','inSampleModelSelection',0)
 
 %% Show results as table:
 clear all
