@@ -28,12 +28,12 @@ function [pPredicted, pUpdated, pSmoothed] = HMMnonStationaryInferenceAlt(observ
 %in the kalman-smoother style
 
 %Sort observations by time:
-[obsTimes,idx]=sort(observationTimes,'ascend');
+[observationTimes,idx]=sort(observationTimes,'ascend');
 endT=length(input);
-if obsTimes(1)<1
+if observationTimes(1)<1
     error('Observation times before initial condition!')
 end
-if obsTimes(end)>endT
+if observationTimes(end)>endT
     error('Observations outside the input range')
 end
 startT=1; %starting time is always assumed to be 1 (corresponding to pStateInitial)
@@ -87,8 +87,11 @@ for i=startT:endT
     end
    %Update:
    currentTimeObs=observations(observationTimes==i);
+   if ~isempty(currentTimeObs)
+       1;
    for j=1:length(currentTimeObs)
     p = HMMupdate(p,O(currentTimeObs(j),:));
+   end
    end
     pUpdated(:,i) = p;
    %Predict:
