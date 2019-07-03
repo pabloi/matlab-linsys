@@ -7,6 +7,7 @@ end
 if nargin<6
 timeRange=1:size(pEstimate,2);
 end
+timeRange=timeRange(:);
 
 fh=figure;
 subplot(3,2,1) %Transition matrix
