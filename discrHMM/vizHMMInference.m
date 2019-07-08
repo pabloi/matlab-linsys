@@ -10,7 +10,9 @@ end
 timeRange=timeRange(:);
 
 fh=figure;
-subplot(3,2,1) %Transition matrix
+%subplot(3,2,1) %Transition matrix
+ax=axes;
+ax.Position=[.1 .69 .39 .25]; 
 cc=get(gca,'ColorOrder');
 t=[0:100]'/100;
 map=ones(1,3).*(1-t)+t.*cc(1,:);
@@ -24,9 +26,12 @@ xlabel('Current state')
 ylabel('Next state')
 colormap(map)
 ax.CLim=[0 max(pStateGivenPrev(:))];
+colorbar
 
 
-subplot(3,2,2) %Obs matrix
+%subplot(3,2,2) %Obs matrix
+ax=axes;
+ax.Position=[.58 .69 .39 .25]; 
 imagesc(stateRange,obsRange,pObsGivenState)
 title('Observation matrix')
 axis tight
@@ -37,8 +42,11 @@ xlabel('State')
 ylabel('Obs')
 colormap(map)
 ax.CLim=[0 max(pObsGivenState(:))];
+colorbar
 
-subplot(3,2,3:4) %Estimate evolution
+%subplot(3,2,3:4) %Estimate evolution
+ax=axes;
+ax.Position=[.1 .34 .85 .25]; 
 imagesc(timeRange,stateRange,pEstimate)
 ax=gca;
 ax.YAxis.Direction='normal';
@@ -49,8 +57,11 @@ plot(timeRange,range(MLE),'r','LineWidth',2)
 axis tight
 colormap(map)
 ax.CLim=[0 max(pEstimate(:))];
+colorbar
 
-subplot(3,2,5:6) %Observations
+%subplot(3,2,5:6) %Observations
+ax=axes;
+ax.Position=[.1 .04 .85 .25]; 
 scatter(timeRange(obsTimes)+.5*(randn(size(obsTimes))-.5),obsRange(obs),'filled')
 %To do: something to separate multipe obs at same time visually
 
