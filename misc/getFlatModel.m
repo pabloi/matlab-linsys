@@ -1,5 +1,9 @@
 function [J,B,C,D,Q,R,logLperSamplePerDim]=getFlatModel(Y,U,opts)
 nx=0;
+if isa(Y,'cell') %Many realizations
+   Y=cell2mat(Y(:)'); 
+   U=cell2mat(U(:)'); 
+end
 nu=size(U,1);
 ny=size(Y,1);
   if nargin<3

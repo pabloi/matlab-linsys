@@ -107,6 +107,19 @@ methods
              error('Unimplemented')
      end
   end
+  function on=get.obsNoise(this)
+       if ~strcmp(this.fitMethod,'KS')
+           error('Observation noise estimation is only defined for KS fitted models')
+       end
+     on=this.residual;
+  end
+  function sn=get.stateNoise(this)
+       if ~strcmp(this.fitMethod,'KS')
+           error('State noise estimation is only defined for KS fitted models')
+       end
+       N=size(this.dataSet.out,2);
+     sn=this.stateEstim.state(:,2:N)-this.model.A*this.stateEstim.state(:,1:N-1) - this.model.B*this.dataSet.in(:,1:N-1);
+  end
 end
 
 end

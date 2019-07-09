@@ -231,6 +231,7 @@ classdef linsys
            opts.indD=~all(this.D==0); %Respecting the mask of D
            opts.Niter=1000; %To avoid too long refinement
            opts.convergenceTol=1e-5;
+           opts.fastFlag=false;
            if isa(this,'fittedLinsys')
            opts.includeOutputIdx=this.trainOptions.includeOutputIdx; %Only fitting to subset of data, as originally done
            end
@@ -585,6 +586,14 @@ classdef linsys
               if isa(datSet,'cell') && numel(datSet)>1 %Many datSets provided
                   N=numel(datSet);
               else
+                  if isa(datSet,'dset') && datSet.isMultiple %Multiple datSet
+                  warning(['Provided a multiple dataset' ...
+                  'This will be treated as many realizations of the same ' ...
+                  'system for identification purposes. If each dataset ' ...
+                  'should be treated as a realization of an independent ' ...
+                  'system, please provide datasets separately inside a ' ...
+                  'cell array'])
+                  end
                 if ~isa(datSet,'cell')
                   datSet={datSet};
                 end
