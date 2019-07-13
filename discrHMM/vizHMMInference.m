@@ -16,7 +16,7 @@ ax.Position=[.1 .69 .39 .25];
 cc=get(gca,'ColorOrder');
 t=[0:100]'/100;
 map=ones(1,3).*(1-t)+t.*cc(1,:);
-imagesc(stateRange,stateRange,pStateGivenPrev)
+imagesc(stateRange,stateRange,columnNormalize(pStateGivenPrev))
 title('Transition matrix')
 axis tight
 ax=gca;

@@ -77,12 +77,12 @@ if ~isa(pStateGivenPrev,'function_handle')
 end
 for i=startT:endT
     %Compute matrices if necessary:
-    if isa(pObsGivenState,'function_handle') && (i==startT || input(i)~=input(i-1)) %Computing only if function, and only if input changed
-        O=pObsGivenState(input(i));
+    if isa(pObsGivenState,'function_handle') && (i==startT || any(input(i,:)~=input(i-1,:))) %Computing only if function, and only if input changed
+        O=pObsGivenState(input(i,:));
         O=columnNormalize(O);
     end
-    if isa(pStateGivenPrev,'function_handle') && (i==startT || input(i)~=input(i-1)) %Computing only if function, and only if input changed
-        T=pStateGivenPrev(input(i));
+    if isa(pStateGivenPrev,'function_handle') && (i==startT || any(input(i,:)~=input(i-1,:))) %Computing only if function, and only if input changed
+        T=pStateGivenPrev(input(i,:));
         T=columnNormalize(T);
     end
    %Update:
@@ -110,8 +110,8 @@ if nargout>2 %Don't bother smoothing if user did not ask for it.
     p=pUpdated(:,endT);
     pSmoothed(:,endT)=p;
     for i=(endT-1):-1:startT
-        if isa(pStateGivenPrev,'function_handle') && (i==(endT-1) || input(i)~=input(i+1)) %Computing only if function, and only if input changed
-            T=pStateGivenPrev(input(i));
+        if isa(pStateGivenPrev,'function_handle') && (i==(endT-1) || any(input(i,:)~=input(i+1,:))) %Computing only if function, and only if input changed
+            T=pStateGivenPrev(input(i,:)); 
         end
         p = HMMbackUpdate(p, pUpdated(:,i), T,pPredicted(:,i+1));
         pSmoothed(:,i) = p;
