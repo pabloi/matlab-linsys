@@ -161,7 +161,7 @@ else %IF DATA PRESENT:
 N=size(Y,2);
 viewPoints=[1,40,51,151,251,651,940,951,1001,1101,N-11]+5;
 viewPoints=[151,1044,1051,1075,1251]+3;
-%viewPoints=[151,175,1044,1051,1075,1251]+3;
+viewPoints=[151,175,1044,1051,1075,1251]+3;
 binw=4; %Plus minus 2
 viewPoints(viewPoints>N-binw/2)=[];
 Ny=length(viewPoints);
@@ -174,13 +174,13 @@ for k=1:3
         switch k
         case 1 % Third row, actual data
             dd=Y(:,viewPoints(i)+[-(binw/2):(binw/2)]);
-            nn='data';
+            nn='Data';
         case 2 %Fourth row: one-ahead data predictions
             dd=model{1}.oneAheadOut(:,viewPoints(i)+[-(binw/2):(binw/2)]);
-            nn={'MLE prediction';'(one-step ahead)'};
+            nn={'MLE Prediction';'(one-step ahead)'};
         case 3 % Fifth row:  data residuals (checkerboards)
             dd=model{1}.oneAheadRes(:,viewPoints(i)+[-(binw/2):(binw/2)]);
-            nn='residual';
+            nn='Residual';
         end
 
         subplot(Nx,Ny,i+(1+2*k)*Ny+[0,Ny])
@@ -201,19 +201,18 @@ for k=1:3
         axis tight
         if k==1
             %title(['Output at t=' num2str(viewPoints(i))])
-            txt={'early adap (1-4)','late adap (last 4)','early wash (1-5)','early(ish) wash. (26-30)','mid wash. (201-205)'};
-            %txt={'early adap (1-4)','early(ish) adap. (26-30)','late adap (last 4)','early wash (1-5)','early(ish) wash. (26-30)','mid wash. (201-205)'};
+            txt={'early adap (1-4)','early(ish) adap. (26-30)','late adap (last 4)','early wash (1-5)','early(ish) wash. (26-30)','mid wash. (201-205)'};
             title(txt{i})
             ax=gca;
             ax.Title.FontSize=10;
         end
         if k==3
-            title(['normalized RMSE=' num2str(sqrt(mean(sum(dd.^2,1),2))/sqrt(meanVar))])
+            title(['Normalized RMSE=' num2str(sqrt(mean(sum(dd.^2,1),2))/sqrt(meanVar))])
         end
         if i==1
             ylabel(nn)
             ax=gca;
-            ax.YAxis.Label.FontWeight='normal';
+            ax.YAxis.Label.FontWeight='bold';
             ax.YAxis.Label.FontSize=12;
         end
     end
@@ -228,7 +227,7 @@ dd=model{1}.oneAheadRes;
 aux1=sqrt(sum(dd.^2))/sqrt(meanVar);
 binw=5;
 aux1=conv(aux1,ones(1,binw)/binw,'valid'); %Smoothing
-p1=plot(aux1,'LineWidth',2,'DisplayName',[num2str(size(model{1}.C,2)) '-state model']);
+p1=plot(aux1,'LineWidth',2,'DisplayName','3-state model');
 %title('MLE one-ahead output error (RMSE, mov. avg.)')
 axis tight
 grid on
@@ -241,21 +240,18 @@ aux1=(Y(:,2:end)-Y(:,1:end-1));%/sqrt(2);
 aux1=sqrt(sum(aux1.^2))/sqrt(meanVar);
 aux1=conv(aux1,ones(1,binw)/binw,'valid'); %Smoothing
 plot(aux1,'LineWidth',1,'DisplayName','Prev. datapoint','Color',.5*ones(1,3)) ;
-ylabel({'residual';' RMSE'})
+ylabel({'Residual';' RMSE'})
 ax=gca;
 ax.YAxis.Label.FontSize=12;
-ax.YAxis.Label.FontWeight='normal';
+ax.YAxis.Label.FontWeight='bold';
 ax.YTick=[1:3];
 %Add flat model:
 aux1=Y2-Y2/U*U;
 aux1=sqrt(sum(aux1.^2))/sqrt(meanVar);
 aux1=conv(aux1,ones(1,binw)/binw,'valid'); %Smoothing
 plot(aux1,'LineWidth',1,'DisplayName','Flat','Color','k') ;
-legend('Location','NorthEastOutside','AutoUpdate','off')
-yl=ax.YAxis.Limits;
-pp=patch([149 1050 1050 149],[.5 .5 3.5 3.5],.7*ones(1,3),'FaceAlpha',.5,'EdgeColor','none');
-uistack(pp,'bottom')
-ax.YAxis.Limits=yl;
+legend('Location','NorthEastOutside')
+
 %subplot(Nx,Ny,2+9*Ny)
 %[pp,cc,aa]=pca((dd'),'Centered','off');
 %hold on

@@ -262,7 +262,7 @@ classdef linsys
                 initC=[];
             end
            dfit=this.fit(datSet,initC,'KS'); %MLE fit
-           f1=figure('Name','State fits','Units','Pixels','InnerPosition',[100 100 300*6 300*3]);
+           f1=figure('Name','state fits','Units','Pixels','InnerPosition',[100 100 300*6 300*2.5]);
            %For each state and input associated with NON-ZERO B column,
            %plot state estimates, data projections, and contribution to
            %output
@@ -272,9 +272,9 @@ classdef linsys
            M=Mx+Mu;
            xMargin=.05;
            xWidth=.9/M;
-           xCoverage=.9; %Determines whitespace
-           yMargin=.05;
-           yHeight=(1-2*yMargin)/3;
+           xCoverage=.8; %Determines whitespace
+           yMargin=.08;
+           yHeight=(1-2*yMargin)/4;
            yCoverage=.9;
            CD=[this.C this.D];
            dataProj=(CD\datSet.out);
@@ -282,25 +282,25 @@ classdef linsys
            %States first:
            for i=1:M
                %States:
-               ax=axes('Position',[xMargin+xWidth*(i-1) yMargin+2*yHeight xCoverage*xWidth yCoverage*yHeight]);
-               scatter(1:size(dataProj,2),dataProj(i,:),5,.5*ones(1,3),'filled','MarkerFaceAlpha',.3,'DisplayName','Data projection')
+               ax=axes('Position',[xMargin+xWidth*(i-1) yMargin+3*yHeight xCoverage*xWidth yCoverage*yHeight]);
+               scatter(1:size(dataProj,2),dataProj(i,:),5,.5*ones(1,3),'filled','MarkerFaceAlpha',.3,'DisplayName','data proj.')
                hold on
                if i<=Mx
                     dfit.stateEstim.marginalize(i).plot(0,[],ax); %States
-                    addedTXT=[', \tau = ' num2str(-1./log(this.A(i,i)),3) ', b = ' num2str(this.B(i,indB),2) ];
-                    title(['State ' num2str(i) addedTXT])
+                    addedTXT=['\tau = ' num2str(-1./log(this.A(i,i)),3) ', b = ' num2str(this.B(i,indB),2) ];
+                    title({['state ' num2str(i) ]; [addedTXT]})
                     pp=findobj(ax,'Type','Patch');
                     pp.DisplayName='99.7% CI';
                     pp=findobj(ax,'Type','Line');
-                    pp.DisplayName='State MLE';
+                    pp.DisplayName='state MLE';
                     uistack(pp,'top')
                else
                    pp=plot(datSet.in(indB(i-Mx),:),'LineWidth',2,'DisplayName','Input');
                    uistack(pp,'top')
                    if Mu>1
-                    title(['Input ' num2str(indB(i-Mx))])
+                    title(['input ' num2str(indB(i-Mx))])
                    else
-                       title('Input')
+                       title({'exogenous input';''})
                    end
                end
                axis tight
@@ -309,7 +309,7 @@ classdef linsys
                    legend('Location','NorthEast','Box','off')
                end
                %C,D columns
-               ax=axes('Position',[xMargin+xWidth*(i-1) yMargin xCoverage*xWidth yHeight+yCoverage*yHeight]);
+               ax=axes('Position',[xMargin+xWidth*(i-1) yMargin xCoverage*xWidth yHeight+yCoverage*2*yHeight]);
                imagesc(reshape(CD(:,i),12,15)')
                ex1=[0.8500    0.3250    0.0980]; %2nd MAtlab default color
                ex2=[0.4660    0.6740    0.1880]; %5th Matlab default color
