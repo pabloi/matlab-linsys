@@ -9,7 +9,7 @@ timeRange=1:size(pEstimate,2);
 end
 timeRange=timeRange(:);
 
-fh=figure;
+fh=figure('Units','Pixels','InnerPosition',[100 100 300*4 300*2]);
 %subplot(3,2,1) %Transition matrix
 ax=axes;
 ax.Position=[.1 .69 .39 .25]; 
