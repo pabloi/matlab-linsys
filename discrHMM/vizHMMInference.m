@@ -13,7 +13,7 @@ fh=figure;
 %subplot(3,2,1) %Transition matrix
 ax=axes;
 ax.Position=[.1 .69 .39 .25]; 
-cc=get(gca,'ColorOrder');
+cc=.7*get(gca,'ColorOrder');
 t=[0:100]'/100;
 map=ones(1,3).*(1-t)+t.*cc(1,:);
 imagesc(stateRange,stateRange,columnNormalize(pStateGivenPrev))
@@ -62,6 +62,9 @@ colorbar
 %subplot(3,2,5:6) %Observations
 ax=axes;
 ax.Position=[.1 .04 .85 .25]; 
+%obsPrediction= ;% Estimate of predicted responses at each point in time, if there are many responses at a single point, then the average response estimate is plotted
+%imagesc(obsPrediction)
+hold on
 scatter(timeRange(obsTimes)+.5*(randn(size(obsTimes))-.5),obsRange(obs),'filled')
 %To do: something to separate multipe obs at same time visually
 
